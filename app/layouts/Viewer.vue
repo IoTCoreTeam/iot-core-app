@@ -1,49 +1,55 @@
 <template>
   <div class="relative min-h-[90vh] flex flex-col">
+    <!-- Header cố định -->
     <AppHeader />
 
-    <!-- Spinner -->
-    <div
-      v-if="!hasContent"
-      class="flex items-center justify-center flex-1 bg-white h-[80vh]"
-    >
-      <div class="relative w-8 h-8">
-        <div
-          class="absolute inset-0 border-4 border-blue-300 border-t-blue-800 rounded-full animate-spin"
-        ></div>
-        <div
-          class="absolute inset-1 border-4 border-blue-200 border-t-transparent rounded-full animate-spin-slow"
-        ></div>
-      </div>
-    </div>
-
     <!-- Nội dung -->
-    <v-main v-else class="flex-1">
-      <slot />
-    </v-main>
+    <main class="relative flex-1 bg-white flex justify-center">
+      <!-- Spinner -->
+      <div
+        v-if="loading"
+        class="flex items-center justify-center w-full h-full my-auto"
+      >
+        <div class="relative w-8 h-8">
+          <div
+            class="absolute inset-0 border-4 border-blue-300 border-t-blue-800 rounded-full animate-spin"
+          ></div>
+          <div
+            class="absolute inset-1 border-4 border-blue-200 border-t-transparent rounded-full animate-spin-slow"
+          ></div>
+        </div>
+      </div>
 
+      <!-- Nội dung page -->
+      <div v-else class="w-full h-full">
+        <slot />
+      </div>
+    </main>
+
+    <!-- Footer cố định -->
     <AppFooter />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import AppHeader from '~/components/AppHeader.vue'
 import AppFooter from '~/components/AppFooter.vue'
 
-const hasContent = ref(false)
+const loading = ref(false)
+const route = useRoute()
 
-onMounted(async () => {
-  await nextTick()
-  // Kiểm tra slot có nội dung hay không
-  const slotEl = document.querySelector('v-main slot')
-  if (slotEl && slotEl.assignedNodes().length > 0) {
-    hasContent.value = true
-  } else {
-    // Giả lập delay khi đang load
-    setTimeout(() => (hasContent.value = true), 3000)
+// Khi đổi route -> hiển thị spinner trước khi render page
+watch(
+  () => route.fullPath,
+  async () => {
+    loading.value = true
+    // Giả lập thời gian tải (bạn có thể thay bằng chờ API)
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    loading.value = false
   }
-})
+)
 </script>
 
 <style scoped>
