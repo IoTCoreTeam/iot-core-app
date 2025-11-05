@@ -46,7 +46,7 @@ watch(
   async () => {
     loading.value = true
     // Giả lập thời gian tải (bạn có thể thay bằng chờ API)
-    await new Promise((resolve) => setTimeout(resolve, 400))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
     loading.value = false
   }
 )
