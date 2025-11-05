@@ -80,7 +80,8 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import { message } from "ant-design-vue";
 
 const form = ref({
   name: "",
@@ -90,40 +91,44 @@ const form = ref({
   fax: "",
 });
 
-const saveCompany = () => {
-  console.log("Saving company:", form.value);
+const api_url = "http://127.0.0.1:8000/api/company";
+
+const fetchCompanyData = async () => {
+  const res = await fetch(api_url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    credentials: "include",
+  }).catch(() => null);
+
+  if (!res) return message.error("Cannot connect to server");
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data) return message.error(data?.message || "Failed to fetch company data");
+
+  Object.assign(form.value, {
+    name: data.data?.name || "",
+    address: data.data?.address || "",
+    email: data.data?.email || "",
+    phone: data.data?.phone || "",
+    fax: data.data?.fax || "",
+  });
 };
 
-async function fetchCompanyData() {
-  try {
-    const response = await fetch("http://127.0.0.1:8000/api/company", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      credentials: "include",
-    });
-    if (response.ok) {
-      const data = await response.json();
-      Object.assign(form.value, {
-        name: data.data.name || "",
-        address: data.data.address || "",
-        email: data.data.email || "",
-        phone: data.data.phone || "",
-        fax: data.data.fax || "",
-      });
-    } else {
-      console.error("Failed to fetch company data");
-      message.error(data.message || "Failed to fetch company data");
-    }
-  } catch (error) {
-    console.error("Error fetching company data:", error);
-    message.error("Error fetching company data");
-  }
-}
+const saveCompany = async () => {
+  const res = await fetch(api_url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    credentials: "include",
+    body: JSON.stringify(form.value),
+  }).catch(() => null);
 
-onMounted(() => {
-  fetchCompanyData();
-});
+  if (!res) return message.error("Cannot connect to server");
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data) return message.error(data?.message || "Failed to update company");
+
+  message.success("Company information updated");
+};
+
+onMounted(fetchCompanyData);
 </script>
