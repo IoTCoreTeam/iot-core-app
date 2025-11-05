@@ -1,24 +1,46 @@
 <template>
-  <transition name="slide-down">
-    <div class="fixed inset-0 flex justify-center z-50 px-4 pt-12">
+  <transition name="fade-bg">
+    <div
+      v-if="isOpen"
+      class="fixed inset-0 flex justify-center z-50 px-4 pt-12"
+    >
+      <!-- Nền mờ -->
       <div class="absolute inset-0 bg-black/30" @click="closeModal"></div>
 
-      <transition name="scale">
+      <!-- Form thả nhẹ xuống -->
+      <transition name="drop-soft" appear>
         <div
-          class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-200 py-4 z-10 transform transition-transform duration-300 scale-95 h-fit"
+          class="relative bg-white rounded-lg shadow-2xl w-full max-w-md p-6 border border-gray-200 py-4 z-10 h-fit"
         >
+          <!-- Header -->
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-sm font-semibold text-gray-800">Filter Users</h3>
-            <button @click="closeModal" class="text-gray-500 hover:text-gray-700">
-              <svg class="w-5 h-5 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <button
+              @click="closeModal"
+              class="text-gray-500 hover:text-gray-700"
+            >
+              <svg
+                class="w-5 h-5 cursor-pointer"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
 
+          <!-- Form -->
           <form @submit.prevent="applyFilter" class="grid grid-cols-1 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Keyword</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1"
+                >Keyword</label
+              >
               <input
                 v-model="filters.keyword"
                 type="text"
@@ -28,7 +50,9 @@
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Role</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1"
+                >Role</label
+              >
               <select
                 v-model="filters.role"
                 class="w-full px-2 py-2 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -41,7 +65,9 @@
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1"
+                >Status</label
+              >
               <select
                 v-model="filters.status"
                 class="w-full px-2 py-2 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -52,6 +78,7 @@
               </select>
             </div>
 
+            <!-- Buttons -->
             <div class="mt-4 flex justify-end space-x-3">
               <button
                 type="button"
@@ -78,6 +105,7 @@
 import { ref } from "vue";
 
 const emit = defineEmits(["close", "apply"]);
+const isOpen = ref(true);
 
 const filters = ref({
   keyword: "",
@@ -86,7 +114,8 @@ const filters = ref({
 });
 
 function closeModal() {
-  emit("close");
+  isOpen.value = false;
+  setTimeout(() => emit("close"), 400);
 }
 
 function resetFilter() {
@@ -100,32 +129,49 @@ function applyFilter() {
 </script>
 
 <style scoped>
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+/* ===== Nền mờ fade nhẹ ===== */
+.fade-bg-enter-active,
+.fade-bg-leave-active {
+  transition: opacity 0.45s ease;
 }
-.slide-down-enter-from,
-.slide-down-leave-to {
+.fade-bg-enter-from,
+.fade-bg-leave-to {
   opacity: 0;
-  transform: translateY(-12px);
 }
-.slide-down-enter-to,
-.slide-down-leave-from {
+.fade-bg-enter-to,
+.fade-bg-leave-from {
   opacity: 1;
-  transform: translateY(0);
 }
-.scale-enter-active,
-.scale-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+
+/* ===== Hiệu ứng form rơi nhẹ ===== */
+.drop-soft-enter-active {
+  animation: softDropIn 0.75s cubic-bezier(0.25, 1, 0.5, 1);
 }
-.scale-enter-from,
-.scale-leave-to {
-  opacity: 0;
-  transform: scale(0.96);
+.drop-soft-leave-active {
+  animation: softDropOut 0.45s ease-in forwards;
 }
-.scale-enter-to,
-.scale-leave-from {
-  opacity: 1;
-  transform: scale(1);
+
+/* Mở modal: thả nhẹ từ trên xuống — không nhún */
+@keyframes softDropIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-100px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Đóng modal: bay nhẹ lên và mờ dần */
+@keyframes softDropOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px) scale(0.97);
+  }
 }
 </style>
