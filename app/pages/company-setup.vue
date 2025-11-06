@@ -3,7 +3,13 @@
     class="min-h-[90vh] flex flex-col items-center justify-start py-10 pt-5 bg-gray-50"
   >
     <!-- Company Information Form -->
+    <LoadingState
+      v-if="loading"
+      class="w-full max-w-7xl"
+      message="Loading company details..."
+    />
     <form
+      v-else
       @submit.prevent="saveCompany"
       class="w-full max-w-7xl bg-white rounded-sm shadow-sm p-8 px-12 text-xs"
     >
@@ -82,6 +88,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { message } from "ant-design-vue";
+import LoadingState from "@/components/common/LoadingState.vue";
 
 const form = ref({
   name: "",
@@ -90,6 +97,7 @@ const form = ref({
   phone: "",
   fax: "",
 });
+const loading = ref(false);
 
 const apiUrl = "http://127.0.0.1:8000/api/company";
 
@@ -106,6 +114,8 @@ const buildAuthHeaders = () => {
 };
 
 const fetchCompanyData = async () => {
+  if (loading.value) return;
+  loading.value = true;
   try {
     const res = await fetch(apiUrl, {
       method: "GET",
@@ -135,10 +145,13 @@ const fetchCompanyData = async () => {
       return;
     }
     message.error("Failed to fetch company data");
+  } finally {
+    loading.value = false;
   }
 };
 
 const saveCompany = async () => {
+  if (loading.value) return;
   try {
     const res = await fetch(apiUrl, {
       method: "PUT",
@@ -166,4 +179,3 @@ const saveCompany = async () => {
 
 onMounted(fetchCompanyData);
 </script>
-

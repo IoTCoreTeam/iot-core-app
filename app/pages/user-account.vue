@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="min-h-[80vh] bg-gray-100 pt-5 pb-10">
-    <div class="max-w-7xl mx-auto px-4">
+    <div class="max-w-7xl mx-auto">
       <div class="bg-white rounded-sm overflow-hidden">
         <div class="bg-white text-white px-6 py-4 pb-0 flex items-center">
           <div class="text-left">
@@ -21,25 +21,7 @@
             {{ error }}
           </div>
 
-          <div
-            v-if="loading"
-            class="flex items-center justify-center text-xs text-gray-500 py-10"
-          >
-            <svg
-              class="w-4 h-4 mr-2 animate-spin text-blue-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            Loading account details...
-          </div>
+          <LoadingState v-if="loading" message="Loading account details..." />
 
           <div v-else class="space-y-4 text-xs text-gray-600">
             <div>
@@ -164,6 +146,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { message } from "ant-design-vue";
+import LoadingState from "@/components/common/LoadingState.vue";
 
 interface AccountForm {
   name: string;
