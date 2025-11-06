@@ -116,10 +116,7 @@ const fetchCompanyData = async () => {
       },
     });
     if (!res.ok) {
-      const errorBody = await res.json().catch(() => ({}));
-      throw new Error(
-        errorBody?.message ?? `Failed to fetch company data (${res.status})`
-      );
+      throw new Error(`Failed to fetch company data (${res.status})`);
     }
     const data = await res.json().catch(() => ({}));
 
@@ -131,14 +128,13 @@ const fetchCompanyData = async () => {
       phone: company?.phone ?? "",
       fax: company?.fax ?? "",
     });
+
   } catch (error) {
     if (error?.message?.includes("Missing access token")) {
-      message.error(error.message);
+      message.error("Missing access token");
       return;
     }
-    const errorMessage =
-      error?.message ?? "Failed to fetch company data";
-    message.error(errorMessage);
+    message.error("Failed to fetch company data");
   }
 };
 
@@ -154,26 +150,20 @@ const saveCompany = async () => {
       body: JSON.stringify(form.value),
     });
     if (!res.ok) {
-      const errorBody = await res.json().catch(() => ({}));
-      throw new Error(
-        errorBody?.message ?? `Failed to update company (${res.status})`
-      );
+      throw new Error(`Failed to update company (${res.status})`);
     }
-    const data = await res.json().catch(() => ({}));
+    await res.json().catch(() => ({}));
 
-    const messageText =
-      data?.data?.message ?? data?.message ?? "Company information updated";
-    message.success(messageText);
+    message.success("Company information updated successfully");
   } catch (error) {
     if (error?.message?.includes("Missing access token")) {
-      message.error(error.message);
+      message.error("Missing access token");
       return;
     }
-    const errorMessage =
-      error?.data?.message ?? error?.message ?? "Failed to update company";
-    message.error(errorMessage);
+    message.error("Failed to update company");
   }
 };
 
 onMounted(fetchCompanyData);
 </script>
+

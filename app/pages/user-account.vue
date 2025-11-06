@@ -1,17 +1,15 @@
-<template>
-  <div class="min-h-[80vh] bg-gray-100 py-10">
-    <div class="max-w-4xl mx-auto px-4">
-      <div class="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
-        <div class="bg-slate-800 text-white px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 class="text-lg font-semibold tracking-wide">User Account</h1>
-            <p class="text-xs text-slate-200 mt-1">
-              Manage your profile and company information at a glance.
+﻿<template>
+  <div class="min-h-[80vh] bg-gray-100 pt-5 pb-10">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="bg-white rounded-sm overflow-hidden">
+        <div class="bg-white text-white px-6 py-4 pb-0 flex items-center">
+          <div class="text-left">
+            <p class="text-[10px] uppercase tracking-widest text-gray-600">
+              Company
             </p>
-          </div>
-          <div class="text-right">
-            <p class="text-[10px] uppercase tracking-widest text-slate-300">Company</p>
-            <p class="text-sm font-medium text-white">{{ companyName || "--" }}</p>
+            <p class="text-md font-medium text-gray-800">
+              {{ companyName || "--" }}
+            </p>
           </div>
         </div>
 
@@ -44,36 +42,31 @@
           </div>
 
           <div v-else class="space-y-4 text-xs text-gray-600">
-            <div class="grid gap-4 md:grid-cols-2">
-              <div>
-                <p class="uppercase text-[10px] tracking-wide text-gray-400 mb-1">
-                  Full Name
-                </p>
-                <p class="px-3 py-2 bg-gray-50 border border-gray-200 rounded">
-                  {{ accountForm.name || "—" }}
-                </p>
-              </div>
-              <div>
-                <p class="uppercase text-[10px] tracking-wide text-gray-400 mb-1">
-                  Email
-                </p>
-                <p class="px-3 py-2 bg-gray-50 border border-gray-200 rounded">
-                  {{ accountForm.email || "—" }}
-                </p>
-              </div>
+            <div>
+              <p class="uppercase text-[10px] tracking-wide text-gray-400 mb-1">
+                Full Name
+              </p>
+              <p class="px-3 py-2 bg-gray-50 border border-gray-200 rounded">
+                {{ accountForm.name || "--" }}
+              </p>
+            </div>
+            <div>
+              <p class="uppercase text-[10px] tracking-wide text-gray-400 mb-1">
+                Email
+              </p>
+              <p class="px-3 py-2 bg-gray-50 border border-gray-200 rounded">
+                {{ accountForm.email || "--" }}
+              </p>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-2">
-              <div>
-                <p class="uppercase text-[10px] tracking-wide text-gray-400 mb-1">
-                  Role
-                </p>
-                <p class="px-3 py-2 bg-gray-50 border border-gray-200 rounded">
-                  {{ accountForm.role || "—" }}
-                </p>
-              </div>
+            <div>
+              <p class="uppercase text-[10px] tracking-wide text-gray-400 mb-1">
+                Role
+              </p>
+              <p class="px-3 py-2 bg-gray-50 border border-gray-200 rounded">
+                {{ accountForm.role || "--" }}
+              </p>
             </div>
-
             <div>
               <p class="uppercase text-[10px] tracking-wide text-gray-400 mb-1">
                 Description
@@ -81,42 +74,51 @@
               <p
                 class="px-3 py-2 bg-gray-50 border border-gray-200 rounded whitespace-pre-wrap min-h-20vh"
               >
-                {{ accountForm.description || "—" }}
+                {{ accountForm.description || "--" }}
               </p>
             </div>
 
             <div class="border-t border-gray-200 pt-4">
-              <h3 class="uppercase text-[10px] tracking-wide text-gray-400 mb-3">
+              <h3
+                class="uppercase text-[10px] tracking-wide text-gray-400 mb-3"
+              >
                 Update Password
               </h3>
               <form class="grid gap-3 md:grid-cols-2">
                 <div>
-                  <label class="block text-[11px] font-medium text-gray-500 mb-1">
+                  <label
+                    class="block text-[11px] font-medium text-gray-500 mb-1"
+                  >
+                    Current Password
+                  </label>
+                  <input
+                    v-model="passwordForm.currentPassword"
+                    type="password"
+                    autocomplete="current-password"
+                    class="w-full border border-gray-300 rounded px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div>
+                  <label
+                    class="block text-[11px] font-medium text-gray-500 mb-1"
+                  >
                     New Password
                   </label>
                   <input
                     v-model="passwordForm.newPassword"
                     type="password"
+                    autocomplete="new-password"
                     class="w-full border border-gray-300 rounded px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="Enter new password"
-                  />
-                </div>
-                <div>
-                  <label class="block text-[11px] font-medium text-gray-500 mb-1">
-                    Confirm Password
-                  </label>
-                  <input
-                    v-model="passwordForm.confirmPassword"
-                    type="password"
-                    class="w-full border border-gray-300 rounded px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    placeholder="Confirm new password"
                   />
                 </div>
                 <div class="md:col-span-2 flex justify-end">
                   <button
                     type="button"
                     @click="submitPassword"
-                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition"
+                    :disabled="passwordLoading"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition"
                   >
                     Save Password
                   </button>
@@ -124,7 +126,9 @@
               </form>
             </div>
 
-            <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+            <div
+              class="flex justify-between items-center pt-4 border-t border-gray-200"
+            >
               <button
                 type="button"
                 @click="refresh"
@@ -146,7 +150,8 @@
                 Refresh
               </button>
               <p class="text-[11px] text-gray-400">
-                The information is read-only for now. Contact administrator to update.
+                The information is read-only for now. Contact administrator to
+                update.
               </p>
             </div>
           </div>
@@ -180,6 +185,7 @@ const error = ref("");
 
 const USER_URL = "http://127.0.0.1:8000/api/user";
 const COMPANY_URL = "http://127.0.0.1:8000/api/company";
+const CHANGE_PASSWORD_URL = "http://127.0.0.1:8000/api/change-password";
 
 const buildAuthHeaders = (): Record<string, string> => {
   if (!import.meta.client) return {};
@@ -233,7 +239,9 @@ const fetchAccountData = async () => {
     if (!userRes.ok || !companyRes.ok) {
       const [userErr, companyErr] = await Promise.all([
         userRes.ok ? Promise.resolve({}) : userRes.json().catch(() => ({})),
-        companyRes.ok ? Promise.resolve({}) : companyRes.json().catch(() => ({})),
+        companyRes.ok
+          ? Promise.resolve({})
+          : companyRes.json().catch(() => ({})),
       ]);
       const messageText =
         (!userRes.ok && (userErr?.message || userErr?.error)) ||
@@ -263,10 +271,12 @@ const fetchAccountData = async () => {
       localStorage.setItem("user", JSON.stringify(userData ?? {}));
     }
   } catch (err: any) {
-    const messageText =
-      err?.message?.includes("Missing access token")
-        ? err.message
-        : err?.data?.message ?? err?.message ?? "Unable to load account information.";
+    const isMissingToken =
+      typeof err?.message === "string" &&
+      err.message.includes("Missing access token");
+    const messageText = isMissingToken
+      ? "Missing access token. Please sign in again."
+      : "Unable to load account information. Please try again later.";
     error.value = messageText;
     message.error(messageText);
   } finally {
@@ -279,22 +289,79 @@ const refresh = () => {
 };
 
 const passwordForm = ref({
+  currentPassword: "",
   newPassword: "",
-  confirmPassword: "",
 });
 
-const submitPassword = () => {
-  if (!passwordForm.value.newPassword) {
+const passwordLoading = ref(false);
+
+const submitPassword = async () => {
+  if (passwordLoading.value) return;
+
+  const currentPassword = passwordForm.value.currentPassword.trim();
+  const newPassword = passwordForm.value.newPassword.trim();
+
+  if (!currentPassword) {
+    message.warning("Please enter your current password.");
+    return;
+  }
+
+  if (!newPassword) {
     message.warning("Please enter a new password.");
     return;
   }
-  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-    message.error("Password confirmation does not match.");
+
+  if (newPassword.length < 8) {
+    message.warning("New password must be at least 8 characters.");
     return;
   }
-  message.success("Password updated (stub).");
-  passwordForm.value.newPassword = "";
-  passwordForm.value.confirmPassword = "";
+
+  if (currentPassword === newPassword) {
+    message.warning("New password must be different from the current password.");
+    return;
+  }
+
+  passwordLoading.value = true;
+
+  try {
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...buildAuthHeaders(),
+    };
+
+    const response = await fetch(CHANGE_PASSWORD_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+
+    if (!response.ok) {
+      let errorMessage = "Unable to update password. Please try again.";
+      if (response.status === 401) {
+        errorMessage = "Session expired. Please sign in again.";
+      } else if (response.status === 422 || response.status === 400) {
+        errorMessage =
+          "Unable to update password. Please verify the information.";
+      }
+      throw new Error(errorMessage);
+    }
+
+    message.success("Password updated successfully.");
+    passwordForm.value.currentPassword = "";
+    passwordForm.value.newPassword = "";
+  } catch (err: any) {
+    const messageText =
+      typeof err?.message === "string" && err.message.trim()
+        ? err.message.trim()
+        : "Unable to update password. Please try again.";
+    message.error(messageText);
+  } finally {
+    passwordLoading.value = false;
+  }
 };
 
 onMounted(() => {
