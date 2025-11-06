@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-7xl mx-auto px-0 py-8 h-[90vh]">
+  <div class="max-w-7xl mx-auto px-0 py-5 h-[90vh]">
     <div
       class="bg-white shadow-sm rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm relative w-full text-xs"
     >
