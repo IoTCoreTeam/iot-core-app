@@ -1,0 +1,73 @@
+/* Shared modal overlay fade */
+.modal-overlay-enter-active,
+.modal-overlay-leave-active {
+  transition: opacity 0.45s ease;
+}
+.modal-overlay-enter-from,
+.modal-overlay-leave-to {
+  opacity: 0;
+}
+.modal-overlay-enter-to,
+.modal-overlay-leave-from {
+  opacity: 1;
+}
+
+/* Shared modal drop-in animation */
+.modal-drop-enter-active {
+  animation: modal-drop-in 0.75s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.modal-drop-leave-active {
+  animation: modal-drop-out 0.45s ease-in forwards;
+}
+
+@keyframes modal-drop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-100px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modal-drop-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px) scale(0.97);
+  }
+}
+
+/* Shared modal slide-down animation */
+.modal-slide-enter-active {
+  animation: modal-slide-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.modal-slide-leave-active {
+  animation: modal-slide-out 0.45s cubic-bezier(0.55, 0, 0.55, 0.2) forwards;
+}
+
+@keyframes modal-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-80px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modal-slide-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px);
+  }
+}

@@ -1,15 +1,12 @@
-<template>
-  <!-- Transition bên ngoài: nền mờ -->
-  <transition name="fade" appear>
+﻿<template>
+  <transition name="modal-overlay" appear>
     <div
       v-if="isOpen"
       class="fixed inset-0 flex justify-center z-50 px-4 pt-12"
     >
-      <!-- Nền mờ -->
       <div class="absolute inset-0 bg-black/30" @click="closeModal"></div>
 
-      <!-- Transition bên trong: slide xuống -->
-      <transition name="slide-down" appear>
+      <transition name="modal-slide" appear>
         <div
           class="relative bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 py-4 z-10 h-fit"
         >
@@ -174,48 +171,4 @@ function resetForm() {
 }
 </script>
 
-<style scoped>
-/* ===== Fade nền ===== */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.4s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-.fade-enter-to,
-.fade-leave-from {
-  opacity: 1;
-}
 
-/* ===== Slide xuống mượt ===== */
-.slide-down-enter-active {
-  animation: slideDownIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.slide-down-leave-active {
-  animation: slideDownOut 0.45s cubic-bezier(0.55, 0, 0.55, 0.2) forwards;
-}
-
-@keyframes slideDownIn {
-  0% {
-    opacity: 0;
-    transform: translateY(-80px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideDownOut {
-  0% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-60px);
-  }
-}
-</style>

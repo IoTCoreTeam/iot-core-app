@@ -1,14 +1,12 @@
-<template>
-  <transition name="fade-bg">
+﻿<template>
+  <transition name="modal-overlay">
     <div
       v-if="isOpen"
       class="fixed inset-0 flex justify-center z-50 px-4 pt-12"
     >
-      <!-- Nền mờ -->
       <div class="absolute inset-0 bg-black/30" @click="closeModal"></div>
 
-      <!-- Form thả nhẹ xuống -->
-      <transition name="drop-soft" appear>
+      <transition name="modal-slide" appear>
         <div
           class="relative bg-white rounded-lg shadow-2xl w-full max-w-md p-6 border border-gray-200 py-4 z-10 h-fit"
         >
@@ -128,50 +126,4 @@ function applyFilter() {
 }
 </script>
 
-<style scoped>
-/* ===== Nền mờ fade nhẹ ===== */
-.fade-bg-enter-active,
-.fade-bg-leave-active {
-  transition: opacity 0.45s ease;
-}
-.fade-bg-enter-from,
-.fade-bg-leave-to {
-  opacity: 0;
-}
-.fade-bg-enter-to,
-.fade-bg-leave-from {
-  opacity: 1;
-}
 
-/* ===== Hiệu ứng form rơi nhẹ ===== */
-.drop-soft-enter-active {
-  animation: softDropIn 0.75s cubic-bezier(0.25, 1, 0.5, 1);
-}
-.drop-soft-leave-active {
-  animation: softDropOut 0.45s ease-in forwards;
-}
-
-/* Mở modal: thả nhẹ từ trên xuống — không nhún */
-@keyframes softDropIn {
-  0% {
-    opacity: 0;
-    transform: translateY(-100px) scale(0.98);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Đóng modal: bay nhẹ lên và mờ dần */
-@keyframes softDropOut {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-60px) scale(0.97);
-  }
-}
-</style>
