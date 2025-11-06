@@ -1,52 +1,52 @@
 <template>
   <header class="w-full bg-white border-b border-gray-200 shadow-sm">
-    <div class="max-w-7xl mx-auto flex items-center px-2 py-3">
+    <div class="max-w-7xl mx-auto flex items-center px-2 py-4">
       <!-- Left: App name -->
       <NuxtLink to="/">
-        <h1 class="text-[13px] font-bold text-blue-800 tracking-tight">
+        <h1 class="text-sm font-bold text-blue-800 tracking-tight">
           IOT CORE OPERATION
         </h1>
       </NuxtLink>
 
       <!-- Navigation -->
-      <nav class="flex items-center space-x-8 ml-12">
+      <nav class="flex items-center space-x-10 ml-16">
         <NuxtLink
           to="/"
-          class="text-gray-700 text-[13px] font-semibold hover:text-blue-700 cursor-pointer"
+          class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
         >
           Dashboard
         </NuxtLink>
 
         <NuxtLink
           to="/devices-control"
-          class="text-gray-700 text-xs font-semibold hover:text-blue-700 cursor-pointer"
+          class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
         >
           Devices Control
         </NuxtLink>
 
         <NuxtLink
           to="/map-configuration"
-          class="text-gray-700 text-xs font-semibold hover:text-blue-700 cursor-pointer"
+          class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
         >
           Map Configuration
         </NuxtLink>
 
         <NuxtLink
           to="/scenarios"
-          class="text-gray-700 text-xs font-semibold hover:text-blue-700 cursor-pointer"
+          class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
         >
           Scenarios
         </NuxtLink>
 
         <NuxtLink
           to="/logs"
-          class="text-gray-700 text-xs font-semibold hover:text-blue-700 cursor-pointer"
+          class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
         >
           Logs
         </NuxtLink>
 
         <!-- Internal dropdown -->
-        <div class="relative text-xs font-semibold cursor-pointer">
+        <div class="relative text-sm font-semibold cursor-pointer">
           <button
             @click="toggleDropdown"
             class="flex items-center text-gray-700 hover:text-blue-700 transition-colors"
@@ -76,14 +76,14 @@
           >
             <NuxtLink
               to="/company-setup"
-              class="block px-4 py-2 text-gray-700 text-xs hover:bg-blue-50 hover:text-blue-700"
+              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
               @click="isOpen = false"
             >
               Company Setup
             </NuxtLink>
             <NuxtLink
               to="/users-management"
-              class="block px-4 py-1 text-gray-700 text-xs hover:bg-blue-50 hover:text-blue-700"
+              class="block px-4 py-1 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
               @click="isOpen = false"
             >
               Users Management
@@ -97,13 +97,14 @@
         <div
           class="flex items-center space-x-6 cursor-pointer hover:text-blue-700 transition-colors"
         >
+          <NuxtLink to="/user-account">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
             stroke-width="1.5"
             stroke="currentColor"
-            class="w-4.5 h-4.5 text-gray-600"
+            class="w-5 h-5 text-gray-600"
           >
             <path
               stroke-linecap="round"
@@ -114,6 +115,7 @@
                  9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
             />
           </svg>
+          </NuxtLink>
         </div>
       </div>
     </div>

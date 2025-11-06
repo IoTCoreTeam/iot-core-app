@@ -91,43 +91,88 @@ const form = ref({
   fax: "",
 });
 
-const api_url = "http://127.0.0.1:8000/api/company";
+const apiUrl = "http://127.0.0.1:8000/api/company";
+
+const buildAuthHeaders = () => {
+  if (!import.meta.client) return {};
+  const token = localStorage.getItem("access_token");
+  const tokenType = localStorage.getItem("token_type") ?? "Bearer";
+  if (!token) {
+    throw new Error("Missing access token. Please sign in again.");
+  }
+  return {
+    Authorization: `${tokenType} ${token}`,
+  };
+};
 
 const fetchCompanyData = async () => {
-  const res = await fetch(api_url, {
-    method: "GET",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    credentials: "include",
-  }).catch(() => null);
+  try {
+    const res = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...buildAuthHeaders(),
+      },
+    });
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({}));
+      throw new Error(
+        errorBody?.message ?? `Failed to fetch company data (${res.status})`
+      );
+    }
+    const data = await res.json().catch(() => ({}));
 
-  if (!res) return message.error("Cannot connect to server");
-
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data) return message.error(data?.message || "Failed to fetch company data");
-
-  Object.assign(form.value, {
-    name: data.data?.name || "",
-    address: data.data?.address || "",
-    email: data.data?.email || "",
-    phone: data.data?.phone || "",
-    fax: data.data?.fax || "",
-  });
+    const company = data?.data ?? data;
+    Object.assign(form.value, {
+      name: company?.name ?? "",
+      address: company?.address ?? "",
+      email: company?.email ?? "",
+      phone: company?.phone ?? "",
+      fax: company?.fax ?? "",
+    });
+  } catch (error) {
+    if (error?.message?.includes("Missing access token")) {
+      message.error(error.message);
+      return;
+    }
+    const errorMessage =
+      error?.message ?? "Failed to fetch company data";
+    message.error(errorMessage);
+  }
 };
 
 const saveCompany = async () => {
-  const res = await fetch(api_url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    credentials: "include",
-    body: JSON.stringify(form.value),
-  }).catch(() => null);
+  try {
+    const res = await fetch(apiUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify(form.value),
+    });
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({}));
+      throw new Error(
+        errorBody?.message ?? `Failed to update company (${res.status})`
+      );
+    }
+    const data = await res.json().catch(() => ({}));
 
-  if (!res) return message.error("Cannot connect to server");
-
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data) return message.error(data?.message || "Failed to update company");
-
-  message.success("Company information updated");
+    const messageText =
+      data?.data?.message ?? data?.message ?? "Company information updated";
+    message.success(messageText);
+  } catch (error) {
+    if (error?.message?.includes("Missing access token")) {
+      message.error(error.message);
+      return;
+    }
+    const errorMessage =
+      error?.data?.message ?? error?.message ?? "Failed to update company";
+    message.error(errorMessage);
+  }
 };
 
 onMounted(fetchCompanyData);

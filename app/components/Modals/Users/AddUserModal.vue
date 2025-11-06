@@ -4,6 +4,7 @@
       v-if="isOpen"
       class="fixed inset-0 flex justify-center z-50 px-4 pt-12"
     >
+      <!-- Overlay -->
       <div class="absolute inset-0 bg-black/30" @click="closeModal"></div>
 
       <transition name="modal-slide" appear>
@@ -15,7 +16,8 @@
             <h3 class="text-sm font-semibold text-gray-800">Add New User</h3>
             <button
               @click="closeModal"
-              class="text-gray-500 hover:text-gray-700"
+              :disabled="isSubmitting"
+              class="text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg
                 class="w-5 h-5 cursor-pointer"
@@ -110,15 +112,17 @@
               <button
                 type="button"
                 @click="closeModal"
-                class="px-3 py-1 border border-gray-300 rounded text-xs font-medium text-gray-600 bg-white hover:bg-gray-100"
+                :disabled="isSubmitting"
+                class="px-3 py-1 border border-gray-300 rounded text-xs font-medium text-gray-600 bg-white hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"
+                :disabled="isSubmitting"
+                class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Add
+                {{ isSubmitting ? "Adding..." : "Add" }}
               </button>
             </div>
           </form>
@@ -143,6 +147,8 @@ interface User {
 const emit = defineEmits(["close", "save"]);
 
 const isOpen = ref(true);
+const isSubmitting = ref(false);
+const API_URL = "http://127.0.0.1:8000/api/register";
 
 const user = ref<User>({
   name: "",
@@ -152,23 +158,80 @@ const user = ref<User>({
   description: "",
 });
 
-function closeModal() {
+function closeModal(event: MouseEvent): void;
+function closeModal(force: boolean): void;
+function closeModal(arg?: MouseEvent | boolean) {
+  const force = typeof arg === "boolean" ? arg : false;
+  if (!force && isSubmitting.value) return;
+
   isOpen.value = false;
   setTimeout(() => emit("close"), 400);
-}
-
-function submitForm() {
-  if (!user.value.name || !user.value.email || !user.value.role) {
-    message.warning("Please fill in all required fields.");
-    return;
-  }
-  emit("save", { ...user.value });
-  resetForm();
 }
 
 function resetForm() {
   user.value = { name: "", email: "", role: "", password: "", description: "" };
 }
+
+async function submitForm() {
+  if (!user.value.name || !user.value.email || !user.value.role) {
+    message.warning("Please fill in all required fields.");
+    return;
+  }
+  const token = import.meta.client
+    ? localStorage.getItem("access_token")
+    : null;
+  const tokenType = import.meta.client
+    ? localStorage.getItem("token_type") ?? "Bearer"
+    : "Bearer";
+  if (!token) {
+    message.error("Access token is required to register a user.");
+    return;
+  }
+  isSubmitting.value = true;
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `${tokenType} ${token}`,
+      },
+      body: JSON.stringify({
+        name: user.value.name,
+        email: user.value.email,
+        password: user.value.password,
+        password_confirmation: user.value.password,
+        role: user.value.role,
+        description: user.value.description,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const validationErrors = payload?.errors;
+      if (validationErrors) {
+        const firstError = Object.values(validationErrors)
+          .flat()
+          .at(0) as string | undefined;
+        throw new Error(firstError ?? "Validation error. Please check the form.");
+      }
+      throw new Error(
+        payload?.message ?? `Failed to register user (${response.status})`
+      );
+    }
+
+    const successMessage =
+      payload?.data?.message ?? payload?.message ?? "User registered successfully.";
+
+    message.success(successMessage);
+    emit("save", { ...user.value });
+    resetForm();
+    closeModal(true);
+  } catch (error: any) {
+    const errorMessage = error?.message ?? "Failed to register user.";
+    message.error(errorMessage);
+  } finally {
+    isSubmitting.value = false;
+  }
+}
 </script>
-
-

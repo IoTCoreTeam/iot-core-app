@@ -221,8 +221,6 @@ function openFilterModal() {
 // --- Handlers ---
 function handleAddUser(user: User) {
   emit("add", { ...user, id: Date.now(), active: true });
-  message.success("User added successfully");
-  showAddModal.value = false;
 }
 
 function handleApplyFilter(filters: {
