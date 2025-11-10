@@ -78,11 +78,21 @@
           <thead>
             <tr class="bg-gray-50 border-b border-gray-200">
               <th class="px-2 py-2 text-left font-medium text-gray-600">#</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Name</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Email</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Role</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Status</th>
-              <th class="px-2 py-2 text-center font-medium text-gray-600">Actions</th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">
+                Name
+              </th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">
+                Email
+              </th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">
+                Role
+              </th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">
+                Status
+              </th>
+              <th class="px-2 py-2 text-center font-medium text-gray-600">
+                Actions
+              </th>
             </tr>
           </thead>
 
@@ -131,6 +141,33 @@
             </tr>
           </tbody>
         </table>
+        <!-- phan trang -->
+        <div
+          class="pagination w-full flex justify-center items-center gap-4 mt-6"
+        >
+          <button
+            @click="prevPage"
+            :disabled="page === 1"
+            class="px-4 py-2 rounded-lg font-semibold text-white bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            ⬅ Trước
+          </button>
+
+          <span
+            class="text-lg font-medium text-gray-700 transition-all duration-300"
+            :class="{ 'scale-110 text-blue-600': isAnimating }"
+          >
+            Trang {{ page }}
+          </span>
+
+          <button
+            @click="nextPage"
+            :disabled="page === totalPages"
+            class="px-4 py-2 rounded-lg font-semibold text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            Sau ➡
+          </button>
+        </div>
       </div>
     </div>
 
@@ -151,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { message } from "ant-design-vue";
 import AddUserModal from "../components/Modals/Users/AddUserModal.vue";
 import UserFilterModal from "../components/Modals/Users/UserFilterModal.vue";
@@ -233,4 +270,53 @@ function handleApplyFilter(filters: {
   message.info("Filter applied");
   showFilterModal.value = false;
 }
+// --- data representation ---
+const users = ref([]);
+onMounted(async () => {
+  try {
+    const response = await fetch("/api/users");
+    const data = await response.json();
+    users.value = data.map((user: any) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      actions: user.active,
+    }));
+  } catch (error) {
+    message.error("Failed to load users.");
+  }
+});
+
+// --phan trang--
+function prevPage() {
+  if (page.value > 1) {
+    page.value--;
+    loadPageData(); // gọi lại dữ liệu tương ứng với page mới
+  }
+}
+function nextPage() {
+  if (page.value < totalPages.value) {
+    page.value++;
+    loadPageData(); // gọi lại dữ liệu tương ứng với page mới
+  }
+}
+const products = ref([]);
+const page = ref(1);
+const limit = 10;
+const totalPages = ref(1);
+
+onMounted(async () => {
+  try {
+    const res = await fetch("/api/users"); // hoặc API thật của bạn
+    const data = await res.json();
+
+    totalPages.value = Math.ceil(data.length / limit);
+    const start = (page.value - 1) * limit;
+    products.value = data.slice(start, start + limit);
+  } catch (error) {
+    console.error("Lỗi tải dữ liệu:", error);
+  }
+});
 </script>
