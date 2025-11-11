@@ -213,7 +213,6 @@ const emit = defineEmits(["add", "edit", "delete", "filter"]);
 // hien thi du lieu
 const filterKeyword = ref("");
 const appliedKeyword = ref("");
-const users = ref([]);
 const filteredUsers = computed(() => {
   const q = appliedKeyword.value.toLowerCase().trim();
   if (!q) return users.value;
@@ -224,25 +223,25 @@ const filteredUsers = computed(() => {
       u.role.toLowerCase().includes(q)
   );
 });
-onMounted(async () => {
-  try {
-    const response = await fetch("http://127.0.0.1:8000/api/users");
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+// onMounted(async () => {
+//   try {
+//     const response = await fetch("http://127.0.0.1:8000/api/users");
+//     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const result = await response.json();
-    console.log("API trả về:", result);
+//     const result = await response.json();
+//     console.log("API trả về:", result);
 
-    users.value = result.data.map((user) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      active: user.active,
-    }));
-  } catch (error) {
-    console.error("Lỗi fetch user:", error);
-  }
-});
+//     users.value = result.data.map((user) => ({
+//       id: user.id,
+//       name: user.name,
+//       email: user.email,
+//       role: user.role,
+//       active: user.active,
+//     }));
+//   } catch (error) {
+//     console.error("Lỗi fetch user:", error);
+//   }
+// });
 
 function resetFilter() {
   filterKeyword.value = "";
@@ -297,6 +296,7 @@ const userData = ref([]);
 const page = ref(1);
 const totalPages = ref(1);
 const isAnimating = ref(false);
+const users = ref([]);
 
 async function fetchUserData() {
   try {
@@ -306,6 +306,13 @@ async function fetchUserData() {
     const data = await res.json();
 
     userData.value = data.data;
+    users.value = data.data.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      active: user.active,
+    }));
     totalPages.value = data.last_page;
 
     console.log(`Trang hiện tại: ${page.value}/${totalPages.value}`);
