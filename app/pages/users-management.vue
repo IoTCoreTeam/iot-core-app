@@ -157,7 +157,7 @@
             class="text-lg font-medium text-gray-700 transition-all duration-300"
             :class="{ 'scale-110 text-blue-600': isAnimating }"
           >
-            Trang {{ page }}
+            Trang {{ page }} / {{ totalPages }}
           </span>
 
           <button
@@ -210,19 +210,38 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["add", "edit", "delete", "filter"]);
-
+// hien thi du lieu
 const filterKeyword = ref("");
 const appliedKeyword = ref("");
-
+const users = ref([]);
 const filteredUsers = computed(() => {
   const q = appliedKeyword.value.toLowerCase().trim();
-  if (!q) return props.data;
-  return props.data.filter(
+  if (!q) return users.value;
+  return users.value.filter(
     (u) =>
       u.email.toLowerCase().includes(q) ||
       u.name.toLowerCase().includes(q) ||
       u.role.toLowerCase().includes(q)
   );
+});
+onMounted(async () => {
+  try {
+    const response = await fetch("http://127.0.0.1:8000/api/users");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const result = await response.json();
+    console.log("API trả về:", result);
+
+    users.value = result.data.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      active: user.active,
+    }));
+  } catch (error) {
+    console.error("Lỗi fetch user:", error);
+  }
 });
 
 function resetFilter() {
@@ -270,53 +289,46 @@ function handleApplyFilter(filters: {
   message.info("Filter applied");
   showFilterModal.value = false;
 }
-// --- data representation ---
-const users = ref([]);
-onMounted(async () => {
-  try {
-    const response = await fetch("/api/users");
-    const data = await response.json();
-    users.value = data.map((user: any) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      actions: user.active,
-    }));
-  } catch (error) {
-    message.error("Failed to load users.");
-  }
-});
 
 // --phan trang--
-function prevPage() {
-  if (page.value > 1) {
-    page.value--;
-    loadPageData(); // gọi lại dữ liệu tương ứng với page mới
-  }
-}
-function nextPage() {
-  if (page.value < totalPages.value) {
-    page.value++;
-    loadPageData(); // gọi lại dữ liệu tương ứng với page mới
-  }
-}
-const products = ref([]);
-const page = ref(1);
-const limit = 10;
-const totalPages = ref(1);
+import { ref, onMounted } from "vue";
 
-onMounted(async () => {
+const userData = ref([]);
+const page = ref(1);
+const totalPages = ref(1);
+const isAnimating = ref(false);
+
+async function fetchUserData() {
   try {
-    const res = await fetch("/api/users"); // hoặc API thật của bạn
+    const res = await fetch(
+      `http://127.0.0.1:8000/api/users?page=${page.value}`
+    );
     const data = await res.json();
 
-    totalPages.value = Math.ceil(data.length / limit);
-    const start = (page.value - 1) * limit;
-    products.value = data.slice(start, start + limit);
+    userData.value = data.data;
+    totalPages.value = data.last_page;
+
+    console.log(`Trang hiện tại: ${page.value}/${totalPages.value}`);
   } catch (error) {
     console.error("Lỗi tải dữ liệu:", error);
   }
+}
+
+function prevPage() {
+  if (page.value > 1) {
+    page.value--;
+    fetchUserData();
+  }
+}
+
+function nextPage() {
+  if (page.value < totalPages.value) {
+    page.value++;
+    fetchUserData();
+  }
+}
+
+onMounted(() => {
+  fetchUserData();
 });
 </script>
