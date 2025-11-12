@@ -125,5 +125,3 @@ function applyFilter() {
   emit("apply", { ...filters.value });
 }
 </script>
-
-
