@@ -78,11 +78,21 @@
           <thead>
             <tr class="bg-gray-50 border-b border-gray-200">
               <th class="px-2 py-2 text-left font-medium text-gray-600">#</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Name</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Email</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Role</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Status</th>
-              <th class="px-2 py-2 text-center font-medium text-gray-600">Actions</th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">
+                Name
+              </th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">
+                Email
+              </th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">
+                Role
+              </th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">
+                Status
+              </th>
+              <th class="px-2 py-2 text-center font-medium text-gray-600">
+                Actions
+              </th>
             </tr>
           </thead>
 
@@ -131,6 +141,33 @@
             </tr>
           </tbody>
         </table>
+        <!-- phan trang -->
+        <div
+          class="pagination w-full flex justify-center items-center gap-4 mt-6"
+        >
+          <button
+            @click="prevPage"
+            :disabled="page === 1"
+            class="px-4 py-2 rounded-lg font-semibold text-white bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            ⬅ Trước
+          </button>
+
+          <span
+            class="text-lg font-medium text-gray-700 transition-all duration-300"
+            :class="{ 'scale-110 text-blue-600': isAnimating }"
+          >
+            Trang {{ page }} / {{ totalPages }}
+          </span>
+
+          <button
+            @click="nextPage"
+            :disabled="page === totalPages"
+            class="px-4 py-2 rounded-lg font-semibold text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            Sau ➡
+          </button>
+        </div>
       </div>
     </div>
 
@@ -151,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { message } from "ant-design-vue";
 import AddUserModal from "../components/Modals/Users/AddUserModal.vue";
 import UserFilterModal from "../components/Modals/Users/UserFilterModal.vue";
@@ -173,14 +210,13 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["add", "edit", "delete", "filter"]);
-
+// hien thi du lieu
 const filterKeyword = ref("");
 const appliedKeyword = ref("");
-
 const filteredUsers = computed(() => {
   const q = appliedKeyword.value.toLowerCase().trim();
-  if (!q) return props.data;
-  return props.data.filter(
+  if (!q) return users.value;
+  return users.value.filter(
     (u) =>
       u.email.toLowerCase().includes(q) ||
       u.name.toLowerCase().includes(q) ||
@@ -233,4 +269,75 @@ function handleApplyFilter(filters: {
   message.info("Filter applied");
   showFilterModal.value = false;
 }
+
+// --phan trang--
+const userData = ref([]);
+const page = ref(1);
+const totalPages = ref(1);
+const isAnimating = ref(false);
+const users = ref([]);
+
+async function fetchUserData() {
+  try {
+    const token = localStorage.getItem("access_token");
+    const res = await fetch(
+      `http://127.0.0.1:8000/api/users?page=${page.value}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    const data = await res.json();
+    // truy xuat du lieu
+    userData.value = data.data;
+    users.value = data.data.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      active: user.active,
+    }));
+    // search
+    watch(filterKeyword, (newVal) => {
+      if (!newVal) {
+        users.value = userData.value;
+        return;
+      }
+
+      users.value = userData.value.filter(
+        (user) =>
+          user.name.toLowerCase().includes(newVal.toLowerCase()) ||
+          user.email.toLowerCase().includes(newVal.toLowerCase()) ||
+          user.role.toLowerCase().includes(newVal.toLowerCase())
+      );
+    });
+    // phan trang
+    totalPages.value = data.last_page;
+
+    console.log(`Trang hiện tại: ${page.value}/${totalPages.value}`);
+  } catch (error) {
+    console.error("Lỗi tải dữ liệu:", error);
+  }
+}
+
+function prevPage() {
+  if (page.value > 1) {
+    page.value--;
+    fetchUserData();
+  }
+}
+
+function nextPage() {
+  if (page.value < totalPages.value) {
+    page.value++;
+    fetchUserData();
+  }
+}
+
+onMounted(() => {
+  fetchUserData();
+});
 </script>
