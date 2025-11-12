@@ -223,25 +223,6 @@ const filteredUsers = computed(() => {
       u.role.toLowerCase().includes(q)
   );
 });
-// onMounted(async () => {
-//   try {
-//     const response = await fetch("http://127.0.0.1:8000/api/users");
-//     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-//     const result = await response.json();
-//     console.log("API trả về:", result);
-
-//     users.value = result.data.map((user) => ({
-//       id: user.id,
-//       name: user.name,
-//       email: user.email,
-//       role: user.role,
-//       active: user.active,
-//     }));
-//   } catch (error) {
-//     console.error("Lỗi fetch user:", error);
-//   }
-// });
 
 function resetFilter() {
   filterKeyword.value = "";
@@ -290,8 +271,6 @@ function handleApplyFilter(filters: {
 }
 
 // --phan trang--
-import { ref, onMounted } from "vue";
-
 const userData = ref([]);
 const page = ref(1);
 const totalPages = ref(1);
@@ -300,11 +279,19 @@ const users = ref([]);
 
 async function fetchUserData() {
   try {
+    const token = localStorage.getItem("access_token");
     const res = await fetch(
-      `http://127.0.0.1:8000/api/users?page=${page.value}`
+      `http://127.0.0.1:8000/api/users?page=${page.value}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
     );
     const data = await res.json();
-
+    // truy xuat du lieu
     userData.value = data.data;
     users.value = data.data.map((user) => ({
       id: user.id,
@@ -313,6 +300,21 @@ async function fetchUserData() {
       role: user.role,
       active: user.active,
     }));
+    // search
+    watch(filterKeyword, (newVal) => {
+      if (!newVal) {
+        users.value = userData.value;
+        return;
+      }
+
+      users.value = userData.value.filter(
+        (user) =>
+          user.name.toLowerCase().includes(newVal.toLowerCase()) ||
+          user.email.toLowerCase().includes(newVal.toLowerCase()) ||
+          user.role.toLowerCase().includes(newVal.toLowerCase())
+      );
+    });
+    // phan trang
     totalPages.value = data.last_page;
 
     console.log(`Trang hiện tại: ${page.value}/${totalPages.value}`);
