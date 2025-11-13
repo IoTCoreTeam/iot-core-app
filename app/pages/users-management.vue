@@ -143,30 +143,41 @@
         </table>
         <!-- phan trang -->
         <div
-          class="pagination w-full flex justify-center items-center gap-4 mt-6"
+          v-if="pagination"
+          class="px-2 py-1 border-t border-gray-200 bg-gray-50 flex items-center justify-between"
         >
-          <button
-            @click="prevPage"
-            :disabled="page === 1"
-            class="px-4 py-2 rounded-lg font-semibold text-white bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
-          >
-            ⬅ Trước
-          </button>
+          <div class="text-gray-500 text-xs">
+            {{ pagination.page }}/{{ pagination.lastPage }} ·
+            {{ pagination.total }} items
+          </div>
+          <div class="flex items-center gap-1">
+            <select
+              class="border border-gray-300 rounded py-0.5 px-0.5 bg-white text-xs"
+              v-model="pagination.perPage"
+              @change="changePerPage"
+            >
+              <option :value="5">5</option>
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
 
-          <span
-            class="text-lg font-medium text-gray-700 transition-all duration-300"
-            :class="{ 'scale-110 text-blue-600': isAnimating }"
-          >
-            Trang {{ page }} / {{ totalPages }}
-          </span>
+            <button
+              class="px-1 py-0.5 border border-gray-300 rounded bg-white hover:bg-gray-50 disabled:opacity-50 text-xs"
+              :disabled="pagination.page <= 1"
+              @click="prevPage"
+            >
+              ←
+            </button>
 
-          <button
-            @click="nextPage"
-            :disabled="page === totalPages"
-            class="px-4 py-2 rounded-lg font-semibold text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
-          >
-            Sau ➡
-          </button>
+            <button
+              class="px-1 py-0.5 border border-gray-300 rounded bg-white hover:bg-gray-50 disabled:opacity-50 text-xs"
+              :disabled="pagination.page >= pagination.lastPage"
+              @click="nextPage"
+            >
+              →
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -271,17 +282,27 @@ function handleApplyFilter(filters: {
 }
 
 // --phan trang--
+import { ref, watch, onMounted } from "vue";
+
 const userData = ref([]);
-const page = ref(1);
-const totalPages = ref(1);
-const isAnimating = ref(false);
 const users = ref([]);
+
+const isAnimating = ref(false);
+
+const pagination = ref({
+  page: 1,
+  perPage: 10,
+  lastPage: 1,
+  total: 0,
+});
 
 async function fetchUserData() {
   try {
+    isAnimating.value = true; // bật loading
     const token = localStorage.getItem("access_token");
+
     const res = await fetch(
-      `http://127.0.0.1:8000/api/users?page=${page.value}`,
+      `http://127.0.0.1:8000/api/users?page=${pagination.value.page}&per_page=${pagination.value.perPage}`,
       {
         method: "GET",
         headers: {
@@ -290,8 +311,10 @@ async function fetchUserData() {
         },
       }
     );
+
     const data = await res.json();
-    // truy xuat du lieu
+
+    // Gán dữ liệu user
     userData.value = data.data;
     users.value = data.data.map((user) => ({
       id: user.id,
@@ -300,39 +323,44 @@ async function fetchUserData() {
       role: user.role,
       active: user.active,
     }));
-    // search
-    watch(filterKeyword, (newVal) => {
-      if (!newVal) {
-        users.value = userData.value;
-        return;
-      }
 
-      users.value = userData.value.filter(
-        (user) =>
-          user.name.toLowerCase().includes(newVal.toLowerCase()) ||
-          user.email.toLowerCase().includes(newVal.toLowerCase()) ||
-          user.role.toLowerCase().includes(newVal.toLowerCase())
-      );
-    });
-    // phan trang
-    totalPages.value = data.last_page;
-
-    console.log(`Trang hiện tại: ${page.value}/${totalPages.value}`);
+    pagination.value.lastPage = data.last_page;
+    pagination.value.total = data.total;
+    pagination.value.perPage = data.per_page ?? 10; // fallback nếu API không trả về
+    console.log(
+      `Trang hiện tại: ${pagination.value.page}/${pagination.value.lastPage}`
+    );
   } catch (error) {
     console.error("Lỗi tải dữ liệu:", error);
+  } finally {
+    isAnimating.value = false; // tắt loading
   }
 }
 
+watch(filterKeyword, (newVal) => {
+  if (!newVal) {
+    users.value = userData.value;
+    return;
+  }
+
+  users.value = userData.value.filter(
+    (user) =>
+      user.name.toLowerCase().includes(newVal.toLowerCase()) ||
+      user.email.toLowerCase().includes(newVal.toLowerCase()) ||
+      user.role.toLowerCase().includes(newVal.toLowerCase())
+  );
+});
+
 function prevPage() {
-  if (page.value > 1) {
-    page.value--;
+  if (pagination.value.page > 1) {
+    pagination.value.page--;
     fetchUserData();
   }
 }
 
 function nextPage() {
-  if (page.value < totalPages.value) {
-    page.value++;
+  if (pagination.value.page < pagination.value.lastPage) {
+    pagination.value.page++;
     fetchUserData();
   }
 }
@@ -340,4 +368,10 @@ function nextPage() {
 onMounted(() => {
   fetchUserData();
 });
+
+function changePerPage() {
+  pagination.value.page = 1;
+  fetchUserData();
+}
+// ------------------------------------------------------------------
 </script>
