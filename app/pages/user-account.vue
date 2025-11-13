@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="min-h-[80vh] bg-gray-100 pt-5 pb-10">
+  <div class="min-h-[80vh] bg-gray-50 pt-5 pb-10">
     <div class="max-w-7xl mx-auto">
       <div class="bg-white rounded-sm overflow-hidden">
         <div class="bg-white text-white px-6 py-4 pb-0 flex items-center">
