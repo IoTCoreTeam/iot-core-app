@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-[90vh] flex flex-col">
+  <div class="relative flex flex-col bg-gray-50">
     <!-- Header cố định -->
     <AppHeader />
 
@@ -8,7 +8,7 @@
       <!-- Spinner -->
       <div
         v-if="loading"
-        class="flex items-center justify-center w-full h-full my-auto"
+        class="flex items-center justify-center w-full h-[80vh] my-auto"
       >
         <div class="relative w-8 h-8">
           <div
@@ -21,7 +21,7 @@
       </div>
 
       <!-- Nội dung page -->
-      <div v-else class="w-full h-full">
+      <div v-else class="w-full min-h-[80vh] bg-gray-50">
         <slot />
       </div>
     </main>
@@ -46,7 +46,7 @@ watch(
   async () => {
     loading.value = true;
     // Giả lập thời gian tải (bạn có thể thay bằng chờ API)
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     loading.value = false;
   }
 );

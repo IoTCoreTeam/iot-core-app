@@ -88,7 +88,7 @@
                 Role
               </th>
               <th class="px-2 py-2 text-left font-medium text-gray-600">
-                Status
+                Created At
               </th>
               <th class="px-2 py-2 text-center font-medium text-gray-600">
                 Actions
@@ -99,17 +99,10 @@
           <tbody>
             <tr v-if="isAnimating">
               <td colspan="6" class="text-center py-12">
-                <div
-                  class="flex flex-col items-center justify-center space-y-2"
-                >
-                  <div
-                    class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"
-                  ></div>
-                  <span class="text-sm text-gray-500">Loading data...</span>
-                </div>
+                <LoadingState message="Loading data..." />
               </td>
             </tr>
-            <!--  -->
+
             <tr
               v-else
               v-for="(user, idx) in filteredUsers"
@@ -120,10 +113,8 @@
               <td class="px-2 py-1">{{ user.name }}</td>
               <td class="px-2 py-1">{{ user.email }}</td>
               <td class="px-2 py-1">{{ user.role }}</td>
-              <td class="px-2 py-1">
-                <span :class="user.active ? 'text-green-700' : 'text-gray-400'">
-                  {{ user.active ? "Active" : "Inactive" }}
-                </span>
+              <td class="px-2 py-1 text-gray-600">
+                {{ formatCreatedAt(user.createdAt) }}
               </td>
               <td class="px-2 py-1 text-center align-middle">
                 <div class="inline-flex items-center gap-2">
@@ -134,7 +125,7 @@
                     Edit
                   </button>
                   <button
-                    @click="deleteUser(user.id)"
+                    @click="confirmDelete(user)"
                     class="p-1 rounded hover:bg-gray-100 text-red-600"
                   >
                     Delete
@@ -143,14 +134,15 @@
               </td>
             </tr>
 
-            <tr v-if="!loading && filteredUsers.length === 0">
+            <tr v-if="!isAnimating && filteredUsers.length === 0">
               <td colspan="6" class="py-6 text-center text-gray-400">
                 No users found.
               </td>
             </tr>
           </tbody>
         </table>
-        <!-- phan trang -->
+
+        <!-- Pagination -->
         <div
           v-if="pagination"
           class="px-2 py-1 border-t border-gray-200 bg-gray-50 flex items-center justify-between"
@@ -191,14 +183,12 @@
       </div>
     </div>
 
-    <!-- AddUserModal -->
+    <!-- Modals -->
     <AddUserModal
       v-if="showAddModal"
       @close="showAddModal = false"
       @save="handleAddUser"
     />
-
-    <!-- UserFilterModal -->
     <UserFilterModal
       v-if="showFilterModal"
       @close="showFilterModal = false"
@@ -208,19 +198,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { message } from "ant-design-vue";
+import { ref, computed, watch, onMounted, nextTick } from "vue";
+import { message, Modal } from "ant-design-vue";
 import AddUserModal from "../components/Modals/Users/AddUserModal.vue";
 import UserFilterModal from "../components/Modals/Users/UserFilterModal.vue";
+import LoadingState from "@/components/common/LoadingState.vue";
 
 interface User {
-  id?: number;
+  id: number;
   name: string;
   email: string;
   role: string;
   password?: string;
   description?: string;
-  active?: boolean;
+  active: boolean;
+  createdAt?: string;
 }
 
 const props = defineProps({
@@ -230,10 +222,36 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["add", "edit", "delete", "filter"]);
-// hien thi du lieu
+
+// --- State ---
 const filterKeyword = ref("");
 const appliedKeyword = ref("");
-const filteredUsers = computed(() => {
+const userData = ref<User[]>([]);
+const users = ref<User[]>([]);
+const isAnimating = ref(true);
+const showAddModal = ref(false);
+const showFilterModal = ref(false);
+
+const pagination = ref({
+  page: 1,
+  perPage: 10,
+  lastPage: 1,
+  total: 0,
+});
+
+const mapUser = (user: any): User => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  password: user.password,
+  description: user.description,
+  active: Boolean(user.active),
+  createdAt: user.created_at ?? user.createdAt ?? "",
+});
+
+// --- Computed ---
+const filteredUsers = computed<User[]>(() => {
   const q = appliedKeyword.value.toLowerCase().trim();
   if (!q) return users.value;
   return users.value.filter(
@@ -244,6 +262,7 @@ const filteredUsers = computed(() => {
   );
 });
 
+// --- Methods ---
 function resetFilter() {
   filterKeyword.value = "";
   appliedKeyword.value = "";
@@ -251,20 +270,15 @@ function resetFilter() {
   message.info("Filters reset");
 }
 
-// function deleteUser(user: User) {
-//   if (confirm(`Delete user ${user.name}?`)) {
-//     emit("delete", user);
-//     message.success("User deleted");
-//   }
-// }
+function formatCreatedAt(date?: string) {
+  if (!date) return "--";
+  const parsed = new Date(date);
+  return Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleString();
+}
 
 function editUser(user: User) {
   message.info(`Edit user: ${user.name}`);
 }
-
-// --- Modal control ---
-const showAddModal = ref(false);
-const showFilterModal = ref(false);
 
 function openAddModal() {
   showAddModal.value = true;
@@ -274,9 +288,13 @@ function openFilterModal() {
   showFilterModal.value = true;
 }
 
-// --- Handlers ---
 function handleAddUser(user: User) {
-  emit("add", { ...user, id: Date.now(), active: true });
+  emit("add", {
+    ...user,
+    id: Date.now(),
+    active: true,
+    createdAt: new Date().toISOString(),
+  });
 }
 
 function handleApplyFilter(filters: {
@@ -290,23 +308,10 @@ function handleApplyFilter(filters: {
   showFilterModal.value = false;
 }
 
-// --phan trang--
-import { ref, watch, onMounted, nextTick } from "vue";
-
-const userData = ref([]);
-const users = ref([]);
-
-const isAnimating = ref(true);
-const pagination = ref({
-  page: 1,
-  perPage: 10,
-  lastPage: 1,
-  total: 0,
-});
-
+// --- API ---
 async function fetchUserData() {
   try {
-    isAnimating.value = true; // bật loading
+    isAnimating.value = true;
     const token = localStorage.getItem("access_token");
 
     const res = await fetch(
@@ -322,44 +327,21 @@ async function fetchUserData() {
 
     const data = await res.json();
 
-    // Gán dữ liệu user
-    userData.value = data.data;
-    users.value = data.data.map((user) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      active: user.active,
-    }));
+    userData.value = data.data.map(mapUser);
+    users.value = [...userData.value];
 
     pagination.value.lastPage = data.last_page;
     pagination.value.total = data.total;
-    pagination.value.perPage = data.per_page ?? 10; // fallback nếu API không trả về
-    console.log(
-      `Trang hiện tại: ${pagination.value.page}/${pagination.value.lastPage}`
-    );
+    pagination.value.perPage = data.per_page ?? 10;
     await nextTick();
   } catch (error) {
     console.error("Lỗi tải dữ liệu:", error);
   } finally {
-    isAnimating.value = false; // ✅ tắt spinner sau khi xong hoàn toàn
+    isAnimating.value = false;
   }
 }
-// search
-watch(filterKeyword, (newVal) => {
-  if (!newVal) {
-    users.value = userData.value;
-    return;
-  }
 
-  users.value = userData.value.filter(
-    (user) =>
-      user.name.toLowerCase().includes(newVal.toLowerCase()) ||
-      user.email.toLowerCase().includes(newVal.toLowerCase()) ||
-      user.role.toLowerCase().includes(newVal.toLowerCase())
-  );
-});
-
+// --- Pagination ---
 function prevPage() {
   if (pagination.value.page > 1) {
     pagination.value.page--;
@@ -374,16 +356,44 @@ function nextPage() {
   }
 }
 
-onMounted(() => {
-  fetchUserData();
-});
-
 function changePerPage() {
   pagination.value.page = 1;
   fetchUserData();
 }
-// ----------------------------delete--------------------------------------
-async function deleteUser(id) {
+
+// --- Watch ---
+watch(filterKeyword, (newVal) => {
+  if (!newVal) {
+    users.value = userData.value;
+    return;
+  }
+
+  users.value = userData.value.filter(
+    (user) =>
+      user.name.toLowerCase().includes(newVal.toLowerCase()) ||
+      user.email.toLowerCase().includes(newVal.toLowerCase()) ||
+      user.role.toLowerCase().includes(newVal.toLowerCase())
+  );
+});
+
+onMounted(() => {
+  fetchUserData();
+});
+
+function confirmDelete(user: User) {
+  Modal.confirm({
+    title: "Delete User",
+    content: `Are you sure you want to delete ${user.name}?`,
+    okText: "Delete",
+    okType: "danger",
+    cancelText: "Cancel",
+    centered: true,
+    onOk: () => deleteUser(user.id),
+  });
+}
+
+// --- Delete ---
+async function deleteUser(id: number) {
   try {
     const token = localStorage.getItem("access_token");
     const res = await fetch(`http://127.0.0.1:8000/api/users/${id}`, {
@@ -397,14 +407,14 @@ async function deleteUser(id) {
     const data = await res.json();
 
     if (res.ok) {
-      message.success("Xóa người dùng thành công!");
-      fetchUserData(); // cập nhật lại danh sách
+      message.success("User deleted successfully!");
+      fetchUserData();
     } else {
-      message.error(data.message || "Xóa thất bại!");
+      message.error(data.message || "Failed to delete user!");
     }
   } catch (error) {
-    console.error("Lỗi xóa người dùng:", error);
-    message.error("Đã xảy ra lỗi khi xóa!");
+    console.error("Error deleting user:", error);
+    message.error("An error occurred while deleting the user!");
   }
 }
 </script>
