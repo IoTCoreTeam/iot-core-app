@@ -9,7 +9,7 @@
 </template>
 
 <script setup>
-import { useRoute } from 'vue-router'
+import { useRoute } from "vue-router";
 // vẫn theo dõi route để reload NuxtPage nếu cần
-const route = useRoute()
+const route = useRoute();
 </script>

@@ -96,11 +96,20 @@
             </tr>
           </thead>
 
-          <tbody class="divide-y divide-gray-100">
-            <tr v-if="loading">
-              <td colspan="6" class="text-center py-6">Loading...</td>
+          <tbody>
+            <tr v-if="isAnimating">
+              <td colspan="6" class="text-center py-12">
+                <div
+                  class="flex flex-col items-center justify-center space-y-2"
+                >
+                  <div
+                    class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"
+                  ></div>
+                  <span class="text-sm text-gray-500">Loading data...</span>
+                </div>
+              </td>
             </tr>
-
+            <!--  -->
             <tr
               v-else
               v-for="(user, idx) in filteredUsers"
@@ -116,7 +125,7 @@
                   {{ user.active ? "Active" : "Inactive" }}
                 </span>
               </td>
-              <td class="px-2 py-1 text-right">
+              <td class="px-2 py-1 text-center align-middle">
                 <div class="inline-flex items-center gap-2">
                   <button
                     @click="editUser(user)"
@@ -282,13 +291,12 @@ function handleApplyFilter(filters: {
 }
 
 // --phan trang--
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, nextTick } from "vue";
 
 const userData = ref([]);
 const users = ref([]);
 
-const isAnimating = ref(false);
-
+const isAnimating = ref(true);
 const pagination = ref({
   page: 1,
   perPage: 10,
@@ -330,10 +338,11 @@ async function fetchUserData() {
     console.log(
       `Trang hiện tại: ${pagination.value.page}/${pagination.value.lastPage}`
     );
+    await nextTick();
   } catch (error) {
     console.error("Lỗi tải dữ liệu:", error);
   } finally {
-    isAnimating.value = false; // tắt loading
+    isAnimating.value = false; // ✅ tắt spinner sau khi xong hoàn toàn
   }
 }
 
@@ -373,5 +382,5 @@ function changePerPage() {
   pagination.value.page = 1;
   fetchUserData();
 }
-// ------------------------------------------------------------------
+// ----------------------------load--------------------------------------
 </script>
