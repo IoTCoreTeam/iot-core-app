@@ -134,7 +134,7 @@
                     Edit
                   </button>
                   <button
-                    @click="deleteUser(user)"
+                    @click="deleteUser(user.id)"
                     class="p-1 rounded hover:bg-gray-100 text-red-600"
                   >
                     Delete
@@ -251,12 +251,12 @@ function resetFilter() {
   message.info("Filters reset");
 }
 
-function deleteUser(user: User) {
-  if (confirm(`Delete user ${user.name}?`)) {
-    emit("delete", user);
-    message.success("User deleted");
-  }
-}
+// function deleteUser(user: User) {
+//   if (confirm(`Delete user ${user.name}?`)) {
+//     emit("delete", user);
+//     message.success("User deleted");
+//   }
+// }
 
 function editUser(user: User) {
   message.info(`Edit user: ${user.name}`);
@@ -345,7 +345,7 @@ async function fetchUserData() {
     isAnimating.value = false; // ✅ tắt spinner sau khi xong hoàn toàn
   }
 }
-
+// search
 watch(filterKeyword, (newVal) => {
   if (!newVal) {
     users.value = userData.value;
@@ -382,5 +382,29 @@ function changePerPage() {
   pagination.value.page = 1;
   fetchUserData();
 }
-// ----------------------------load--------------------------------------
+// ----------------------------delete--------------------------------------
+async function deleteUser(id) {
+  try {
+    const token = localStorage.getItem("access_token");
+    const res = await fetch(`http://127.0.0.1:8000/api/users/${id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      message.success("Xóa người dùng thành công!");
+      fetchUserData(); // cập nhật lại danh sách
+    } else {
+      message.error(data.message || "Xóa thất bại!");
+    }
+  } catch (error) {
+    console.error("Lỗi xóa người dùng:", error);
+    message.error("Đã xảy ra lỗi khi xóa!");
+  }
+}
 </script>
