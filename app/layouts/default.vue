@@ -32,24 +32,24 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import AppHeader from '~/components/AppHeader.vue'
-import AppFooter from '~/components/AppFooter.vue'
+import { ref, watch } from "vue";
+import { useRoute } from "vue-router";
+import AppHeader from "~/components/AppHeader.vue";
+import AppFooter from "~/components/AppFooter.vue";
 
-const loading = ref(false)
-const route = useRoute()
+const loading = ref(false);
+const route = useRoute();
 
 // Khi đổi route -> hiển thị spinner trước khi render page
 watch(
   () => route.fullPath,
   async () => {
-    loading.value = true
+    loading.value = true;
     // Giả lập thời gian tải (bạn có thể thay bằng chờ API)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    loading.value = false
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    loading.value = false;
   }
-)
+);
 </script>
 
 <style scoped>
