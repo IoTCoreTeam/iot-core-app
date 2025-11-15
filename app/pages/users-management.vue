@@ -194,6 +194,12 @@
       @close="showFilterModal = false"
       @apply="handleApplyFilter"
     />
+    <UserDetailModal
+      v-if="showDetailModal && activeUserId"
+      :user-id="activeUserId"
+      @close="handleDetailClose"
+      @updated="handleDetailUpdated"
+    />
   </div>
 </template>
 
@@ -202,6 +208,7 @@ import { ref, computed, watch, onMounted, nextTick } from "vue";
 import { message, Modal } from "ant-design-vue";
 import AddUserModal from "../components/Modals/Users/AddUserModal.vue";
 import UserFilterModal from "../components/Modals/Users/UserFilterModal.vue";
+import UserDetailModal from "../components/Modals/Users/UserDetailModal.vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 
 interface User {
@@ -231,6 +238,8 @@ const users = ref<User[]>([]);
 const isAnimating = ref(true);
 const showAddModal = ref(false);
 const showFilterModal = ref(false);
+const showDetailModal = ref(false);
+const activeUserId = ref<number | null>(null);
 
 const pagination = ref({
   page: 1,
@@ -277,7 +286,8 @@ function formatCreatedAt(date?: string) {
 }
 
 function editUser(user: User) {
-  message.info(`Edit user: ${user.name}`);
+  activeUserId.value = user.id;
+  showDetailModal.value = true;
 }
 
 function openAddModal() {
@@ -286,6 +296,15 @@ function openAddModal() {
 
 function openFilterModal() {
   showFilterModal.value = true;
+}
+
+function handleDetailClose() {
+  showDetailModal.value = false;
+  activeUserId.value = null;
+}
+
+function handleDetailUpdated() {
+  fetchUserData();
 }
 
 function handleAddUser(user: User) {
@@ -325,17 +344,26 @@ async function fetchUserData() {
       }
     );
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
-    userData.value = data.data.map(mapUser);
+    if (!res.ok || data?.success === false) {
+      throw new Error(
+        data?.message ?? `Unable to load users (${res.status}).`
+      );
+    }
+
+    const userList = Array.isArray(data?.data) ? data.data : [];
+
+    userData.value = userList.map(mapUser);
     users.value = [...userData.value];
 
-    pagination.value.lastPage = data.last_page;
-    pagination.value.total = data.total;
-    pagination.value.perPage = data.per_page ?? 10;
+    pagination.value.lastPage = data.last_page ?? pagination.value.lastPage;
+    pagination.value.total = data.total ?? pagination.value.total;
+    pagination.value.perPage = data.per_page ?? pagination.value.perPage;
     await nextTick();
   } catch (error) {
-    console.error("Lỗi tải dữ liệu:", error);
+    const messageText = (error as Error)?.message ?? "Unable to load users.";
+    message.error(messageText);
   } finally {
     isAnimating.value = false;
   }
@@ -404,17 +432,22 @@ async function deleteUser(id: number) {
       },
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
-    if (res.ok) {
-      message.success("User deleted successfully!");
-      fetchUserData();
-    } else {
-      message.error(data.message || "Failed to delete user!");
+    if (!res.ok || data?.success === false) {
+      const errorMessage =
+        data?.message ?? "Failed to delete user!";
+      throw new Error(errorMessage);
     }
-  } catch (error) {
-    console.error("Error deleting user:", error);
-    message.error("An error occurred while deleting the user!");
+
+    message.success(data?.message ?? "User deleted successfully!");
+    fetchUserData();
+  } catch (error: any) {
+    const messageText =
+      typeof error?.message === "string" && error.message.trim().length > 0
+        ? error.message.trim()
+        : "An error occurred while deleting the user!";
+    message.error(messageText);
   }
 }
 </script>
