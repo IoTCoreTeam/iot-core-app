@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-7xl mx-auto px-0 py-5 min-h-[90vh]">
+  <div class="max-w-7xl mx-auto px-0 py-5 min-h-[80vh]">
     <div
       class="bg-white shadow-sm rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm relative w-full text-xs"
     >
@@ -233,7 +233,6 @@ const emit = defineEmits(["add", "edit", "delete", "filter"]);
 // --- State ---
 const filterKeyword = ref("");
 const appliedKeyword = ref("");
-const userData = ref<User[]>([]);
 const users = ref<User[]>([]);
 const isAnimating = ref(true);
 const showAddModal = ref(false);
@@ -333,16 +332,23 @@ async function fetchUserData() {
     isAnimating.value = true;
     const token = localStorage.getItem("access_token");
 
-    const res = await fetch(
-      `http://127.0.0.1:8000/api/users?page=${pagination.value.page}&per_page=${pagination.value.perPage}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const queryParams = new URLSearchParams({
+      page: String(pagination.value.page),
+      per_page: String(pagination.value.perPage),
+    });
+
+    const keyword = filterKeyword.value.trim();
+    if (keyword) {
+      queryParams.append("search", keyword);
+    }
+
+    const res = await fetch(`http://127.0.0.1:8000/api/users?${queryParams}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     const data = await res.json().catch(() => ({}));
 
@@ -353,9 +359,7 @@ async function fetchUserData() {
     }
 
     const userList = Array.isArray(data?.data) ? data.data : [];
-
-    userData.value = userList.map(mapUser);
-    users.value = [...userData.value];
+    users.value = userList.map(mapUser);
 
     pagination.value.lastPage = data.last_page ?? pagination.value.lastPage;
     pagination.value.total = data.total ?? pagination.value.total;
@@ -390,18 +394,15 @@ function changePerPage() {
 }
 
 // --- Watch ---
-watch(filterKeyword, (newVal) => {
-  if (!newVal) {
-    users.value = userData.value;
-    return;
+let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+watch(filterKeyword, () => {
+  if (searchDebounce) {
+    clearTimeout(searchDebounce);
   }
-
-  users.value = userData.value.filter(
-    (user) =>
-      user.name.toLowerCase().includes(newVal.toLowerCase()) ||
-      user.email.toLowerCase().includes(newVal.toLowerCase()) ||
-      user.role.toLowerCase().includes(newVal.toLowerCase())
-  );
+  pagination.value.page = 1;
+  searchDebounce = setTimeout(() => {
+    fetchUserData();
+  }, 400);
 });
 
 onMounted(() => {
