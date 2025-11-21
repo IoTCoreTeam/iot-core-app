@@ -77,7 +77,7 @@
         <table class="w-full">
           <thead>
             <tr class="bg-gray-50 border-b border-gray-200">
-              <th class="px-2 py-2 text-left font-medium text-gray-600">#</th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">ID</th>
               <th class="px-2 py-2 text-left font-medium text-gray-600">
                 Name
               </th>
@@ -109,7 +109,7 @@
               :key="user.id"
               class="hover:bg-gray-50 transition-colors"
             >
-              <td class="px-2 py-1">{{ idx + 1 }}</td>
+              <td class="px-2 py-1">{{ user.id }}</td>
               <td class="px-2 py-1">{{ user.name }}</td>
               <td class="px-2 py-1">{{ user.email }}</td>
               <td class="px-2 py-1">{{ user.role }}</td>
@@ -327,9 +327,12 @@ function handleApplyFilter(filters: {
 }
 
 // --- API ---
-async function fetchUserData() {
+async function fetchUserData(options: { showLoader?: boolean } = {}) {
+  const { showLoader = true } = options;
   try {
-    isAnimating.value = true;
+    if (showLoader) {
+      isAnimating.value = true;
+    }
     const token = localStorage.getItem("access_token");
 
     const queryParams = new URLSearchParams({
@@ -369,7 +372,9 @@ async function fetchUserData() {
     const messageText = (error as Error)?.message ?? "Unable to load users.";
     message.error(messageText);
   } finally {
-    isAnimating.value = false;
+    if (showLoader) {
+      isAnimating.value = false;
+    }
   }
 }
 
@@ -377,20 +382,20 @@ async function fetchUserData() {
 function prevPage() {
   if (pagination.value.page > 1) {
     pagination.value.page--;
-    fetchUserData();
+    fetchUserData({ showLoader: false });
   }
 }
 
 function nextPage() {
   if (pagination.value.page < pagination.value.lastPage) {
     pagination.value.page++;
-    fetchUserData();
+    fetchUserData({ showLoader: false });
   }
 }
 
 function changePerPage() {
   pagination.value.page = 1;
-  fetchUserData();
+  fetchUserData({ showLoader: false });
 }
 
 // --- Watch ---
