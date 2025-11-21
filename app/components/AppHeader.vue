@@ -75,18 +75,18 @@
             class="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
           >
             <NuxtLink
-              to="/company-setup"
-              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
-              @click="closeDropdown"
-            >
-              Company Setup
-            </NuxtLink>
-            <NuxtLink
               to="/users-management"
               class="block px-4 py-1 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
               @click="closeDropdown"
             >
               Users Management
+            </NuxtLink>
+            <NuxtLink
+              to="/company-setup"
+              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
+              @click="closeDropdown"
+            >
+              Company Setup
             </NuxtLink>
           </div>
         </div>

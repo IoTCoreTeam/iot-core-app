@@ -26,12 +26,8 @@
         <LoadingState message="Loading user details..." />
       </div>
 
-      <form
-        v-else
-        class="grid grid-cols-1 md:grid-cols-2 gap-4"
-        @submit.prevent="submitForm"
-      >
-        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form v-else class="space-y-4" @submit.prevent="submitForm">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-[11px] font-medium text-gray-700 mb-1">
               Name
@@ -39,7 +35,7 @@
             <input
               v-model="form.name"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs"
+              class="w-full py-2 px-3 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs"
               placeholder="Full name"
               required
             />
@@ -51,14 +47,43 @@
             <input
               v-model="form.email"
               type="email"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs"
+              class="w-full py-2 px-3 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs"
               placeholder="Email address"
               required
             />
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 md:col-span-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[11px] font-medium text-gray-700 mb-1">
+              Role
+            </label>
+            <select
+              v-model="form.role"
+              class="w-full py-2 px-3 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs bg-white"
+              required
+            >
+              <option value="">Select role</option>
+              <option value="Admin">Admin</option>
+              <option value="User">User</option>
+              <option value="Guest">Guest</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-gray-700 mb-1">
+              New Password
+            </label>
+            <input
+              v-model="form.password"
+              type="password"
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs"
+              placeholder="Leave blank to keep the current password"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-[11px] font-medium text-gray-700 mb-1">
               Created At
@@ -85,7 +110,7 @@
           </div>
         </div>
 
-        <div class="md:col-span-2">
+        <div>
           <label class="block text-[11px] font-medium text-gray-700 mb-1">
             Description
           </label>
@@ -96,18 +121,8 @@
             placeholder="Enter description"
           ></textarea>
         </div>
-        <div class="md:col-span-2">
-          <label class="block text-[11px] font-medium text-gray-700 mb-1">
-            New Password
-          </label>
-          <input
-            v-model="form.password"
-            type="password"
-            class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs"
-            placeholder="Leave blank to keep the current password"
-          />
-        </div>
-        <div class="md:col-span-2 flex justify-end gap-3 pt-2">
+
+        <div class="flex justify-end gap-3 pt-2">
           <button
             type="button"
             class="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -139,6 +154,7 @@ interface UserDetail {
   id: number;
   name: string;
   email: string;
+  role?: string;
   description?: string;
   created_at?: string;
   createdAt?: string;
@@ -162,6 +178,7 @@ const loadError = ref("");
 const form = ref({
   name: "",
   email: "",
+  role: "",
   description: "",
   createdAt: "",
   updatedAt: "",
@@ -232,6 +249,7 @@ async function fetchUserDetail() {
     form.value = {
       name: userRecord.name ?? "",
       email: userRecord.email ?? "",
+      role: userRecord.role ?? "",
       description: userRecord.description ?? "",
       createdAt: userRecord.created_at ?? userRecord.createdAt ?? "",
       updatedAt: userRecord.updated_at ?? userRecord.updatedAt ?? "",
@@ -262,6 +280,11 @@ async function submitForm() {
     return;
   }
 
+  if (!form.value.role.trim()) {
+    message.warning("Role is required.");
+    return;
+  }
+
   try {
     const headers = {
       "Content-Type": "application/json",
@@ -272,6 +295,7 @@ async function submitForm() {
     const payload: Record<string, any> = {
       name: form.value.name.trim(),
       email: form.value.email.trim(),
+      role: form.value.role.trim(),
       description: form.value.description.trim(),
     };
 
