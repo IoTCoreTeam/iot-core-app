@@ -87,6 +87,7 @@
 import { ref, onMounted } from "vue";
 import { message } from "ant-design-vue";
 import LoadingState from "@/components/common/LoadingState.vue";
+import { apiConfig } from "../../config/api"
 
 const form = ref({
   name: "",
@@ -97,7 +98,7 @@ const form = ref({
 });
 const loading = ref(false);
 
-const apiUrl = "http://127.0.0.1:8000/api/company";
+const apiUrl =  apiConfig.auth + "/company";
 
 const buildAuthHeaders = () => {
   if (!import.meta.client) return {};

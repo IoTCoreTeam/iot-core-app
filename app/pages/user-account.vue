@@ -147,7 +147,7 @@
 import { ref, onMounted } from "vue";
 import { message } from "ant-design-vue";
 import LoadingState from "@/components/common/LoadingState.vue";
-
+import { apiConfig } from "~~/config/api";
 interface AccountForm {
   name: string;
   email: string;
@@ -166,9 +166,10 @@ const companyName = ref("");
 const loading = ref(true);
 const error = ref("");
 
-const USER_URL = "http://127.0.0.1:8000/api/user";
-const COMPANY_URL = "http://127.0.0.1:8000/api/company";
-const CHANGE_PASSWORD_URL = "http://127.0.0.1:8000/api/change-password";
+const BASE_API = apiConfig.auth;
+const USER_URL = BASE_API + "/user";
+const COMPANY_URL = BASE_API + "/company";
+const CHANGE_PASSWORD_URL = BASE_API + "/change-password";
 
 const buildAuthHeaders = (): Record<string, string> => {
   if (!import.meta.client) return {};
