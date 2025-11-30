@@ -149,6 +149,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { message } from "ant-design-vue";
 import BaseModal from "../BaseModal.vue";
 import LoadingState from "@/components/common/LoadingState.vue";
+import { apiConfig } from "~~/config/api";
 
 interface UserDetail {
   id: number;
@@ -168,7 +169,7 @@ const props = defineProps<{
 
 const emit = defineEmits(["close", "updated"]);
 
-const API_URL = "http://127.0.0.1:8000/api/users";
+const API_URL =  apiConfig.auth + "/users";
 
 const isOpen = ref(true);
 const isLoading = ref(false);

@@ -142,6 +142,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { apiConfig } from "../../config/api"
 
 interface LoginForm {
   email: string;
@@ -156,7 +157,7 @@ interface LoginFieldErrors {
 
 const router = useRouter();
 const route = useRoute();
-const API_BASE = "http://127.0.0.1:8000/api";
+const API_BASE = apiConfig.auth;
 
 const form = ref<LoginForm>({
   email: "",
@@ -241,8 +242,7 @@ const handleLogin = async () => {
     if (import.meta.client) {
       localStorage.setItem("remember_me", form.value.remember ? "1" : "0");
       localStorage.setItem("access_token", accessToken);
-      const tokenType =
-        payloadData?.token_type ?? payload?.token_type ?? "Bearer";
+      const tokenType = payloadData?.token_type ?? payload?.token_type ?? "Bearer";
       localStorage.setItem("token_type", tokenType);
       const user = payloadData?.user ?? payload?.user;
       if (user) {
@@ -250,8 +250,7 @@ const handleLogin = async () => {
       }
     }
 
-    const redirectTo =
-      (route.query.redirect as string | undefined) ?? "/";
+    const redirectTo = (route.query.redirect as string | undefined) ?? "/";
 
     form.value.password = "";
 

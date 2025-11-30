@@ -210,6 +210,7 @@ import AddUserModal from "../components/Modals/Users/AddUserModal.vue";
 import UserFilterModal from "../components/Modals/Users/UserFilterModal.vue";
 import UserDetailModal from "../components/Modals/Users/UserDetailModal.vue";
 import LoadingState from "@/components/common/LoadingState.vue";
+import { apiConfig } from "~~/config/api";
 
 interface User {
   id: number;
@@ -345,7 +346,7 @@ async function fetchUserData(options: { showLoader?: boolean } = {}) {
       queryParams.append("search", keyword);
     }
 
-    const res = await fetch(`http://127.0.0.1:8000/api/users?${queryParams}`, {
+    const res = await fetch(`${apiConfig.auth}/users?${queryParams}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -430,7 +431,7 @@ function confirmDelete(user: User) {
 async function deleteUser(id: number) {
   try {
     const token = localStorage.getItem("access_token");
-    const res = await fetch(`http://127.0.0.1:8000/api/users/${id}`, {
+    const res = await fetch(`${apiConfig.auth}/users/${id}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",

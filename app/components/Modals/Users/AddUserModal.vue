@@ -135,6 +135,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { message } from "ant-design-vue";
+import { apiConfig } from "~~/config/api";
 
 interface User {
   name: string;
@@ -148,7 +149,7 @@ const emit = defineEmits(["close", "save"]);
 
 const isOpen = ref(true);
 const isSubmitting = ref(false);
-const API_URL = "http://127.0.0.1:8000/api/register";
+const API_URL =  apiConfig.auth + "/register";
 
 const user = ref<User>({
   name: "",
@@ -220,8 +221,7 @@ async function submitForm() {
       );
     }
 
-    const successMessage =
-      payload?.data?.message ?? payload?.message ?? "User registered successfully.";
+    const successMessage = "User registered successfully.";
 
     message.success(successMessage);
     emit("save", { ...user.value });

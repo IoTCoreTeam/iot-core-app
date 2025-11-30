@@ -16,35 +16,66 @@
         >
           Dashboard
         </NuxtLink>
+        <!-- Devices Management dropdown -->
+        <div class="relative text-sm font-semibold cursor-pointer">
+          <button
+            @click="toggleDropdown('devices')"
+            class="flex items-center text-gray-700 hover:text-blue-700 transition-colors"
+          >
+            Devices Management
+            <svg
+              class="w-2 h-2 ml-1 mt-1 transition-transform duration-200"
+              :class="{ 'rotate-180': openDropdown === 'devices' }"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
 
+          <div
+            v-if="openDropdown === 'devices'"
+            @click.outside="closeDropdown"
+            class="absolute left-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
+          >
+            <NuxtLink
+              to="/devices-control"
+              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
+              @click="closeDropdown"
+            >
+              Devices Control
+            </NuxtLink>
+
+            <NuxtLink
+              to="/map-configuration"
+              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
+              @click="closeDropdown"
+            >
+              Map Configuration
+            </NuxtLink>
+
+            <NuxtLink
+              to="/scenarios"
+              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
+              @click="closeDropdown"
+            >
+              Scenarios
+            </NuxtLink>
+          </div>
+        </div>
         <NuxtLink
-          to="/devices-control"
+          to="/"
           class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
         >
-          Devices Control
+          System Log
         </NuxtLink>
-
-        <NuxtLink
-          to="/map-configuration"
-          class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
-        >
-          Map Configuration
-        </NuxtLink>
-
-        <NuxtLink
-          to="/scenarios"
-          class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
-        >
-          Scenarios
-        </NuxtLink>
-
-        <NuxtLink
-          to="/logs"
-          class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
-        >
-          Logs
-        </NuxtLink>
-
         <!-- Internal dropdown -->
         <div class="relative text-sm font-semibold cursor-pointer">
           <button
@@ -81,6 +112,7 @@
             >
               Users Management
             </NuxtLink>
+
             <NuxtLink
               to="/company-setup"
               class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
@@ -128,6 +160,7 @@
           >
             Management
           </NuxtLink>
+
           <button
             type="button"
             class="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 hover:text-red-600"
@@ -144,19 +177,16 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { apiConfig } from "../../config/api"
 
 const openDropdown = ref<string | null>(null);
 const isLoggingOut = ref(false);
 const router = useRouter();
-const runtimeConfig = useRuntimeConfig();
 
-const apiBase =
-  runtimeConfig.public?.apiBase ??
-  (runtimeConfig as Record<string, any>)?.apiBase ??
-  "http://127.0.0.1:8000/api";
+const AUTH_API = apiConfig.auth;
 
-// Toggle dropdown (both Account & Internal)
-function toggleDropdown(name: "internal" | "account") {
+// Toggle dropdown (Devices, Internal, Account)
+function toggleDropdown(name: "devices" | "internal" | "account") {
   openDropdown.value = openDropdown.value === name ? null : name;
 }
 
@@ -174,7 +204,7 @@ async function handleLogout() {
 
   try {
     if (accessToken) {
-      await fetch(`${apiBase}/logout`, {
+      await fetch(`${AUTH_API}/logout`, {
         method: "POST",
         headers: {
           Accept: "application/json",
