@@ -66,17 +66,23 @@
               <label class="block text-xs font-medium text-gray-700 mb-1"
                 >Time period</label
               >
-              <div class="w-full flex justify-between">
-                <input
-                  v-model="filters.start"
-                  type="datetime-local"
-                  class="w-[45%] px-2 py-2 border border-gray-300 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <input
-                  v-model="filters.end"
-                  type="datetime-local"
-                  class="w-[45%] px-2 py-2 border border-gray-300 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                />
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <p class="text-[11px] text-gray-500 mb-1">Start</p>
+                  <input
+                    v-model="filters.start"
+                    type="datetime-local"
+                    class="w-full px-2 py-2 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <p class="text-[11px] text-gray-500 mb-1">End</p>
+                  <input
+                    v-model="filters.end"
+                    type="datetime-local"
+                    class="w-full px-2 py-2 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -92,7 +98,6 @@
               <button
                 type="submit"
                 class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"
-                @click="ApplyFillter"
               >
                 Apply
               </button>
@@ -106,7 +111,6 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { apiConfig } from "../../../../config/api";
 
 const emit = defineEmits(["close", "apply"]);
 const isOpen = ref(true);
@@ -130,39 +134,5 @@ function resetFilter() {
 
 function applyFilter() {
   emit("apply", { ...filters.value });
-}
-
-//----------------Apply----------------------------
-async function ApplyFillter() {
-  try {
-    const payLoad = {
-      filters: {
-        keyword: filters.value.keyword,
-        role: filters.value.role,
-        start: filters.value.start,
-        end: filters.value.end,
-      },
-    };
-
-    const token = localStorage.getItem("access_token");
-
-    const res = await fetch(`${apiConfig.auth}/users`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payLoad),
-    });
-
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
-    }
-
-    const data = await res.json();
-    console.log("API response:", data);
-  } catch (err) {
-    console.error("Error in ApiApply:", err);
-  }
 }
 </script>
