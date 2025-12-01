@@ -8,7 +8,7 @@
 
       <transition name="modal-slide" appear>
         <div
-          class="relative bg-white rounded-lg shadow-2xl w-full max-w-md p-6 border border-gray-200 py-4 z-10 h-fit"
+          class="relative bg-white rounded-lg shadow-2xl w-full max-w-2xl p-6 border border-gray-200 py-4 z-10 h-fit"
         >
           <!-- Header -->
           <div class="flex justify-between items-center mb-4">
