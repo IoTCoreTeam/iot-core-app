@@ -43,7 +43,7 @@
                 v-model="filters.keyword"
                 type="text"
                 class="w-full px-2 py-2 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Search name, email, or role"
+                placeholder="Search name, email, or description"
               />
             </div>
 
@@ -64,16 +64,20 @@
 
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1"
-                >Status</label
+                >Time period</label
               >
-              <select
-                v-model="filters.status"
-                class="w-full px-2 py-2 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+              <div class="w-full flex justify-between">
+                <input
+                  v-model="filters.start"
+                  type="datetime-local"
+                  class="w-[45%] px-2 py-2 border border-gray-300 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <input
+                  v-model="filters.end"
+                  type="datetime-local"
+                  class="w-[45%] px-2 py-2 border border-gray-300 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
 
             <!-- Buttons -->
@@ -88,6 +92,7 @@
               <button
                 type="submit"
                 class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"
+                @click="ApiApply"
               >
                 Apply
               </button>
@@ -101,6 +106,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { apiConfig } from "../../../../config/api";
 
 const emit = defineEmits(["close", "apply"]);
 const isOpen = ref(true);
@@ -108,7 +114,8 @@ const isOpen = ref(true);
 const filters = ref({
   keyword: "",
   role: "",
-  status: "",
+  start: "",
+  end: "",
 });
 
 function closeModal() {
@@ -117,11 +124,35 @@ function closeModal() {
 }
 
 function resetFilter() {
-  filters.value = { keyword: "", role: "", status: "" };
+  filters.value = { keyword: "", role: "", start: "", end: "" };
   emit("apply", { ...filters.value });
 }
 
 function applyFilter() {
   emit("apply", { ...filters.value });
+}
+
+//----------------Apply----------------------------
+async function ApiApply() {
+  try {
+    const filter = {
+      Keyword: filters.value.keyword,
+      role: filters.value.role,
+      start: filters.value.start,
+      end: filters.value.end,
+    };
+    const token = localStorage.getItem("access_token");
+    const res = await fetch(`${apiConfig.auth}/users`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(filter),
+    });
+    const data = await res.json();
+  } catch (err) {
+    console.error("Error in ApiApply:", err);
+  }
 }
 </script>
