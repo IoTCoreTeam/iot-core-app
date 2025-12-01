@@ -92,7 +92,7 @@
               <button
                 type="submit"
                 class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"
-                @click="ApiApply"
+                @click="ApplyFillter"
               >
                 Apply
               </button>
@@ -133,24 +133,34 @@ function applyFilter() {
 }
 
 //----------------Apply----------------------------
-async function ApiApply() {
+async function ApplyFillter() {
   try {
-    const filter = {
-      Keyword: filters.value.keyword,
-      role: filters.value.role,
-      start: filters.value.start,
-      end: filters.value.end,
+    const payLoad = {
+      filters: {
+        keyword: filters.value.keyword,
+        role: filters.value.role,
+        start: filters.value.start,
+        end: filters.value.end,
+      },
     };
+
     const token = localStorage.getItem("access_token");
+
     const res = await fetch(`${apiConfig.auth}/users`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(filter),
+      body: JSON.stringify(payLoad),
     });
+
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
     const data = await res.json();
+    console.log("API response:", data);
   } catch (err) {
     console.error("Error in ApiApply:", err);
   }
