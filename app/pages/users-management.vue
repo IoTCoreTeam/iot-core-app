@@ -276,7 +276,7 @@ function resetFilter() {
   filterKeyword.value = "";
   appliedKeyword.value = "";
   emit("filter", "");
-  message.info("Filters reset");
+  window.location.reload();
 }
 
 function formatCreatedAt(date?: string) {
