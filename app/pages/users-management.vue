@@ -223,6 +223,13 @@ interface User {
   createdAt?: string;
 }
 
+interface UserFilters {
+  keyword: string;
+  role: string;
+  start: string;
+  end: string;
+}
+
 const props = defineProps({
   title: { type: String, default: "" },
   data: { type: Array as () => User[], default: () => [] },
@@ -240,6 +247,7 @@ const showAddModal = ref(false);
 const showFilterModal = ref(false);
 const showDetailModal = ref(false);
 const activeUserId = ref<number | null>(null);
+const activeFilters = ref<UserFilters | null>(null);
 
 const pagination = ref({
   page: 1,
@@ -247,6 +255,31 @@ const pagination = ref({
   lastPage: 1,
   total: 0,
 });
+
+const defaultFilters: UserFilters = {
+  keyword: "",
+  role: "",
+  start: "",
+  end: "",
+};
+
+const normalizeFilters = (payload: Partial<UserFilters> = {}): UserFilters => ({
+  ...defaultFilters,
+  ...payload,
+});
+
+const hasFilterValue = (payload: UserFilters | null): payload is UserFilters => {
+  if (!payload) {
+    return false;
+  }
+
+  return (
+    payload.keyword.trim().length > 0 ||
+    payload.role.trim().length > 0 ||
+    payload.start.trim().length > 0 ||
+    payload.end.trim().length > 0
+  );
+};
 
 const mapUser = (user: any): User => ({
   id: user.id,
@@ -275,8 +308,10 @@ const filteredUsers = computed<User[]>(() => {
 function resetFilter() {
   filterKeyword.value = "";
   appliedKeyword.value = "";
+  activeFilters.value = null;
+  pagination.value.page = 1;
   emit("filter", "");
-  window.location.reload();
+  fetchUserData();
 }
 
 function formatCreatedAt(date?: string) {
@@ -316,14 +351,18 @@ function handleAddUser(user: User) {
   });
 }
 
-function handleApplyFilter(filters: {
-  keyword: string;
-  role: string;
-  status: string;
-}) {
-  emit("filter", filters);
-  appliedKeyword.value = filters.keyword;
-  message.info("Filter applied");
+function handleApplyFilter(filters: UserFilters) {
+  const normalized = normalizeFilters(filters);
+  const hasValues = hasFilterValue(normalized);
+
+  activeFilters.value = hasValues ? normalized : null;
+  appliedKeyword.value = normalized.keyword;
+  pagination.value.page = 1;
+
+  emit("filter", normalized);
+  fetchUserData();
+
+  message.info(hasValues ? "Filter applied" : "Filters cleared");
   showFilterModal.value = false;
 }
 
@@ -341,18 +380,37 @@ async function fetchUserData(options: { showLoader?: boolean } = {}) {
       per_page: String(pagination.value.perPage),
     });
 
-    const keyword = filterKeyword.value.trim();
-    if (keyword) {
-      queryParams.append("search", keyword);
-    }
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
 
-    const res = await fetch(`${apiConfig.auth}/users?${queryParams}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const hasFilters = hasFilterValue(activeFilters.value);
+    let res: Response;
+
+    if (hasFilters) {
+      const payload = normalizeFilters(activeFilters.value ?? {});
+      const keywordOverride = filterKeyword.value.trim();
+      if (keywordOverride) {
+        payload.keyword = keywordOverride;
+      }
+
+      res = await fetch(`${apiConfig.auth}/users/filter?${queryParams}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ filters: payload }),
+      });
+    } else {
+      const keyword = filterKeyword.value.trim();
+      if (keyword) {
+        queryParams.append("search", keyword);
+      }
+
+      res = await fetch(`${apiConfig.auth}/users?${queryParams}`, {
+        method: "GET",
+        headers,
+      });
+    }
 
     const data = await res.json().catch(() => ({}));
 
