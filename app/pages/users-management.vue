@@ -19,19 +19,10 @@
                 placeholder="Search user..."
                 class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-52 text-xs cursor-text"
               />
-              <svg
+              <BootstrapIcon
+                name="search"
                 class="absolute left-1 top-1.5 h-3 w-3 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+              />
             </div>
 
             <!-- Filter Button -->
@@ -39,6 +30,7 @@
               @click="openFilterModal"
               class="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded px-3 py-1 text-xs border border-gray-300"
             >
+              <BootstrapIcon name="funnel" class="w-3 h-3 mr-1" />
               Filter
             </button>
 
@@ -46,26 +38,25 @@
               @click="resetFilter"
               class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300"
             >
+              <BootstrapIcon name="arrow-clockwise" class="w-3 h-3 mr-1" />
               Reset
+            </button>
+            <button
+              @click="exportToExcel"
+              class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+            >
+              <BootstrapIcon
+                name="file-earmark-arrow-down"
+                class="w-3 h-3 mr-1"
+              />
+              Excel
             </button>
 
             <button
               @click="openAddModal"
               class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
             >
-              <svg
-                class="w-3 h-3 mr-1"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
+              <BootstrapIcon name="person-plus" class="w-3 h-3 mr-1" />
               New User
             </button>
           </div>
@@ -364,6 +355,55 @@ function handleApplyFilter(filters: UserFilters) {
 
   message.info(hasValues ? "Filter applied" : "Filters cleared");
   showFilterModal.value = false;
+}
+
+function exportToExcel() {
+  if (!import.meta.client) return;
+
+  const data = filteredUsers.value;
+  if (!data.length) {
+    message.warning("No users to export.");
+    return;
+  }
+
+  const headers = ["ID", "Name", "Email", "Role", "Created At"];
+  const escapeValue = (value: string | number | boolean | null | undefined) => {
+    if (value === null || value === undefined) {
+      return '""';
+    }
+    const str = String(value).replace(/"/g, '""');
+    return `"${str}"`;
+  };
+
+  const csvRows = [
+    headers.map(escapeValue).join(","),
+    ...data.map((user) =>
+      [
+        user.id,
+        user.name,
+        user.email,
+        user.role,
+        formatCreatedAt(user.createdAt),
+      ]
+        .map(escapeValue)
+        .join(",")
+    ),
+  ];
+
+  const csvContent = "\uFEFF" + csvRows.join("\r\n");
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const timestamp = new Date().toISOString().split("T")[0];
+  link.href = url;
+  link.setAttribute("download", `users-${timestamp}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+  message.success("Export completed.");
 }
 
 // --- API ---

@@ -1,10 +1,10 @@
 <template>
   <header class="w-full bg-white border-b border-gray-200 shadow-sm">
-    <div class="max-w-7xl mx-auto flex items-center px-2 py-4">
+    <div class="max-w-7xl mx-auto flex items-center py-3">
       <!-- Left: App name -->
       <NuxtLink to="/">
-        <h1 class="text-sm font-bold text-blue-800 tracking-tight">
-          IOT CORE OPERATION
+        <h1 class="text-sm font-bold text-blue-800 tracking-tight px-1">
+          IOT CORE
         </h1>
       </NuxtLink>
 
@@ -12,16 +12,18 @@
       <nav class="flex items-center space-x-10 ml-16">
         <NuxtLink
           to="/"
-          class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
+          class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors cursor-pointer border-b-2 border-transparent py-1 hover:border-blue-500"
         >
+          <BootstrapIcon name="grid-1x2" class="w-3 h-3" />
           Dashboard
         </NuxtLink>
         <!-- Devices Management dropdown -->
         <div class="relative text-sm font-semibold cursor-pointer">
           <button
             @click="toggleDropdown('devices')"
-            class="flex items-center text-gray-700 hover:text-blue-700 transition-colors"
+            class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
           >
+            <BootstrapIcon name="hdd-network" class="w-3 h-3" />
             Devices Management
             <svg
               class="w-2 h-2 ml-1 mt-1 transition-transform duration-200"
@@ -72,16 +74,18 @@
         </div>
         <NuxtLink
           to="/"
-          class="text-gray-700 text-sm font-semibold hover:text-blue-700 cursor-pointer"
+          class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors cursor-pointer border-b-2 border-transparent py-1 hover:border-blue-500"
         >
+          <BootstrapIcon name="clipboard-data" class="w-3 h-3" />
           System Log
         </NuxtLink>
         <!-- Internal dropdown -->
         <div class="relative text-sm font-semibold cursor-pointer">
           <button
             @click="toggleDropdown('internal')"
-            class="flex items-center text-gray-700 hover:text-blue-700 transition-colors"
+            class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
           >
+            <BootstrapIcon name="building" class="w-3 h-3" />
             Internal
             <svg
               class="w-2 h-2 ml-1 mt-1 transition-transform duration-200"
@@ -128,7 +132,7 @@
       <div class="relative ml-auto text-sm font-semibold cursor-pointer">
         <button
           @click="toggleDropdown('account')"
-          class="flex items-center text-gray-700 hover:text-blue-700 transition-colors"
+          class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
         >
           Account
           <svg
