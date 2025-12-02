@@ -36,10 +36,15 @@
 
             <button
               @click="resetFilter"
-              class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300"
+              :disabled="isResetting"
+              class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <BootstrapIcon name="arrow-clockwise" class="w-3 h-3 mr-1" />
-              Reset
+              <BootstrapIcon
+                name="arrow-clockwise"
+                class="w-3 h-3 mr-1"
+                :class="{ 'animate-spin': isResetting }"
+              />
+              {{ isResetting ? "Resetting..." : "Reset" }}
             </button>
             <button
               @click="exportToExcel"
@@ -49,7 +54,7 @@
                 name="file-earmark-arrow-down"
                 class="w-3 h-3 mr-1"
               />
-              Excel
+              Export
             </button>
 
             <button
@@ -187,6 +192,7 @@ const filterKeyword = ref("");
 const appliedKeyword = ref("");
 const users = ref<User[]>([]);
 const isAnimating = ref(true);
+const isResetting = ref(false);
 const showAddModal = ref(false);
 const showFilterModal = ref(false);
 const showDetailModal = ref(false);
@@ -195,7 +201,7 @@ const activeFilters = ref<UserFilters | null>(null);
 
 const pagination = ref({
   page: 1,
-  perPage: 10,
+  perPage: 15,
   lastPage: 1,
   total: 0,
 });
@@ -249,13 +255,19 @@ const filteredUsers = computed<User[]>(() => {
 });
 
 // --- Methods ---
-function resetFilter() {
+async function resetFilter() {
+  if (isResetting.value) return;
   filterKeyword.value = "";
   appliedKeyword.value = "";
   activeFilters.value = null;
   pagination.value.page = 1;
   emit("filter", "");
-  fetchUserData();
+  isResetting.value = true;
+  try {
+    await fetchUserData();
+  } finally {
+    isResetting.value = false;
+  }
 }
 
 function formatCreatedAt(date?: string) {

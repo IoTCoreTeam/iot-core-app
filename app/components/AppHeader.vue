@@ -62,18 +62,10 @@
             >
               Map Configuration
             </NuxtLink>
-
-            <NuxtLink
-              to="/scenarios"
-              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
-              @click="closeDropdown"
-            >
-              Scenarios
-            </NuxtLink>
           </div>
         </div>
         <NuxtLink
-          to="/"
+          to="/system-logs"
           class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors cursor-pointer border-b-2 border-transparent py-1 hover:border-blue-500"
         >
           <BootstrapIcon name="clipboard-data" class="w-3 h-3" />
@@ -134,7 +126,7 @@
           @click="toggleDropdown('account')"
           class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
         >
-          Account
+          {{ userName }}
           <svg
             class="w-2 h-2 ml-1 mt-1 transition-transform duration-200"
             :class="{ 'rotate-180': openDropdown === 'account' }"
@@ -180,11 +172,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { apiConfig } from "../../config/api"
 
 const openDropdown = ref<string | null>(null);
 const isLoggingOut = ref(false);
+const userName = ref("Account");
 const router = useRouter();
 
 const AUTH_API = apiConfig.auth;
@@ -198,6 +191,27 @@ function toggleDropdown(name: "devices" | "internal" | "account") {
 function closeDropdown() {
   openDropdown.value = null;
 }
+
+function loadUserName() {
+  if (!import.meta.client) return;
+
+  const storedUser = localStorage.getItem("user");
+
+  if (!storedUser) {
+    userName.value = "Account";
+    return;
+  }
+
+  try {
+    const parsedUser = JSON.parse(storedUser);
+    userName.value = parsedUser?.name ?? "Account";
+  } catch (error) {
+    console.error("Failed to parse stored user", error);
+    userName.value = "Account";
+  }
+}
+
+onMounted(loadUserName);
 
 async function handleLogout() {
   if (!import.meta.client || isLoggingOut.value) return;
