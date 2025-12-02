@@ -64,114 +64,67 @@
       </div>
 
       <!-- Table Section -->
-      <div class="overflow-x-auto w-full">
-        <table class="w-full">
-          <thead>
-            <tr class="bg-gray-50 border-b border-gray-200">
-              <th class="px-2 py-2 text-left font-medium text-gray-600">ID</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">
-                Name
-              </th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">
-                Email
-              </th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">
-                Role
-              </th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">
-                Created At
-              </th>
-              <th class="px-2 py-2 text-center font-medium text-gray-600">
-                Actions
-              </th>
-            </tr>
-          </thead>
+      <DataBox
+        :is-loading="isAnimating"
+        :pagination="pagination"
+        :has-data="filteredUsers.length > 0"
+        :columns="6"
+        @prev-page="prevPage"
+        @next-page="nextPage"
+        @change-per-page="changePerPage"
+      >
+        <template #head>
+          <tr class="bg-gray-50 border-b border-gray-200">
+            <th class="px-2 py-2 text-left font-medium text-gray-600">ID</th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">Name</th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">Email</th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">Role</th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">
+              Created At
+            </th>
+            <th class="px-2 py-2 text-center font-medium text-gray-600">
+              Actions
+            </th>
+          </tr>
+        </template>
 
-          <tbody>
-            <tr v-if="isAnimating">
-              <td colspan="6" class="text-center py-12">
-                <LoadingState message="Loading data..." />
-              </td>
-            </tr>
+        <template #default>
+          <tr
+            v-for="user in filteredUsers"
+            :key="user.id"
+            class="hover:bg-gray-50 transition-colors"
+          >
+            <td class="px-2 py-1">{{ user.id }}</td>
+            <td class="px-2 py-1">{{ user.name }}</td>
+            <td class="px-2 py-1">{{ user.email }}</td>
+            <td class="px-2 py-1">{{ user.role }}</td>
+            <td class="px-2 py-1 text-gray-600">
+              {{ formatCreatedAt(user.createdAt) }}
+            </td>
+            <td class="px-2 py-1 text-center align-middle">
+              <div class="inline-flex items-center gap-2">
+                <button
+                  @click="editUser(user)"
+                  class="p-1 rounded hover:bg-gray-100 text-blue-600"
+                >
+                  Edit
+                </button>
+                <button
+                  @click="confirmDelete(user)"
+                  class="p-1 rounded hover:bg-gray-100 text-red-600"
+                >
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+        </template>
 
-            <tr
-              v-else
-              v-for="(user, idx) in filteredUsers"
-              :key="user.id"
-              class="hover:bg-gray-50 transition-colors"
-            >
-              <td class="px-2 py-1">{{ user.id }}</td>
-              <td class="px-2 py-1">{{ user.name }}</td>
-              <td class="px-2 py-1">{{ user.email }}</td>
-              <td class="px-2 py-1">{{ user.role }}</td>
-              <td class="px-2 py-1 text-gray-600">
-                {{ formatCreatedAt(user.createdAt) }}
-              </td>
-              <td class="px-2 py-1 text-center align-middle">
-                <div class="inline-flex items-center gap-2">
-                  <button
-                    @click="editUser(user)"
-                    class="p-1 rounded hover:bg-gray-100 text-blue-600"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    @click="confirmDelete(user)"
-                    class="p-1 rounded hover:bg-gray-100 text-red-600"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
+        <template #empty>
+          No users found.
+        </template>
+      </DataBox>
 
-            <tr v-if="!isAnimating && filteredUsers.length === 0">
-              <td colspan="6" class="py-6 text-center text-gray-400">
-                No users found.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Pagination -->
-        <div
-          v-if="pagination"
-          class="px-2 py-1 border-t border-gray-200 bg-gray-50 flex items-center justify-between"
-        >
-          <div class="text-gray-500 text-xs">
-            {{ pagination.page }}/{{ pagination.lastPage }} ·
-            {{ pagination.total }} items
-          </div>
-          <div class="flex items-center gap-1">
-            <select
-              class="border border-gray-300 rounded py-0.5 px-0.5 bg-white text-xs"
-              v-model="pagination.perPage"
-              @change="changePerPage"
-            >
-              <option :value="5">5</option>
-              <option :value="10">10</option>
-              <option :value="20">20</option>
-              <option :value="50">50</option>
-            </select>
-
-            <button
-              class="px-1 py-0.5 border border-gray-300 rounded bg-white hover:bg-gray-50 disabled:opacity-50 text-xs"
-              :disabled="pagination.page <= 1"
-              @click="prevPage"
-            >
-              ←
-            </button>
-
-            <button
-              class="px-1 py-0.5 border border-gray-300 rounded bg-white hover:bg-gray-50 disabled:opacity-50 text-xs"
-              :disabled="pagination.page >= pagination.lastPage"
-              @click="nextPage"
-            >
-              →
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Modals -->
@@ -200,7 +153,7 @@ import { message, Modal } from "ant-design-vue";
 import AddUserModal from "../components/Modals/Users/AddUserModal.vue";
 import UserFilterModal from "../components/Modals/Users/UserFilterModal.vue";
 import UserDetailModal from "../components/Modals/Users/UserDetailModal.vue";
-import LoadingState from "@/components/common/LoadingState.vue";
+import DataBox from "@/components/common/DataBox.vue";
 import { apiConfig } from "~~/config/api";
 
 interface User {
@@ -492,7 +445,8 @@ function nextPage() {
   }
 }
 
-function changePerPage() {
+function changePerPage(value: number) {
+  pagination.value.perPage = value;
   pagination.value.page = 1;
   fetchUserData({ showLoader: false });
 }
