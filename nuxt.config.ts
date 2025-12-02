@@ -14,6 +14,7 @@ export default defineNuxtConfig({
     '@nuxt/content',
     '@nuxt/image',
     '@nuxt/ui',
-    '@ant-design-vue/nuxt'
+    '@ant-design-vue/nuxt',
+    'nuxt-bootstrap-icons'
   ]
 })
