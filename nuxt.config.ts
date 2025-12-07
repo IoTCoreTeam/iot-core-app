@@ -15,6 +15,7 @@ export default defineNuxtConfig({
     '@nuxt/image',
     '@nuxt/ui',
     '@ant-design-vue/nuxt',
-    'nuxt-bootstrap-icons'
+    'nuxt-bootstrap-icons',
+    '@pinia/nuxt'
   ]
 })
