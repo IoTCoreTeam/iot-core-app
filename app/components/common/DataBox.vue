@@ -16,7 +16,7 @@
         <template v-else>
           <slot v-if="hasData" />
           <tr v-else>
-            <td :colspan="columns" class="py-6 text-center text-gray-400">
+            <td :colspan="columns" class="py-6 text-center text-gray-400 text-xs">
               <slot name="empty">No data found.</slot>
             </td>
           </tr>

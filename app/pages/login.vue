@@ -143,6 +143,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { apiConfig } from "../../config/api"
+import { useAuthStore } from "~~/stores/auth";
 
 interface LoginForm {
   email: string;
@@ -158,6 +159,7 @@ interface LoginFieldErrors {
 const router = useRouter();
 const route = useRoute();
 const API_BASE = apiConfig.auth;
+const authStore = useAuthStore();
 
 const form = ref<LoginForm>({
   email: "",
@@ -207,6 +209,7 @@ const handleLogin = async () => {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      credentials: "include",
       body: JSON.stringify({
         email: form.value.email,
         password: form.value.password,
@@ -239,15 +242,20 @@ const handleLogin = async () => {
       throw new Error("Access token missing from server response.");
     }
 
+    const tokenType = payloadData?.token_type ?? payload?.token_type ?? "Bearer";
+    const expiresAt = payloadData?.expires_at ?? payload?.expires_at ?? "";
+    const user = payloadData?.user ?? payload?.user ?? null;
+
+    authStore.setSession({
+      accessToken,
+      tokenType,
+      expiresAt,
+      user,
+      rememberMe: form.value.remember,
+    });
+
     if (import.meta.client) {
       localStorage.setItem("remember_me", form.value.remember ? "1" : "0");
-      localStorage.setItem("access_token", accessToken);
-      const tokenType = payloadData?.token_type ?? payload?.token_type ?? "Bearer";
-      localStorage.setItem("token_type", tokenType);
-      const user = payloadData?.user ?? payload?.user;
-      if (user) {
-        localStorage.setItem("user", JSON.stringify(user));
-      }
     }
 
     const redirectTo = (route.query.redirect as string | undefined) ?? "/";

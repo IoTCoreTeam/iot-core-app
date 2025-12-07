@@ -48,7 +48,7 @@
             class="absolute left-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
           >
             <NuxtLink
-              to="/devices-control"
+              to="/devices-control/control-dashboard"
               class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
               @click="closeDropdown"
             >
@@ -56,7 +56,7 @@
             </NuxtLink>
 
             <NuxtLink
-              to="/map-configuration"
+              to="/devices-control/map-configuration"
               class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
               @click="closeDropdown"
             >
@@ -172,15 +172,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { apiConfig } from "../../config/api"
+import { useAuthStore } from "~~/stores/auth";
 
 const openDropdown = ref<string | null>(null);
 const isLoggingOut = ref(false);
-const userName = ref("Account");
 const router = useRouter();
-
 const AUTH_API = apiConfig.auth;
+const authStore = useAuthStore();
+const userName = computed(() => authStore.user?.name ?? "Account");
 
 // Toggle dropdown (Devices, Internal, Account)
 function toggleDropdown(name: "devices" | "internal" | "account") {
@@ -192,50 +193,27 @@ function closeDropdown() {
   openDropdown.value = null;
 }
 
-function loadUserName() {
-  if (!import.meta.client) return;
-
-  const storedUser = localStorage.getItem("user");
-
-  if (!storedUser) {
-    userName.value = "Account";
-    return;
-  }
-
-  try {
-    const parsedUser = JSON.parse(storedUser);
-    userName.value = parsedUser?.name ?? "Account";
-  } catch (error) {
-    console.error("Failed to parse stored user", error);
-    userName.value = "Account";
-  }
-}
-
-onMounted(loadUserName);
-
 async function handleLogout() {
   if (!import.meta.client || isLoggingOut.value) return;
   isLoggingOut.value = true;
 
-  const accessToken = localStorage.getItem("access_token");
-  const tokenType = localStorage.getItem("token_type") ?? "Bearer";
+  const authorization = authStore.authorizationHeader;
 
   try {
-    if (accessToken) {
+    if (authorization) {
       await fetch(`${AUTH_API}/logout`, {
         method: "POST",
         headers: {
           Accept: "application/json",
-          Authorization: `${tokenType} ${accessToken}`,
+          Authorization: authorization,
         },
+        credentials: "include",
       });
     }
   } catch (error) {
     console.error("Failed to logout:", error);
   } finally {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("token_type");
-    localStorage.removeItem("user");
+    authStore.clearSession();
     localStorage.removeItem("remember_me");
     isLoggingOut.value = false;
     openDropdown.value = null;

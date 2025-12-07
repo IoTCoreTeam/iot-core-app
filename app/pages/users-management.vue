@@ -160,6 +160,7 @@ import UserFilterModal from "../components/Modals/Users/UserFilterModal.vue";
 import UserDetailModal from "../components/Modals/Users/UserDetailModal.vue";
 import DataBox from "@/components/common/DataBox.vue";
 import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
 
 interface User {
   id: number;
@@ -205,6 +206,7 @@ const pagination = ref({
   lastPage: 1,
   total: 0,
 });
+const authStore = useAuthStore();
 
 const defaultFilters: UserFilters = {
   keyword: "",
@@ -372,13 +374,23 @@ function exportToExcel() {
 }
 
 // --- API ---
+const getAuthHeaders = () => {
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    throw new Error("Missing access token. Please sign in again.");
+  }
+  return {
+    Authorization: authorization,
+  };
+};
+
 async function fetchUserData(options: { showLoader?: boolean } = {}) {
   const { showLoader = true } = options;
   try {
     if (showLoader) {
       isAnimating.value = true;
     }
-    const token = localStorage.getItem("access_token");
+    const authHeaders = getAuthHeaders();
 
     const queryParams = new URLSearchParams({
       page: String(pagination.value.page),
@@ -387,7 +399,7 @@ async function fetchUserData(options: { showLoader?: boolean } = {}) {
 
     const headers = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      ...authHeaders,
     };
 
     const hasFilters = hasFilterValue(activeFilters.value);
@@ -494,12 +506,12 @@ function confirmDelete(user: User) {
 // --- Delete ---
 async function deleteUser(id: number) {
   try {
-    const token = localStorage.getItem("access_token");
+    const authHeaders = getAuthHeaders();
     const res = await fetch(`${apiConfig.auth}/users/${id}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        ...authHeaders,
       },
     });
 

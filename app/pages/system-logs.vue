@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full py-5 min-h-[80vh] px-4">
+  <div class="w-full py-4 min-h-[80vh] px-4">
     <div class="flex flex-col gap-4 lg:flex-row">
       <!-- Filters sidebar -->
       <div
@@ -207,7 +207,7 @@
                   </span>
                 </div>
               </td>
-              <td class="px-2 py-1 text-gray-700 leading-5 break-words align-top">
+              <td class="px-2 py-1 text-gray-700 leading-5 wrap-break-words align-top">
                 <p class="text-xs text-gray-800 leading-5">
                   {{ log.message }}
                 </p>
@@ -269,6 +269,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from "vue"
 import { message } from "ant-design-vue";
 import DataBox from "@/components/common/DataBox.vue";
 import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
 
 interface LogEntry {
   id: string | number;
@@ -496,6 +497,8 @@ function mapLogEntry(entry: any): LogEntry {
   };
 }
 
+const authStore = useAuthStore();
+
 async function fetchLogs(options: { showLoader?: boolean } = {}) {
   const { showLoader = true } = options;
   if (!import.meta.client) return;
@@ -505,7 +508,10 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
       isLoading.value = true;
     }
 
-    const token = localStorage.getItem("access_token");
+    const authorization = authStore.authorizationHeader;
+    if (!authorization) {
+      throw new Error("Missing access token. Please sign in again.");
+    }
     const queryParams = new URLSearchParams({
       page: String(pagination.value.page),
       per_page: String(pagination.value.perPage),
@@ -535,11 +541,8 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      Authorization: authorization,
     };
-
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
 
     const response = await fetch(
       `${apiConfig.auth}/system-logs?${queryParams.toString()}`,

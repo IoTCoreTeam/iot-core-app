@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="min-h-[80vh] bg-gray-50 pt-5 pb-10">
     <div class="max-w-7xl mx-auto">
-      <div class="bg-white rounded-sm overflow-hidden">
+      <div class="bg-white rounded-sm overflow-hidden shadow-sm">
         <div class="bg-white text-white px-6 py-4 pb-0 flex items-center">
           <div class="text-left">
             <p class="text-[10px] uppercase tracking-widest text-gray-600">
@@ -144,10 +144,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { message } from "ant-design-vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
+import { storeToRefs } from "pinia";
 interface AccountForm {
   name: string;
   email: string;
@@ -170,39 +172,47 @@ const BASE_API = apiConfig.auth;
 const USER_URL = BASE_API + "/user";
 const COMPANY_URL = BASE_API + "/company";
 const CHANGE_PASSWORD_URL = BASE_API + "/change-password";
+const authStore = useAuthStore();
+const { user: authUser } = storeToRefs(authStore);
 
 const buildAuthHeaders = (): Record<string, string> => {
-  if (!import.meta.client) return {};
-
-  const token = localStorage.getItem("access_token");
-  const tokenType = localStorage.getItem("token_type") ?? "Bearer";
-
-  if (!token) {
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
     throw new Error("Missing access token. Please sign in again.");
   }
 
   return {
-    Authorization: `${tokenType} ${token}`,
+    Authorization: authorization,
   };
 };
 
-const hydrateFromCache = () => {
-  if (!import.meta.client) return;
-  const cachedUser = localStorage.getItem("user");
-  if (!cachedUser) return;
-
-  try {
-    const parsed = JSON.parse(cachedUser);
+const syncFormFromStore = () => {
+  const snapshot = authUser.value;
+  if (!snapshot) {
     accountForm.value = {
-      name: parsed?.name ?? "",
-      email: parsed?.email ?? "",
-      role: parsed?.role ?? "",
-      description: parsed?.description ?? "",
+      name: "",
+      email: "",
+      role: "",
+      description: "",
     };
-  } catch {
-    // ignore invalid cache
+    return;
   }
+
+  accountForm.value = {
+    name: snapshot?.name ?? "",
+    email: snapshot?.email ?? "",
+    role: snapshot?.role ?? "",
+    description: snapshot?.description ?? "",
+  };
 };
+
+watch(
+  authUser,
+  () => {
+    syncFormFromStore();
+  },
+  { immediate: true, deep: true }
+);
 
 const fetchAccountData = async () => {
   loading.value = true;
@@ -251,9 +261,7 @@ const fetchAccountData = async () => {
 
     companyName.value = companyData?.name ?? "";
 
-    if (import.meta.client) {
-      localStorage.setItem("user", JSON.stringify(userData ?? {}));
-    }
+    authStore.updateUser(userData ?? null);
   } catch (err: any) {
     const isMissingToken =
       typeof err?.message === "string" &&
@@ -349,7 +357,6 @@ const submitPassword = async () => {
 };
 
 onMounted(() => {
-  hydrateFromCache();
   fetchAccountData();
 });
 </script>

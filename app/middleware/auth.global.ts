@@ -1,32 +1,75 @@
 import { message } from "ant-design-vue";
+import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
 
-function getStoredUserRole(): string | null {
-  const rawUser = localStorage.getItem("user");
-  if (!rawUser) {
-    return null;
+const AUTH_API = apiConfig.auth;
+
+async function attemptTokenRefresh(): Promise<boolean> {
+  if (!import.meta.client) {
+    return false;
   }
 
+  const authStore = useAuthStore();
+
   try {
-    const parsed = JSON.parse(rawUser);
-    const roleValue = parsed?.role ?? parsed?.user_role ?? parsed?.type ?? null;
-    return typeof roleValue === "string" ? roleValue : null;
+    const response = await fetch(`${AUTH_API}/refresh-token`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+      },
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    const payloadData = payload?.data ?? payload;
+    const accessToken: string | undefined =
+      payloadData?.access_token ??
+      payloadData?.token ??
+      payload?.access_token ??
+      payload?.token;
+
+    if (!accessToken) {
+      return false;
+    }
+
+    authStore.setSession({
+      accessToken,
+      tokenType: payloadData?.token_type ?? payload?.token_type ?? "Bearer",
+      expiresAt: payloadData?.expires_at ?? payload?.expires_at ?? "",
+      user: payloadData?.user ?? payload?.user ?? null,
+    });
+
+    return true;
   } catch {
-    return null;
+    return false;
   }
 }
 
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) {
     return;
   }
 
-  const token = localStorage.getItem("access_token");
+  const authStore = useAuthStore();
   const publicPaths = new Set(["/login"]);
   const adminOnlyPaths = new Set([
     "/users-management",
     "/company-setup",
     "/system-logs",
   ]);
+
+  let token = authStore.accessToken;
+
+  if (!token && !publicPaths.has(to.path)) {
+    const refreshed = await attemptTokenRefresh();
+    if (refreshed) {
+      token = authStore.accessToken;
+    }
+  }
 
   if (!token && !publicPaths.has(to.path)) {
     const redirect =
@@ -48,7 +91,7 @@ export default defineNuxtRouteMiddleware((to) => {
   }
 
   if (token && adminOnlyPaths.has(to.path)) {
-    const role = getStoredUserRole();
+    const role = authStore.userRole;
     if (!role || role.toLowerCase() !== "admin") {
       message.warning("You do not have permission to access this page.");
       return navigateTo("/");

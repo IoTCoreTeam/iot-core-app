@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex flex-col items-center justify-start py-10 pt-5 bg-gray-50"
+    class="flex flex-col items-center justify-start pb-10 py-4 bg-gray-50"
   >
     <div
       class="w-full max-w-7xl bg-white rounded-sm shadow-sm p-8 px-12 text-xs"
@@ -88,6 +88,7 @@ import { ref, onMounted } from "vue";
 import { message } from "ant-design-vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 import { apiConfig } from "../../config/api"
+import { useAuthStore } from "~~/stores/auth";
 
 const form = ref({
   name: "",
@@ -97,18 +98,16 @@ const form = ref({
   fax: "",
 });
 const loading = ref(false);
-
+const authStore = useAuthStore();
 const apiUrl =  apiConfig.auth + "/company";
 
 const buildAuthHeaders = () => {
-  if (!import.meta.client) return {};
-  const token = localStorage.getItem("access_token");
-  const tokenType = localStorage.getItem("token_type") ?? "Bearer";
-  if (!token) {
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
     throw new Error("Missing access token. Please sign in again.");
   }
   return {
-    Authorization: `${tokenType} ${token}`,
+    Authorization: authorization,
   };
 };
 

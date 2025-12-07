@@ -150,6 +150,7 @@ import { message } from "ant-design-vue";
 import BaseModal from "../BaseModal.vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
 
 interface UserDetail {
   id: number;
@@ -170,6 +171,7 @@ const props = defineProps<{
 const emit = defineEmits(["close", "updated"]);
 
 const API_URL =  apiConfig.auth + "/users";
+const authStore = useAuthStore();
 
 const isOpen = ref(true);
 const isLoading = ref(false);
@@ -198,18 +200,13 @@ const formattedCreatedAt = computed(() => formatDate(form.value.createdAt));
 const formattedUpdatedAt = computed(() => formatDate(form.value.updatedAt));
 
 const getAuthHeaders = (): Record<string, string> => {
-  if (!import.meta.client) {
-    throw new Error("Missing access token. Please sign in again.");
-  }
-  const token = localStorage.getItem("access_token");
-  const tokenType = localStorage.getItem("token_type") ?? "Bearer";
-
-  if (!token) {
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
     throw new Error("Missing access token. Please sign in again.");
   }
 
   return {
-    Authorization: `${tokenType} ${token}`,
+    Authorization: authorization,
     Accept: "application/json",
   };
 };

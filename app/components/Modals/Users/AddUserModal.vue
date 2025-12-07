@@ -136,6 +136,7 @@
 import { ref } from "vue";
 import { message } from "ant-design-vue";
 import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
 
 interface User {
   name: string;
@@ -150,6 +151,7 @@ const emit = defineEmits(["close", "save"]);
 const isOpen = ref(true);
 const isSubmitting = ref(false);
 const API_URL =  apiConfig.auth + "/register";
+const authStore = useAuthStore();
 
 const user = ref<User>({
   name: "",
@@ -178,13 +180,8 @@ async function submitForm() {
     message.warning("Please fill in all required fields.");
     return;
   }
-  const token = import.meta.client
-    ? localStorage.getItem("access_token")
-    : null;
-  const tokenType = import.meta.client
-    ? localStorage.getItem("token_type") ?? "Bearer"
-    : "Bearer";
-  if (!token) {
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
     message.error("Access token is required to register a user.");
     return;
   }
@@ -195,7 +192,7 @@ async function submitForm() {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        Authorization: `${tokenType} ${token}`,
+        Authorization: authorization,
       },
       body: JSON.stringify({
         name: user.value.name,
