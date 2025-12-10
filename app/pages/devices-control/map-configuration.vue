@@ -1,6 +1,6 @@
 <template>
-  <div class="px-6 py-4 bg-slate-50 min-h-screen">
-    <div class="max-w-7xl mx-auto space-y-8">
+  <div class="py-4 bg-slate-50 min-h-screen">
+    <div class="max-w-8xl mx-auto space-y-8">
       <header class="flex flex-col gap-2">
         <p class="text-sm uppercase tracking-wide text-slate-500">
           Devices Control

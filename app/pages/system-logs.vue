@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full py-4 min-h-[80vh] px-4">
+  <div class="w-full min-h-[80vh]">
     <div class="flex flex-col gap-4 lg:flex-row">
       <!-- Filters sidebar -->
       <div

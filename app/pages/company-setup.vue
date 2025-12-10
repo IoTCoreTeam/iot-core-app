@@ -1,9 +1,9 @@
 <template>
   <div
-    class="flex flex-col items-center justify-start pb-10 py-4 bg-gray-50"
+    class="flex flex-col items-center justify-start pb-10 bg-gray-50"
   >
     <div
-      class="w-full max-w-7xl bg-white rounded-sm shadow-sm p-8 px-12 text-xs"
+      class="w-full max-w-8xl bg-white rounded-sm shadow-sm p-8 px-12 text-xs"
     >
       <div class="mb-6">
         <h2 class="text-base font-semibold text-gray-800">

@@ -32,7 +32,7 @@
                 <p class="text-[11px] uppercase tracking-wide text-gray-500">
                   {{ item.label }}
                 </p>
-                <p class="text-sm font-semibold text-gray-900 text-right">
+                <p class="text-xs font-semibold text-gray-900 text-right">
                   {{ item.value }}
                 </p>
               </div>
@@ -50,7 +50,7 @@
                 <p class="text-[11px] uppercase tracking-wide text-gray-500">
                   {{ item.label }}
                 </p>
-                <p class="text-sm font-semibold text-gray-900 text-right">
+                <p class="text-xs font-semibold text-gray-900 text-right">
                   {{ item.value }}
                 </p>
               </div>
@@ -118,7 +118,7 @@
                   <span class="text-[11px] uppercase tracking-wide text-gray-500 md:w-32">
                     {{ entry.key }}
                   </span>
-                  <pre class="text-gray-800 text-sm whitespace-pre-wrap break-words flex-1">
+                  <pre class="text-gray-800 text-sm whitespace-pre-wrap wrap-break-words flex-1">
 {{ entry.value }}
                   </pre>
                 </div>
