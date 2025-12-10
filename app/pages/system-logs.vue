@@ -148,7 +148,7 @@
           :is-loading="isLoading"
           :pagination="pagination"
           :has-data="displayedLogs.length > 0"
-          :columns="5"
+          :columns="7"
           loading-text="Loading logs..."
           @prev-page="prevPage"
           @next-page="nextPage"
@@ -171,6 +171,9 @@
               </th>
               <th class="px-2 py-2 text-left font-medium text-gray-600">
                 Origin
+              </th>
+              <th class="px-2 py-2 text-center font-medium text-gray-600">
+                Detail
               </th>
             </tr>
           </template>
@@ -238,6 +241,17 @@
                   IP: {{ log.ipAddress }}
                 </div>
               </td>
+              <td class="px-2 py-1 align-top text-center">
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center w-8 h-8 border border-gray-200 rounded text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 transition disabled:opacity-60"
+                  :title="`View details for log #${log.id}`"
+                  @click="openDetailModal(log)"
+                >
+                  <BootstrapIcon name="info-circle" class="w-4 h-4" />
+                  <span class="sr-only">View details</span>
+                </button>
+              </td>
             </tr>
           </template>
 
@@ -261,6 +275,14 @@
         </div>
       </div>
     </div>
+
+    <SystemLogDetailModal
+      v-if="selectedLog"
+      :model-value="isDetailModalVisible"
+      :log="selectedLog"
+      @update:modelValue="handleDetailVisibility"
+      @close="handleDetailClose"
+    />
   </div>
 </template>
 
@@ -268,6 +290,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from "vue";
 import { message } from "ant-design-vue";
 import DataBox from "@/components/common/DataBox.vue";
+import SystemLogDetailModal from "@/components/Modals/Devices/SystemLogDetailModal.vue";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
 
@@ -291,6 +314,8 @@ const { title } = defineProps({
 });
 
 const logs = ref<LogEntry[]>([]);
+const selectedLog = ref<LogEntry | null>(null);
+const isDetailModalVisible = ref(false);
 const searchKeyword = ref("");
 const isLoading = ref(false);
 const isFilterVisible = ref(true);
@@ -661,6 +686,19 @@ function changePerPage(value: number) {
   pagination.value.perPage = value;
   pagination.value.page = 1;
   fetchLogs({ showLoader: false });
+}
+
+function openDetailModal(log: LogEntry) {
+  selectedLog.value = log;
+  isDetailModalVisible.value = true;
+}
+
+function handleDetailVisibility(value: boolean) {
+  isDetailModalVisible.value = value;
+}
+
+function handleDetailClose() {
+  selectedLog.value = null;
 }
 
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
