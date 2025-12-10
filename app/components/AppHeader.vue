@@ -1,10 +1,10 @@
 <template>
   <header class="w-full bg-white border-b border-gray-200 shadow-sm">
-    <div class="max-w-7xl mx-auto flex items-center py-3">
+    <div class="max-w-8xl mx-auto flex items-center py-3 px-5">
       <!-- Left: App name -->
       <NuxtLink to="/">
         <h1 class="text-sm font-bold text-blue-800 tracking-tight px-1">
-          IOT CORE
+          IOT CORE SYSTEM
         </h1>
       </NuxtLink>
 
