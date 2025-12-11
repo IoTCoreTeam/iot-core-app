@@ -64,13 +64,51 @@
             </NuxtLink>
           </div>
         </div>
-        <NuxtLink
-          to="/system-logs"
-          class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors cursor-pointer border-b-2 border-transparent py-1 hover:border-blue-500"
-        >
-          <BootstrapIcon name="clipboard-data" class="w-3 h-3" />
-          System Log
-        </NuxtLink>
+        <div class="relative text-sm font-semibold cursor-pointer">
+          <button
+            @click="toggleDropdown('monitoring')"
+            class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
+          >
+            <BootstrapIcon name="clipboard-data" class="w-3 h-3" />
+            System Monitoring
+            <svg
+              class="w-2 h-2 ml-1 mt-1 transition-transform duration-200"
+              :class="{ 'rotate-180': openDropdown === 'monitoring' }"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          <div
+            v-if="openDropdown === 'monitoring'"
+            @click.outside="closeDropdown"
+            class="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
+          >
+            <NuxtLink
+              to="/system-logs"
+              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
+              @click="closeDropdown"
+            >
+              System Logs
+            </NuxtLink>
+            <NuxtLink
+              to="/alerts"
+              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
+              @click="closeDropdown"
+            >
+              Alerts
+            </NuxtLink>
+          </div>
+        </div>
         <!-- Internal dropdown -->
         <div class="relative text-sm font-semibold cursor-pointer">
           <button
@@ -184,7 +222,7 @@ const authStore = useAuthStore();
 const userName = computed(() => authStore.user?.name ?? "Account");
 
 // Toggle dropdown (Devices, Internal, Account)
-function toggleDropdown(name: "devices" | "internal" | "account") {
+function toggleDropdown(name: "devices" | "monitoring" | "internal" | "account") {
   openDropdown.value = openDropdown.value === name ? null : name;
 }
 

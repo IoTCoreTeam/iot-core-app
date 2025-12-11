@@ -1,135 +1,161 @@
 <template>
   <div class="max-w-8xl mx-auto min-h-[80vh]">
-    <div
-      class="bg-white shadow-sm rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm relative w-full text-xs"
-    >
-      <!-- Header Section -->
-      <div class="bg-gray-50 px-2 py-1 border-b border-gray-200">
-        <div class="flex justify-between items-center gap-3">
-          <h3 class="font-medium text-gray-700">
-            {{ title || "User Management" }}
-          </h3>
-
-          <!-- Search + Actions -->
-          <div class="flex items-center gap-2">
-            <div class="relative">
-              <input
-                v-model="filterKeyword"
-                type="text"
-                placeholder="Search user..."
-                class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-52 text-xs cursor-text"
-              />
-              <BootstrapIcon
-                name="search"
-                class="absolute left-1 top-1.5 h-3 w-3 text-gray-400"
-              />
-            </div>
-
-            <!-- Filter Button -->
-            <button
-              @click="openFilterModal"
-              class="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded px-3 py-1 text-xs border border-gray-300"
-            >
-              <BootstrapIcon name="funnel" class="w-3 h-3 mr-1" />
-              Filter
-            </button>
-
-            <button
-              @click="resetFilter"
-              :disabled="isResetting"
-              class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <BootstrapIcon
-                name="arrow-clockwise"
-                class="w-3 h-3 mr-1"
-                :class="{ 'animate-spin': isResetting }"
-              />
-              {{ isResetting ? "Resetting..." : "Reset" }}
-            </button>
-            <button
-              @click="exportToExcel"
-              class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
-            >
-              <BootstrapIcon
-                name="file-earmark-arrow-down"
-                class="w-3 h-3 mr-1"
-              />
-              Export
-            </button>
-
-            <button
-              @click="openAddModal"
-              class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
-            >
-              <BootstrapIcon name="person-plus" class="w-3 h-3 mr-1" />
-              New User
-            </button>
-          </div>
+    <div class="flex flex-col gap-4 lg:flex-row">
+      <div
+        :class="[
+          'bg-white shadow-sm rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
+          { hidden: !isFilterVisible },
+        ]"
+      >
+        <div class="bg-gray-50 px-3 py-2 border-b border-gray-200">
+          <h4 class="text-sm font-semibold text-gray-700">Filters</h4>
+          <p class="text-xs text-gray-500">Refine the user results.</p>
         </div>
+        <AdvancedFilterPanel
+          :model-value="userFilterDraft"
+          :fields="userFilterFields"
+          :is-loading="isAnimating"
+          apply-label="Apply"
+          reset-label="Reset"
+          @update:modelValue="handleUserFilterModelUpdate"
+          @apply="handleApplyFilter"
+          @reset="handleUserFilterReset"
+        />
       </div>
 
-      <!-- Table Section -->
-      <DataBox
-        :is-loading="isAnimating"
-        :pagination="pagination"
-        :has-data="filteredUsers.length > 0"
-        :columns="6"
-        @prev-page="prevPage"
-        @next-page="nextPage"
-        @change-per-page="changePerPage"
+      <div
+        :class="[
+          'bg-white shadow-sm rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm relative w-full text-xs',
+          isFilterVisible ? 'flex-1' : 'w-7xl mx-auto',
+        ]"
       >
-        <template #head>
-          <tr class="bg-gray-50 border-b border-gray-200">
-            <th class="px-2 py-2 text-left font-medium text-gray-600">ID</th>
-            <th class="px-2 py-2 text-left font-medium text-gray-600">Name</th>
-            <th class="px-2 py-2 text-left font-medium text-gray-600">Email</th>
-            <th class="px-2 py-2 text-left font-medium text-gray-600">Role</th>
-            <th class="px-2 py-2 text-left font-medium text-gray-600">
-              Created At
-            </th>
-            <th class="px-2 py-2 text-center font-medium text-gray-600">
-              Actions
-            </th>
-          </tr>
-        </template>
+        <!-- Header Section -->
+        <div class="bg-gray-50 px-2 py-1 border-b border-gray-200">
+          <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex items-center gap-2">
+              <h3 class="font-medium text-gray-700">
+                {{ title || "User Management" }}
+              </h3>
+              <button
+                type="button"
+                class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
+                @click="toggleFilters"
+              >
+                {{ isFilterVisible ? "Hide Filters" : "Show Filters" }}
+              </button>
+            </div>
 
-        <template #default>
-          <tr
-            v-for="user in filteredUsers"
-            :key="user.id"
-            class="hover:bg-gray-50 transition-colors"
-          >
-            <td class="px-2 py-1">{{ user.id }}</td>
-            <td class="px-2 py-1">{{ user.name }}</td>
-            <td class="px-2 py-1">{{ user.email }}</td>
-            <td class="px-2 py-1">{{ user.role }}</td>
-            <td class="px-2 py-1 text-gray-600">
-              {{ formatCreatedAt(user.createdAt) }}
-            </td>
-            <td class="px-2 py-1 text-center align-middle">
-              <div class="inline-flex items-center gap-2">
-                <button
-                  @click="editUser(user)"
-                  class="p-1 rounded hover:bg-gray-100 text-blue-600"
-                >
-                  Edit
-                </button>
-                <button
-                  @click="confirmDelete(user)"
-                  class="p-1 rounded hover:bg-gray-100 text-red-600"
-                >
-                  Delete
-                </button>
+            <!-- Search + Actions -->
+            <div class="flex items-center gap-2">
+              <div class="relative">
+                <input
+                  v-model="filterKeyword"
+                  type="text"
+                  placeholder="Search user..."
+                  class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-52 text-xs cursor-text"
+                />
+                <BootstrapIcon
+                  name="search"
+                  class="absolute left-1 top-1.5 h-3 w-3 text-gray-400"
+                />
               </div>
-            </td>
-          </tr>
-        </template>
 
-        <template #empty>
-          No users found.
-        </template>
-      </DataBox>
+              <button
+                @click="resetFilter"
+                :disabled="isResetting"
+                class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <BootstrapIcon
+                  name="arrow-clockwise"
+                  class="w-3 h-3 mr-1"
+                  :class="{ 'animate-spin': isResetting }"
+                />
+                {{ isResetting ? "Resetting..." : "Reset" }}
+              </button>
+              <button
+                @click="exportToExcel"
+                class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+              >
+                <BootstrapIcon
+                  name="file-earmark-arrow-down"
+                  class="w-3 h-3 mr-1"
+                />
+                Export
+              </button>
 
+              <button
+                @click="openAddModal"
+                class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+              >
+                <BootstrapIcon name="person-plus" class="w-3 h-3 mr-1" />
+                New User
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table Section -->
+        <DataBox
+          :is-loading="isAnimating"
+          :pagination="pagination"
+          :has-data="filteredUsers.length > 0"
+          :columns="6"
+          @prev-page="prevPage"
+          @next-page="nextPage"
+          @change-per-page="changePerPage"
+        >
+          <template #head>
+            <tr class="bg-gray-50 border-b border-gray-200">
+              <th class="px-2 py-2 text-left font-medium text-gray-600">ID</th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">Name</th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">Email</th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">Role</th>
+              <th class="px-2 py-2 text-left font-medium text-gray-600">
+                Created At
+              </th>
+              <th class="px-2 py-2 text-center font-medium text-gray-600">
+                Actions
+              </th>
+            </tr>
+          </template>
+
+          <template #default>
+            <tr
+              v-for="user in filteredUsers"
+              :key="user.id"
+              class="hover:bg-gray-50 transition-colors"
+            >
+              <td class="px-2 py-1">{{ user.id }}</td>
+              <td class="px-2 py-1">{{ user.name }}</td>
+              <td class="px-2 py-1">{{ user.email }}</td>
+              <td class="px-2 py-1">{{ user.role }}</td>
+              <td class="px-2 py-1 text-gray-600">
+                {{ formatCreatedAt(user.createdAt) }}
+              </td>
+              <td class="px-2 py-1 text-center align-middle">
+                <div class="inline-flex items-center gap-2">
+                  <button
+                    @click="editUser(user)"
+                    class="p-1 rounded hover:bg-gray-100 text-blue-600"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    @click="confirmDelete(user)"
+                    class="p-1 rounded hover:bg-gray-100 text-red-600"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
+
+          <template #empty>
+            No users found.
+          </template>
+        </DataBox>
+      </div>
     </div>
 
     <!-- Modals -->
@@ -137,11 +163,6 @@
       v-if="showAddModal"
       @close="showAddModal = false"
       @save="handleAddUser"
-    />
-    <UserFilterModal
-      v-if="showFilterModal"
-      @close="showFilterModal = false"
-      @apply="handleApplyFilter"
     />
     <UserDetailModal
       v-if="showDetailModal && activeUserId"
@@ -156,8 +177,10 @@
 import { ref, computed, watch, onMounted, nextTick } from "vue";
 import { message, Modal } from "ant-design-vue";
 import AddUserModal from "../components/Modals/Users/AddUserModal.vue";
-import UserFilterModal from "../components/Modals/Users/UserFilterModal.vue";
 import UserDetailModal from "../components/Modals/Users/UserDetailModal.vue";
+import AdvancedFilterPanel, {
+  type FilterFieldRow,
+} from "@/components/common/AdvancedFilterPanel.vue";
 import DataBox from "@/components/common/DataBox.vue";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
@@ -195,10 +218,10 @@ const users = ref<User[]>([]);
 const isAnimating = ref(true);
 const isResetting = ref(false);
 const showAddModal = ref(false);
-const showFilterModal = ref(false);
 const showDetailModal = ref(false);
 const activeUserId = ref<number | null>(null);
 const activeFilters = ref<UserFilters | null>(null);
+const isFilterVisible = ref(true);
 
 const pagination = ref({
   page: 1,
@@ -214,6 +237,36 @@ const defaultFilters: UserFilters = {
   start: "",
   end: "",
 };
+
+const userFilterDraft = ref<UserFilters>({ ...defaultFilters });
+
+const userFilterFields: FilterFieldRow[] = [
+  [
+    {
+      key: "keyword",
+      label: "Keyword",
+      type: "text",
+      placeholder: "Search name, email, or description",
+    },
+  ],
+  [
+    {
+      key: "role",
+      label: "Role",
+      type: "select",
+      options: [
+        { label: "All", value: "" },
+        { label: "Admin", value: "Admin" },
+        { label: "User", value: "User" },
+        { label: "Guest", value: "Guest" },
+      ],
+    },
+  ],
+  [
+    { key: "start", label: "Start", type: "datetime-local" },
+    { key: "end", label: "End", type: "datetime-local" },
+  ],
+];
 
 const normalizeFilters = (payload: Partial<UserFilters> = {}): UserFilters => ({
   ...defaultFilters,
@@ -287,8 +340,8 @@ function openAddModal() {
   showAddModal.value = true;
 }
 
-function openFilterModal() {
-  showFilterModal.value = true;
+function toggleFilters() {
+  isFilterVisible.value = !isFilterVisible.value;
 }
 
 function handleDetailClose() {
@@ -309,10 +362,13 @@ function handleAddUser(user: User) {
   });
 }
 
-function handleApplyFilter(filters: UserFilters) {
-  const normalized = normalizeFilters(filters);
+function handleApplyFilter(filters?: Record<string, string>) {
+  const normalized = normalizeFilters(
+    (filters as Partial<UserFilters> | undefined) ?? userFilterDraft.value
+  );
   const hasValues = hasFilterValue(normalized);
 
+  userFilterDraft.value = { ...normalized };
   activeFilters.value = hasValues ? normalized : null;
   appliedKeyword.value = normalized.keyword;
   pagination.value.page = 1;
@@ -321,7 +377,18 @@ function handleApplyFilter(filters: UserFilters) {
   fetchUserData();
 
   message.info(hasValues ? "Filter applied" : "Filters cleared");
-  showFilterModal.value = false;
+}
+
+function handleUserFilterModelUpdate(value: Record<string, string>) {
+  userFilterDraft.value = {
+    ...userFilterDraft.value,
+    ...value,
+  };
+}
+
+function handleUserFilterReset() {
+  userFilterDraft.value = normalizeFilters();
+  handleApplyFilter(userFilterDraft.value);
 }
 
 function exportToExcel() {

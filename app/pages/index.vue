@@ -21,8 +21,8 @@
           </button>
         </div>
       </header> -->
-      <section class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm lg:col-span-3">
+      <section class="grid grid-cols-1 gap-4 lg:grid-cols-3 items-start">
+        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm lg:col-span-2">
           <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p class="text-[11px] font-semibold uppercase text-gray-600">Parameter trend</p>
@@ -65,97 +65,20 @@
             </div>
           </div>
         </div>
+        <div class="flex flex-col gap-4 h-full">
+          <DevicesControlAlertsPanel :alerts="alerts" />
+        </div>
       </section>
       <section class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <DashboardSensorCard v-for="metric in metrics" :key="metric.key" v-bind="metric" />
       </section>
 
-      <section class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-[11px] font-semibold uppercase text-gray-600">Active devices</p>
-              <h2 class="text-base font-semibold text-gray-900">Ordered by latest activity</h2>
-              <p class="text-xs text-gray-500">Click a row to view mock controls.</p>
-            </div>
-            <button type="button" class="text-xs font-semibold text-blue-700 hover:underline">
-              View all
-            </button>
-          </div>
-          <div class="mt-3 divide-y divide-gray-100">
-            <div
-              v-for="device in activeDevices"
-              :key="device.id"
-              class="flex items-center justify-between gap-3 py-3"
-            >
-              <div class="flex items-center gap-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-700">
-                  {{ device.initials }}
-                </div>
-                <div>
-                  <div class="text-sm font-semibold text-gray-900">{{ device.name }}</div>
-                  <div class="text-xs text-gray-500">
-                    {{ device.location }} · {{ device.firmware }}
-                  </div>
-                </div>
-              </div>
-              <div class="flex items-center gap-3 text-xs text-gray-500">
-                <span
-                  :class="[
-                    'rounded-full px-2 py-1 text-[11px] font-semibold',
-                    device.status === 'online'
-                      ? 'bg-green-50 text-green-700'
-                      : device.status === 'limited'
-                      ? 'bg-amber-50 text-amber-700'
-                      : 'bg-red-50 text-red-700',
-                  ]"
-                >
-                  {{ device.statusLabel }}
-                </span>
-                <span class="text-gray-500">Last ping {{ device.lastPing }}</span>
-              </div>
-            </div>
-          </div>
+      <section class="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
+        <div>
+          <DevicesControlActiveDevicesPanel :devices="activeDevices" />
         </div>
-
-        <div class="flex flex-col gap-4">
-          <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <div class="flex items-center justify-between">
-              <h3 class="text-base font-semibold text-gray-900">Alerts</h3>
-              <span class="text-xs text-gray-500">Live</span>
-            </div>
-            <div class="mt-3 space-y-3">
-              <div
-                v-for="alert in alerts"
-                :key="alert.id"
-                class="rounded-md border border-gray-100 p-3"
-              >
-                <div class="text-sm font-semibold text-gray-900">{{ alert.title }}</div>
-                <p class="text-xs text-gray-600">{{ alert.detail }}</p>
-                <div class="mt-1 text-[11px] text-gray-500">{{ alert.time }}</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <div class="flex items-center justify-between">
-              <h3 class="text-base font-semibold text-gray-900">Automation batches</h3>
-              <span class="text-xs text-gray-500">Scheduled</span>
-            </div>
-            <div class="mt-3 space-y-3">
-              <div
-                v-for="batch in automationBatches"
-                :key="batch.id"
-                class="flex items-center justify-between rounded-md border border-gray-100 p-3"
-              >
-                <div>
-                  <div class="text-sm font-semibold text-gray-900">{{ batch.name }}</div>
-                  <p class="text-xs text-gray-600">{{ batch.description }}</p>
-                </div>
-                <span class="text-[11px] text-gray-500">{{ batch.time }}</span>
-              </div>
-            </div>
-          </div>
+        <div>
+          <DevicesControlAutomationBatches :automations="automationBatches" />
         </div>
       </section>
     </div>
@@ -195,6 +118,32 @@ interface DashboardMetric {
 interface SeriesPoint {
   label: string;
   value: number;
+}
+
+interface ActiveDeviceItem {
+  id: number;
+  short: string;
+  name: string;
+  location: string;
+  version: string;
+  status: "Online" | "Offline" | "Limited";
+  lastPing: string;
+}
+
+interface AlertPanelItem {
+  id: number;
+  title: string;
+  message: string;
+  timestamp: string;
+}
+
+interface AutomationBatchItem {
+  id: number;
+  name: string;
+  devices: number;
+  trigger: string;
+  status: "Completed" | "Running";
+  updated: string;
 }
 
 const ApexChart = defineAsyncComponent(() => import("vue3-apexcharts"));
@@ -413,23 +362,23 @@ const selectedSeriesMaxLabel = computed(() => {
   return `Max ${formatValue(max)}${unit ? ` ${unit}` : ""}`;
 });
 
-const activeDevices = ref([
-  { id: 1, initials: "GW", name: "Gateway North-41", location: "Plant 3 · Hanoi", firmware: "Firmware 3.4.9", status: "online", statusLabel: "Online", lastPing: "12s ago" },
-  { id: 2, initials: "ST", name: "Storage Sensor 12", location: "Warehouse · Da Nang", firmware: "Firmware 2.2.1", status: "limited", statusLabel: "Limited", lastPing: "35s ago" },
-  { id: 3, initials: "EN", name: "Energy Meter 07", location: "Building B · HCMC", firmware: "Firmware 4.0.0", status: "offline", statusLabel: "Offline", lastPing: "5m ago" },
-  { id: 4, initials: "AQ", name: "Air Quality Kit", location: "HQ · HCMC", firmware: "Firmware 5.1.2", status: "online", statusLabel: "Online", lastPing: "50s ago" },
+const activeDevices = ref<ActiveDeviceItem[]>([
+  { id: 1, short: "GW", name: "Gateway North-41", location: "Plant 3 ? Hanoi", version: "3.4.9", status: "Online", lastPing: "12s ago" },
+  { id: 2, short: "ST", name: "Storage Sensor 12", location: "Warehouse ? Da Nang", version: "2.2.1", status: "Limited", lastPing: "35s ago" },
+  { id: 3, short: "EN", name: "Energy Meter 07", location: "Building B ? HCMC", version: "4.0.0", status: "Offline", lastPing: "5m ago" },
+  { id: 4, short: "AQ", name: "Air Quality Kit", location: "HQ ? HCMC", version: "5.1.2", status: "Online", lastPing: "50s ago" },
 ]);
 
-const alerts = ref([
-  { id: 1, title: "Offline device", detail: "Energy Meter 07 lost connection for more than 5 minutes.", time: "2 minutes ago" },
-  { id: 2, title: "Battery threshold", detail: "Storage Sensor 12 is at 17% battery.", time: "18 minutes ago" },
-  { id: 3, title: "New firmware available", detail: "Gateway North-41 can upgrade to 3.4.10.", time: "Today, 08:21" },
+const alerts = ref<AlertPanelItem[]>([
+  { id: 1, title: "Offline device", message: "Energy Meter 07 lost connection for more than 5 minutes.", timestamp: "2 minutes ago" },
+  { id: 2, title: "Battery threshold", message: "Storage Sensor 12 is at 17% battery.", timestamp: "18 minutes ago" },
+  { id: 3, title: "New firmware available", message: "Gateway North-41 can upgrade to 3.4.10.", timestamp: "Today, 08:21" },
 ]);
 
-const automationBatches = ref([
-  { id: 1, name: "Night irrigation", description: "Start pumps at 22:00 when soil moisture < 40%.", time: "Starts 22:00" },
-  { id: 2, name: "Morning ventilation", description: "Open vents if temp > 30°C at 07:00.", time: "Tomorrow 07:00" },
-  { id: 3, name: "Weekly firmware roll", description: "Push v5.1.2 to sensors across Zone 1.", time: "Friday 21:00" },
+const automationBatches = ref<AutomationBatchItem[]>([
+  { id: 1, name: "Night irrigation", devices: 28, trigger: "Soil moisture < 40%", status: "Completed", updated: "10 minutes ago" },
+  { id: 2, name: "Morning ventilation", devices: 14, trigger: "Temperature > 30?C", status: "Running", updated: "Just now" },
+  { id: 3, name: "Weekly firmware roll", devices: 42, trigger: "Manual approval", status: "Completed", updated: "Yesterday" },
 ]);
 
 function evaluateStatus(metric: DashboardMetric, nextValue: number) {
