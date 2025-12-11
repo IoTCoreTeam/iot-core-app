@@ -36,14 +36,15 @@
       <div class="flex items-center gap-1">
         <select
           class="border border-gray-300 rounded py-0.5 px-0.5 bg-white text-xs"
-          :value="pagination.perPage"
+          :value="selectValue"
           @change="handlePerPageChange"
         >
-          <option :value="5">5</option>
-          <option :value="10">10</option>
-          <option :value="15">15</option>
-          <option :value="20">20</option>
-          <option :value="50">50</option>
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="15">15</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="all">All</option>
         </select>
 
         <button
@@ -68,6 +69,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 
 interface PaginationState {
@@ -77,7 +79,7 @@ interface PaginationState {
   total: number;
 }
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     isLoading: boolean;
     pagination?: PaginationState | null;
@@ -98,8 +100,25 @@ const emit = defineEmits<{
   (e: "change-per-page", value: number): void;
 }>();
 
+const selectValue = computed(() => {
+  const pagination = props.pagination;
+  if (!pagination) {
+    return "10";
+  }
+  if (pagination.total > 0 && pagination.perPage >= pagination.total) {
+    return "all";
+  }
+  return String(pagination.perPage);
+});
+
 function handlePerPageChange(event: Event) {
   const target = event.target as HTMLSelectElement;
-  emit("change-per-page", Number(target.value));
+  const value = target.value;
+  if (value === "all") {
+    const total = props.pagination?.total ?? 0;
+    emit("change-per-page", total > 0 ? total : Number.MAX_SAFE_INTEGER);
+    return;
+  }
+  emit("change-per-page", Number(value));
 }
 </script>

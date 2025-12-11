@@ -21,75 +21,16 @@
             Close
           </button>
         </div>
-        <form class="p-3 flex flex-col gap-3" @submit.prevent="applyAdvancedFilters">
-          <label class="text-xs font-medium text-gray-600">
-            Action
-            <input
-              v-model.trim="advancedFilters.action"
-              type="text"
-              placeholder="auth.login.success"
-              class="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-gray-400 focus:ring-1 focus:ring-gray-400"
-            />
-          </label>
-
-          <label class="text-xs font-medium text-gray-600">
-            User ID
-            <input
-              v-model.trim="advancedFilters.userId"
-              type="text"
-              inputmode="numeric"
-              placeholder="e.g. 51"
-              class="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-gray-400 focus:ring-1 focus:ring-gray-400"
-            />
-          </label>
-
-          <label class="text-xs font-medium text-gray-600">
-            IP Address
-            <input
-              v-model.trim="advancedFilters.ipAddress"
-              type="text"
-              placeholder="127.0.0.1"
-              class="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-gray-400 focus:ring-1 focus:ring-gray-400"
-            />
-          </label>
-
-          <div class="grid grid-cols-1 gap-3">
-            <label class="text-xs font-medium text-gray-600">
-              Start Date
-              <input
-                v-model="advancedFilters.startDate"
-                type="datetime-local"
-                class="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-gray-400 focus:ring-1 focus:ring-gray-400"
-              />
-            </label>
-            <label class="text-xs font-medium text-gray-600">
-              End Date
-              <input
-                v-model="advancedFilters.endDate"
-                type="datetime-local"
-                class="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-gray-400 focus:ring-1 focus:ring-gray-400"
-              />
-            </label>
-          </div>
-
-          <div class="flex gap-2 mt-2">
-            <button
-              type="submit"
-              class="flex-1 inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs disabled:opacity-60"
-              :disabled="isLoading"
-            >
-              Apply
-            </button>
-            <button
-              type="button"
-              class="flex-1 inline-flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60"
-              :disabled="isLoading"
-              @click="resetAdvancedFilters"
-            >
-              Reset
-            </button>
-          </div>
-        </form>
+        <AdvancedFilterPanel
+          :fields="systemFilterFields"
+          :model-value="advancedFilters"
+          :is-loading="isLoading"
+          apply-label="Apply"
+          reset-label="Reset"
+          @update:modelValue="handleAdvancedFilterModelUpdate"
+          @apply="applyAdvancedFilters"
+          @reset="resetAdvancedFilters"
+        />
       </div>
 
       <!-- Logs table -->
@@ -140,6 +81,15 @@
                 :class="{ 'animate-spin': isLoading }"
               />
               {{ isLoading ? "Refreshing..." : "Refresh" }}
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+              :disabled="isLoading || !logs.length"
+              @click="exportLogs"
+            >
+              <BootstrapIcon name="file-earmark-arrow-down" class="w-3 h-3 mr-1" />
+              Export
             </button>
           </div>
         </div>
@@ -291,6 +241,9 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from "vue"
 import { message } from "ant-design-vue";
 import DataBox from "@/components/common/DataBox.vue";
 import SystemLogDetailModal from "@/components/Modals/Devices/SystemLogDetailModal.vue";
+import AdvancedFilterPanel, {
+  type FilterFieldRow,
+} from "@/components/common/AdvancedFilterPanel.vue";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
 
@@ -307,6 +260,14 @@ interface LogEntry {
   userId?: string | number | null;
   ipAddress?: string;
   metadata?: Record<string, unknown> | string | unknown[] | null;
+}
+
+interface AdvancedFiltersState {
+  action: string;
+  userId: string;
+  ipAddress: string;
+  startDate: string;
+  endDate: string;
 }
 
 const { title } = defineProps({
@@ -327,13 +288,57 @@ const pagination = ref({
 });
 const lastUpdatedAt = ref<string | null>(null);
 
-const advancedFilters = reactive({
+const defaultAdvancedFilters: AdvancedFiltersState = {
   action: "",
   userId: "",
   ipAddress: "",
   startDate: "",
   endDate: "",
+};
+
+const advancedFilters = reactive<AdvancedFiltersState>({
+  ...defaultAdvancedFilters,
 });
+
+const systemFilterFields: FilterFieldRow[] = [
+  [
+    {
+      key: "action",
+      label: "Action",
+      type: "text",
+      placeholder: "auth.login.success",
+    },
+  ],
+  [
+    {
+      key: "userId",
+      label: "User ID",
+      type: "text",
+      placeholder: "e.g. 51",
+      inputmode: "numeric",
+    },
+  ],
+  [
+    {
+      key: "ipAddress",
+      label: "IP Address",
+      type: "text",
+      placeholder: "127.0.0.1",
+    },
+  ],
+  [
+    {
+      key: "startDate",
+      label: "Start Date",
+      type: "datetime-local",
+    },
+    {
+      key: "endDate",
+      label: "End Date",
+      type: "datetime-local",
+    },
+  ],
+];
 
 function snapshotAdvancedFilters() {
   return {
@@ -645,18 +650,25 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
   }
 }
 
-function applyAdvancedFilters() {
+function handleAdvancedFilterModelUpdate(value: Record<string, string>) {
+  (Object.keys(defaultAdvancedFilters) as (keyof AdvancedFiltersState)[]).forEach(
+    (key) => {
+      advancedFilters[key] = value[key] ?? "";
+    }
+  );
+}
+
+function applyAdvancedFilters(payload?: Record<string, string>) {
+  if (payload) {
+    handleAdvancedFilterModelUpdate(payload);
+  }
   appliedAdvancedFilters.value = snapshotAdvancedFilters();
   pagination.value.page = 1;
   fetchLogs();
 }
 
 function resetAdvancedFilters() {
-  advancedFilters.action = "";
-  advancedFilters.userId = "";
-  advancedFilters.ipAddress = "";
-  advancedFilters.startDate = "";
-  advancedFilters.endDate = "";
+  Object.assign(advancedFilters, defaultAdvancedFilters);
   applyAdvancedFilters();
 }
 
@@ -666,6 +678,62 @@ function toggleFilters() {
 
 function refreshLogs() {
   fetchLogs();
+}
+
+function exportLogs() {
+  if (!import.meta.client) return;
+  const data = logs.value;
+  if (!data.length) {
+    message.warning("No logs to export.");
+    return;
+  }
+
+  const headers = [
+    "Timestamp",
+    "Level",
+    "Source",
+    "Message",
+    "Actor",
+    "Device",
+    "IP Address",
+  ];
+
+  const escapeValue = (value: string | number | null | undefined) => {
+    const str = (value ?? "").toString().replace(/"/g, '""');
+    return `"${str}"`;
+  };
+
+  const csvRows = [
+    headers.map(escapeValue).join(","),
+    ...data.map((log) =>
+      [
+        formatTimestamp(log.createdAt),
+        (log.level || "").toUpperCase(),
+        log.source || "",
+        log.message || "",
+        log.actor || "System",
+        log.deviceId || "N/A",
+        log.ipAddress || "",
+      ]
+        .map(escapeValue)
+        .join(",")
+    ),
+  ];
+
+  const csvContent = "\uFEFF" + csvRows.join("\r\n");
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const timestamp = new Date().toISOString().split("T")[0];
+  link.href = url;
+  link.setAttribute("download", `system-logs-${timestamp}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+  message.success("Logs exported.");
 }
 
 function prevPage() {

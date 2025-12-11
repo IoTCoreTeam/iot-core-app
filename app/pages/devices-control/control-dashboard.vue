@@ -37,57 +37,13 @@
         </div>
       </section>
 
-      <section class="grid lg:grid-cols-3 gap-6">
-        <article class="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm">
-          <header class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-            <div>
-              <p class="text-sm font-semibold text-slate-900">Active devices</p>
-              <p class="text-xs text-slate-500">
-                Ordered by most recent activity. Click a row to see the mock controls.
-              </p>
-            </div>
-            <button
-              type="button"
-              class="text-xs font-semibold text-blue-600 hover:text-blue-800"
-            >
-              View all
-            </button>
-          </header>
-          <div class="divide-y divide-slate-100">
-            <button
-              v-for="device in devices"
-              :key="device.id"
-              type="button"
-              class="w-full text-left px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors"
-            >
-              <span class="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-sm font-semibold text-slate-600">
-                {{ device.short }}
-              </span>
-              <div class="flex-1">
-                <p class="text-sm font-semibold text-slate-900">
-                  {{ device.name }}
-                </p>
-                <p class="text-xs text-slate-500">
-                  {{ device.location }} · Firmware {{ device.version }}
-                </p>
-              </div>
-              <span
-                class="text-xs font-semibold px-2 py-1 rounded-full"
-                :class="statusClass(device.status)"
-              >
-                {{ device.status }}
-              </span>
-              <div class="text-right">
-                <p class="text-xs text-slate-500">Last ping</p>
-                <p class="text-sm font-medium text-slate-900">
-                  {{ device.lastPing }}
-                </p>
-              </div>
-            </button>
-          </div>
-        </article>
+      <section class="grid lg:grid-cols-3 gap-6 items-start">
+        <div class="lg:col-span-2">
+          <DevicesControlActiveDevicesPanel :devices="devices" />
+        </div>
+        <div class="space-y-6">
+          <DevicesControlAlertsPanel :alerts="alerts" />
 
-        <aside class="space-y-6">
           <article class="bg-white border border-slate-200 rounded-2xl shadow-sm">
             <header class="px-5 py-4 border-b border-slate-100">
               <p class="text-sm font-semibold text-slate-900">Quick actions</p>
@@ -103,72 +59,10 @@
               </button>
             </div>
           </article>
-
-          <article class="bg-white border border-slate-200 rounded-2xl shadow-sm">
-            <header class="px-5 py-4 border-b border-slate-100">
-              <p class="text-sm font-semibold text-slate-900">Alerts</p>
-            </header>
-            <div class="divide-y divide-slate-100">
-              <div
-                v-for="alert in alerts"
-                :key="alert.id"
-                class="px-5 py-3"
-              >
-                <p class="text-sm font-semibold text-slate-900">
-                  {{ alert.title }}
-                </p>
-                <p class="text-xs text-slate-500">{{ alert.message }}</p>
-                <p class="text-[11px] font-medium text-amber-600 mt-1">
-                  {{ alert.timestamp }}
-                </p>
-              </div>
-            </div>
-          </article>
-        </aside>
-      </section>
-
-      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm">
-        <header class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <p class="text-sm font-semibold text-slate-900">Automation batches</p>
-            <p class="text-xs text-slate-500">
-              Placeholder list of automations recently executed.
-            </p>
-          </div>
-          <button
-            type="button"
-            class="text-xs font-semibold text-blue-600 hover:text-blue-800"
-          >
-            New workflow
-          </button>
-        </header>
-        <div class="divide-y divide-slate-100">
-          <div
-            v-for="automation in automations"
-            :key="automation.id"
-            class="px-6 py-4 flex items-center gap-4"
-          >
-            <div class="flex-1">
-              <p class="text-sm font-semibold text-slate-900">
-                {{ automation.name }}
-              </p>
-              <p class="text-xs text-slate-500">
-                Targets {{ automation.devices }} devices · Triggered by
-                {{ automation.trigger }}
-              </p>
-            </div>
-            <span
-              class="text-xs font-medium px-3 py-1 rounded-full"
-              :class="automation.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'"
-            >
-              {{ automation.status }}
-            </span>
-            <p class="text-xs text-slate-500 w-28 text-right">
-              {{ automation.updated }}
-            </p>
-          </div>
         </div>
       </section>
+
+      <DevicesControlAutomationBatches :automations="automations" />
     </div>
   </div>
 </template>
@@ -295,13 +189,4 @@ const automations = [
   },
 ];
 
-function statusClass(status: string) {
-  if (status === "Online") {
-    return "bg-emerald-50 text-emerald-600";
-  }
-  if (status === "Offline") {
-    return "bg-rose-50 text-rose-600";
-  }
-  return "bg-amber-50 text-amber-600";
-}
 </script>
