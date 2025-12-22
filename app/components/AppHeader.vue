@@ -62,6 +62,14 @@
             >
               Map Configuration
             </NuxtLink>
+
+            <NuxtLink
+              to="/devices-control/devices-registration"
+              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
+              @click="closeDropdown"
+            >
+              Devices Registation
+            </NuxtLink>
           </div>
         </div>
         <div class="relative text-sm font-semibold cursor-pointer">
