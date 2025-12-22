@@ -22,7 +22,7 @@
 
       <!-- Nội dung page -->
       <div v-else class="w-full min-h-[80vh] bg-gray-50">
-        <div class="mx-auto w-full max-w-8xl p-4">
+        <div class="mx-auto w-full max-w-8xl">
           <slot />
         </div>
       </div>

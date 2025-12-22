@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full min-h-[80vh] bg-gray-50">
+  <div class="w-full min-h-[80vh] bg-gray-50 p-4">
     <div class="mx-auto flex max-w-8xl flex-col gap-4">
       <!-- <header class="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
         <div class="space-y-1">
@@ -21,56 +21,18 @@
           </button>
         </div>
       </header> -->
-      <section class="grid grid-cols-1 gap-4 lg:grid-cols-3 items-start">
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm lg:col-span-2">
-          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p class="text-[11px] font-semibold uppercase text-gray-600">Parameter trend</p>
-              <h2 class="text-base font-semibold text-gray-900">Single metric chart</h2>
-            </div>
-            <div class="flex items-center gap-2">
-              <label class="text-[11px] text-gray-600">Select metric</label>
-              <select
-                v-model="selectedMetricKey"
-                class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-800"
-              >
-                <option v-for="metric in metrics" :key="metric.key" :value="metric.key">
-                  {{ metric.title }}
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <div class="mt-3">
-            <div class="flex items-end justify-between text-xs text-gray-500">
-              <div class="flex items-center gap-1">
-                <span class="inline-block h-2 w-2 rounded-full bg-blue-600" />
-                Latest readings
-              </div>
-              <div class="flex items-center gap-3">
-                <span>{{ selectedSeriesMinLabel }}</span>
-                <span>{{ selectedSeriesMaxLabel }}</span>
-              </div>
-            </div>
-
-            <div class="mt-2 overflow-hidden rounded-lg border border-gray-200 bg-white">
-              <ClientOnly>
-                <ApexChart
-                  type="line"
-                  height="260"
-                  :options="chartOptions"
-                  :series="chartSeries"
-                />
-              </ClientOnly>
-            </div>
-          </div>
-        </div>
-        <div class="flex flex-col gap-4 h-full">
+      <section class="grid grid-cols-1 gap-2 lg:grid-cols-3 xl:grid-cols-5 items-start">
+        <SingleMetricChart
+          class="lg:col-span-2 xl:col-span-4"
+          :metrics="metrics"
+          :metric-series="metricSeries"
+        />
+        <div class="flex flex-col gap-4 h-full lg:col-span-1 xl:col-span-1">
           <DevicesControlAlertsPanel :alerts="alerts" />
         </div>
       </section>
       <section class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <DashboardSensorCard v-for="metric in metrics" :key="metric.key" v-bind="metric" />
+        <DashboardSensorCard v-for="metric in metricCardItems" :key="metric.key" v-bind="metric.props" />
       </section>
 
       <section class="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
@@ -86,39 +48,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import DashboardSensorCard from "@/components/DashboardSensorCard.vue";
-
-type Status = "good" | "warning" | "critical" | "info";
-
-interface StatusRule {
-  warnLow?: number;
-  warnHigh?: number;
-  dangerLow?: number;
-  dangerHigh?: number;
-}
-
-interface DashboardMetric {
-  key: string;
-  title: string;
-  subtitle: string;
-  value: number;
-  unit: string;
-  icon: string;
-  change: number | null;
-  status: Status;
-  statusText: string;
-  description: string;
-  min: number;
-  max: number;
-  trend: number[];
-  rules?: StatusRule;
-}
-
-interface SeriesPoint {
-  label: string;
-  value: number;
-}
+import SingleMetricChart from "@/components/SingleMetricChart.vue";
+import type { DashboardMetric, SeriesCollection, SeriesPoint, TimeframeKey } from "@/types/dashboard";
 
 interface ActiveDeviceItem {
   id: number;
@@ -146,7 +79,59 @@ interface AutomationBatchItem {
   updated: string;
 }
 
-const ApexChart = defineAsyncComponent(() => import("vue3-apexcharts"));
+const timeframeConfigs: Record<TimeframeKey, { count: number; stepMs: number; format: Intl.DateTimeFormatOptions }> = {
+  second: { count: 30, stepMs: 10 * 1000, format: { hour: "2-digit", minute: "2-digit", second: "2-digit" } },
+  minute: { count: 30, stepMs: 60 * 1000, format: { hour: "2-digit", minute: "2-digit" } },
+  hour: { count: 24, stepMs: 60 * 60 * 1000, format: { hour: "2-digit" } },
+  day: { count: 30, stepMs: 24 * 60 * 60 * 1000, format: { month: "short", day: "2-digit" } },
+};
+
+const buildTimeframeLabels = (): Record<TimeframeKey, string[]> => {
+  const now = Date.now();
+  return (Object.entries(timeframeConfigs) as [TimeframeKey, (typeof timeframeConfigs)[TimeframeKey]][]).reduce(
+    (labels, [key, config]) => {
+      const formatter = new Intl.DateTimeFormat("vi-VN", config.format);
+      labels[key] = Array.from({ length: config.count }, (_, index) => {
+        const offset = config.count - 1 - index;
+        return formatter.format(new Date(now - offset * config.stepMs));
+      });
+      return labels;
+    },
+    {} as Record<TimeframeKey, string[]>
+  );
+};
+
+const timeframeLabels = buildTimeframeLabels();
+
+const toSeriesPoints = (labels: string[], values: number[]): SeriesPoint[] =>
+  labels.map((label, index) => ({
+    label,
+    value: values[index] ?? values[values.length - 1] ?? 0,
+  }));
+
+const generateLinearSeries = (start: number, step: number, count: number) =>
+  Array.from({ length: count }, (_, idx) => Number((start + step * idx).toFixed(2)));
+
+type SeriesSeed = Record<TimeframeKey, { start: number; step: number }>;
+
+const createSeriesCollection = (seed: SeriesSeed): SeriesCollection => ({
+  second: toSeriesPoints(
+    timeframeLabels.second,
+    generateLinearSeries(seed.second.start, seed.second.step, timeframeLabels.second.length)
+  ),
+  minute: toSeriesPoints(
+    timeframeLabels.minute,
+    generateLinearSeries(seed.minute.start, seed.minute.step, timeframeLabels.minute.length)
+  ),
+  hour: toSeriesPoints(
+    timeframeLabels.hour,
+    generateLinearSeries(seed.hour.start, seed.hour.step, timeframeLabels.hour.length)
+  ),
+  day: toSeriesPoints(
+    timeframeLabels.day,
+    generateLinearSeries(seed.day.start, seed.day.step, timeframeLabels.day.length)
+  ),
+});
 
 const metrics = ref<DashboardMetric[]>([
   {
@@ -231,45 +216,39 @@ const metrics = ref<DashboardMetric[]>([
   },
 ]);
 
-const metricSeries = ref<Record<string, SeriesPoint[]>>({
-  soilMoisture: [
-    { label: "10:00", value: 46 },
-    { label: "12:00", value: 47 },
-    { label: "14:00", value: 48 },
-    { label: "16:00", value: 49 },
-    { label: "18:00", value: 48.5 },
-  ],
-  light: [
-    { label: "10:00", value: 760 },
-    { label: "12:00", value: 820 },
-    { label: "14:00", value: 840 },
-    { label: "16:00", value: 810 },
-    { label: "18:00", value: 780 },
-  ],
-  rain: [
-    { label: "10:00", value: 0.4 },
-    { label: "12:00", value: 0.6 },
-    { label: "14:00", value: 1.2 },
-    { label: "16:00", value: 0.8 },
-    { label: "18:00", value: 0.6 },
-  ],
-  airHumidity: [
-    { label: "10:00", value: 60 },
-    { label: "12:00", value: 61 },
-    { label: "14:00", value: 62.5 },
-    { label: "16:00", value: 63 },
-    { label: "18:00", value: 62 },
-  ],
-  temperature: [
-    { label: "10:00", value: 26.8 },
-    { label: "12:00", value: 27.4 },
-    { label: "14:00", value: 28.1 },
-    { label: "16:00", value: 28.5 },
-    { label: "18:00", value: 28.0 },
-  ],
+const metricSeries = ref<Record<string, SeriesCollection>>({
+  soilMoisture: createSeriesCollection({
+    second: { start: 48, step: 0.02 },
+    minute: { start: 47, step: 0.04 },
+    hour: { start: 44, step: 0.18 },
+    day: { start: 41, step: 0.25 },
+  }),
+  light: createSeriesCollection({
+    second: { start: 835, step: -1.5 },
+    minute: { start: 860, step: -1.2 },
+    hour: { start: 900, step: -3.2 },
+    day: { start: 950, step: -4.0 },
+  }),
+  rain: createSeriesCollection({
+    second: { start: 0.4, step: -0.02 },
+    minute: { start: 0.2, step: 0.015 },
+    hour: { start: 0.3, step: 0.02 },
+    day: { start: 0.5, step: -0.01 },
+  }),
+  airHumidity: createSeriesCollection({
+    second: { start: 62.6, step: 0.05 },
+    minute: { start: 59.5, step: 0.12 },
+    hour: { start: 55, step: 0.3 },
+    day: { start: 52, step: 0.35 },
+  }),
+  temperature: createSeriesCollection({
+    second: { start: 28, step: 0.03 },
+    minute: { start: 26.8, step: 0.05 },
+    hour: { start: 24, step: 0.18 },
+    day: { start: 22, step: 0.22 },
+  }),
 });
 
-const selectedMetricKey = ref<string>(metrics.value[0]?.key ?? "");
 const lastUpdated = ref<Date | null>(null);
 
 const lastUpdatedLabel = computed(() =>
@@ -285,82 +264,12 @@ const lastUpdatedLabel = computed(() =>
     : "Updating..."
 );
 
-const selectedMetric = computed(() =>
-  metrics.value.find((metric) => metric.key === selectedMetricKey.value)
+const metricCardItems = computed(() =>
+  metrics.value.map(({ key, ...rest }) => ({
+    key,
+    props: rest as Omit<DashboardMetric, "key">,
+  }))
 );
-const selectedSeries = computed(() => metricSeries.value[selectedMetricKey.value] ?? []);
-
-function formatValue(value: number) {
-  return Math.abs(value) >= 100 ? value.toFixed(0) : value.toFixed(1);
-}
-
-const seriesExtent = computed(() => {
-  if (!selectedSeries.value.length) return { min: 0, max: 1 };
-  const values = selectedSeries.value.map((point) => point.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  if (min === max) {
-    return { min: min - 1, max: max + 1 };
-  }
-  return { min, max };
-});
-
-const chartSeries = computed(() => [
-  {
-    name: selectedMetric.value?.title ?? "Metric",
-    data: selectedSeries.value.map((point) => point.value),
-  },
-]);
-
-const chartOptions = computed(() => {
-  const categories = selectedSeries.value.map((point) => point.label);
-  return {
-    chart: {
-      id: "parameter-trend",
-      toolbar: { show: false },
-      zoom: { enabled: false },
-      fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
-    },
-    dataLabels: { enabled: false },
-    stroke: { curve: "smooth", width: 2.5 },
-    markers: { size: 4 },
-    colors: ["#2563eb"],
-    xaxis: {
-      categories,
-      labels: { style: { fontSize: "11px", colors: "#6b7280" } },
-      axisBorder: { color: "#e5e7eb" },
-      axisTicks: { color: "#e5e7eb" },
-    },
-    yaxis: {
-      min: seriesExtent.value.min,
-      max: seriesExtent.value.max,
-      labels: { style: { fontSize: "11px", colors: "#6b7280" } },
-    },
-    grid: {
-      strokeDashArray: 3,
-      borderColor: "#e5e7eb",
-    },
-    tooltip: {
-      y: {
-        formatter: (val: number) => `${formatValue(val)}${selectedMetric.value?.unit ? ` ${selectedMetric.value.unit}` : ""}`,
-      },
-    },
-  };
-});
-
-const selectedSeriesMinLabel = computed(() => {
-  if (!selectedSeries.value.length) return "Min --";
-  const min = Math.min(...selectedSeries.value.map((p) => p.value));
-  const unit = selectedMetric.value?.unit ?? "";
-  return `Min ${formatValue(min)}${unit ? ` ${unit}` : ""}`;
-});
-
-const selectedSeriesMaxLabel = computed(() => {
-  if (!selectedSeries.value.length) return "Max --";
-  const max = Math.max(...selectedSeries.value.map((p) => p.value));
-  const unit = selectedMetric.value?.unit ?? "";
-  return `Max ${formatValue(max)}${unit ? ` ${unit}` : ""}`;
-});
 
 const activeDevices = ref<ActiveDeviceItem[]>([
   { id: 1, short: "GW", name: "Gateway North-41", location: "Plant 3 ? Hanoi", version: "3.4.9", status: "Online", lastPing: "12s ago" },
@@ -380,74 +289,6 @@ const automationBatches = ref<AutomationBatchItem[]>([
   { id: 2, name: "Morning ventilation", devices: 14, trigger: "Temperature > 30?C", status: "Running", updated: "Just now" },
   { id: 3, name: "Weekly firmware roll", devices: 42, trigger: "Manual approval", status: "Completed", updated: "Yesterday" },
 ]);
-
-function evaluateStatus(metric: DashboardMetric, nextValue: number) {
-  if (!metric.rules) {
-    return { status: metric.status, label: metric.statusText };
-  }
-
-  const { warnLow, warnHigh, dangerLow, dangerHigh } = metric.rules;
-
-  if (
-    (dangerLow !== undefined && nextValue < dangerLow) ||
-    (dangerHigh !== undefined && nextValue > dangerHigh)
-  ) {
-    return { status: "critical" as const, label: "Critical" };
-  }
-
-  if (
-    (warnLow !== undefined && nextValue < warnLow) ||
-    (warnHigh !== undefined && nextValue > warnHigh)
-  ) {
-    return { status: "warning" as const, label: "Attention" };
-  }
-
-  return { status: "good" as const, label: "Stable" };
-}
-
-function simulateUpdate() {
-  const updatedSeries: Record<string, SeriesPoint[]> = { ...metricSeries.value };
-  const now = new Date();
-  const timeLabel = new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(now);
-
-  metrics.value = metrics.value.map((metric) => {
-    const current = metric.value;
-    const range = metric.max - metric.min;
-    const variance = (Math.random() - 0.5) * (range * 0.1);
-    const nextValueRaw = current + variance;
-    const clamped = Math.min(metric.max, Math.max(metric.min, nextValueRaw));
-    const nextValue = Number(clamped.toFixed(1));
-
-    const diffPercent =
-      current === 0
-        ? 0
-        : ((nextValue - current) / Math.max(Math.abs(current), 1)) * 100;
-    const boundedDiff = Math.max(-150, Math.min(150, diffPercent));
-
-    const previousTrend = metric.trend?.length ? metric.trend : [current];
-    const updatedTrend = [...previousTrend.slice(-6), nextValue];
-    const { status, label } = evaluateStatus(metric, nextValue);
-
-    const existingSeries = metricSeries.value[metric.key] ?? [];
-    const nextSeries = [...existingSeries.slice(-4), { label: timeLabel, value: nextValue }];
-    updatedSeries[metric.key] = nextSeries;
-
-    return {
-      ...metric,
-      value: nextValue,
-      change: Number(boundedDiff.toFixed(1)),
-      trend: updatedTrend,
-      status,
-      statusText: label,
-    };
-  });
-
-  metricSeries.value = updatedSeries;
-  lastUpdated.value = new Date();
-}
 
 onMounted(() => {
   lastUpdated.value = new Date();

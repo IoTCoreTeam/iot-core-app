@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-8xl mx-auto min-h-[80vh]">
+  <div class="max-w-8xl mx-auto min-h-[80vh] p-4">
     <div class="flex flex-col gap-4 lg:flex-row">
       <div
         :class="[
@@ -26,7 +26,7 @@
       <div
         :class="[
           'bg-white shadow-sm rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm relative w-full text-xs',
-          isFilterVisible ? 'flex-1' : 'w-7xl mx-auto',
+          isFilterVisible ? 'flex-1' : 'max-w-7xl w-full mx-auto',
         ]"
       >
         <!-- Header Section -->
