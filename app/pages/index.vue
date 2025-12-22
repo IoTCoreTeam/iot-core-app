@@ -25,7 +25,6 @@
         <SingleMetricChart
           class="lg:col-span-2 xl:col-span-4"
           :metrics="metrics"
-          :metric-series="metricSeries"
         />
         <div class="flex flex-col gap-4 h-full lg:col-span-1 xl:col-span-1">
           <DevicesControlAlertsPanel :alerts="alerts" />
@@ -51,7 +50,7 @@
 import { computed, onMounted, ref } from "vue";
 import DashboardSensorCard from "@/components/DashboardSensorCard.vue";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
-import type { DashboardMetric, SeriesCollection, SeriesPoint, TimeframeKey } from "@/types/dashboard";
+import type { DashboardMetric } from "@/types/dashboard";
 
 interface ActiveDeviceItem {
   id: number;
@@ -79,59 +78,6 @@ interface AutomationBatchItem {
   updated: string;
 }
 
-const timeframeConfigs: Record<TimeframeKey, { count: number; stepMs: number; format: Intl.DateTimeFormatOptions }> = {
-  second: { count: 30, stepMs: 10 * 1000, format: { hour: "2-digit", minute: "2-digit", second: "2-digit" } },
-  minute: { count: 30, stepMs: 60 * 1000, format: { hour: "2-digit", minute: "2-digit" } },
-  hour: { count: 24, stepMs: 60 * 60 * 1000, format: { hour: "2-digit" } },
-  day: { count: 30, stepMs: 24 * 60 * 60 * 1000, format: { month: "short", day: "2-digit" } },
-};
-
-const buildTimeframeLabels = (): Record<TimeframeKey, string[]> => {
-  const now = Date.now();
-  return (Object.entries(timeframeConfigs) as [TimeframeKey, (typeof timeframeConfigs)[TimeframeKey]][]).reduce(
-    (labels, [key, config]) => {
-      const formatter = new Intl.DateTimeFormat("vi-VN", config.format);
-      labels[key] = Array.from({ length: config.count }, (_, index) => {
-        const offset = config.count - 1 - index;
-        return formatter.format(new Date(now - offset * config.stepMs));
-      });
-      return labels;
-    },
-    {} as Record<TimeframeKey, string[]>
-  );
-};
-
-const timeframeLabels = buildTimeframeLabels();
-
-const toSeriesPoints = (labels: string[], values: number[]): SeriesPoint[] =>
-  labels.map((label, index) => ({
-    label,
-    value: values[index] ?? values[values.length - 1] ?? 0,
-  }));
-
-const generateLinearSeries = (start: number, step: number, count: number) =>
-  Array.from({ length: count }, (_, idx) => Number((start + step * idx).toFixed(2)));
-
-type SeriesSeed = Record<TimeframeKey, { start: number; step: number }>;
-
-const createSeriesCollection = (seed: SeriesSeed): SeriesCollection => ({
-  second: toSeriesPoints(
-    timeframeLabels.second,
-    generateLinearSeries(seed.second.start, seed.second.step, timeframeLabels.second.length)
-  ),
-  minute: toSeriesPoints(
-    timeframeLabels.minute,
-    generateLinearSeries(seed.minute.start, seed.minute.step, timeframeLabels.minute.length)
-  ),
-  hour: toSeriesPoints(
-    timeframeLabels.hour,
-    generateLinearSeries(seed.hour.start, seed.hour.step, timeframeLabels.hour.length)
-  ),
-  day: toSeriesPoints(
-    timeframeLabels.day,
-    generateLinearSeries(seed.day.start, seed.day.step, timeframeLabels.day.length)
-  ),
-});
 
 const metrics = ref<DashboardMetric[]>([
   {
@@ -215,39 +161,6 @@ const metrics = ref<DashboardMetric[]>([
     rules: { warnLow: 15, warnHigh: 32, dangerLow: 10, dangerHigh: 36 },
   },
 ]);
-
-const metricSeries = ref<Record<string, SeriesCollection>>({
-  soilMoisture: createSeriesCollection({
-    second: { start: 48, step: 0.02 },
-    minute: { start: 47, step: 0.04 },
-    hour: { start: 44, step: 0.18 },
-    day: { start: 41, step: 0.25 },
-  }),
-  light: createSeriesCollection({
-    second: { start: 835, step: -1.5 },
-    minute: { start: 860, step: -1.2 },
-    hour: { start: 900, step: -3.2 },
-    day: { start: 950, step: -4.0 },
-  }),
-  rain: createSeriesCollection({
-    second: { start: 0.4, step: -0.02 },
-    minute: { start: 0.2, step: 0.015 },
-    hour: { start: 0.3, step: 0.02 },
-    day: { start: 0.5, step: -0.01 },
-  }),
-  airHumidity: createSeriesCollection({
-    second: { start: 62.6, step: 0.05 },
-    minute: { start: 59.5, step: 0.12 },
-    hour: { start: 55, step: 0.3 },
-    day: { start: 52, step: 0.35 },
-  }),
-  temperature: createSeriesCollection({
-    second: { start: 28, step: 0.03 },
-    minute: { start: 26.8, step: 0.05 },
-    hour: { start: 24, step: 0.18 },
-    day: { start: 22, step: 0.22 },
-  }),
-});
 
 const lastUpdated = ref<Date | null>(null);
 

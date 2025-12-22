@@ -74,3 +74,7 @@ bun run preview
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
 "# iot-core-frontend" 
+
+## Telemetry integration
+
+The dashboard's `SingleMetricChart` now issues API calls whenever the selected metric or timeframe changes. Configure the backend URL in `config/api.ts` via the new `apiConfig.sensorData` entry (defaults to `http://127.0.0.1:3000/api`). The component expects the endpoint to accept `device_id`, `start`, `end`, and `interval` query parameters, returning an array of history points that include timestamps and numeric readings.
