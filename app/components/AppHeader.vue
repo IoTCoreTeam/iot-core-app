@@ -9,7 +9,7 @@
       </NuxtLink>
 
       <!-- Navigation -->
-      <nav class="flex items-center space-x-10 ml-16">
+      <nav class="hidden md:flex items-center space-x-10 ml-16">
         <NuxtLink
           to="/"
           class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors cursor-pointer border-b-2 border-transparent py-1 hover:border-blue-500"
@@ -167,7 +167,7 @@
       </nav>
 
       <!-- Right: Account dropdown -->
-      <div class="relative ml-auto text-sm font-semibold cursor-pointer">
+      <div class="relative ml-auto hidden text-sm font-semibold cursor-pointer md:block">
         <button
           @click="toggleDropdown('account')"
           class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
@@ -213,21 +213,148 @@
           </button>
         </div>
       </div>
+
+      <button
+        type="button"
+        class="ml-auto inline-flex items-center justify-center rounded-md border border-gray-300 p-2 text-gray-700 hover:bg-gray-100 md:hidden"
+        @click="openMobileMenu"
+        aria-label="Open navigation"
+      >
+        <BootstrapIcon name="list" class="h-4 w-4" />
+      </button>
     </div>
+
+    <transition name="fade">
+      <div v-if="isMobileMenuOpen" class="fixed inset-0 z-50 md:hidden">
+        <div class="absolute inset-0 bg-black/40" @click="closeMobileMenu" />
+        <div class="relative ml-auto flex h-full w-72 flex-col bg-white shadow-xl">
+          <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+            <h2 class="text-sm font-semibold text-gray-800">Navigation</h2>
+            <button
+              type="button"
+              class="rounded-md border border-gray-200 p-1 text-gray-600 hover:bg-gray-50"
+              @click="closeMobileMenu"
+              aria-label="Close navigation"
+            >
+              <BootstrapIcon name="x" class="h-4 w-4" />
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto px-4 py-5 text-sm text-gray-700">
+            <div>
+              <p class="px-3 text-[11px] font-semibold uppercase text-gray-500">Overview</p>
+              <NuxtLink
+                to="/"
+                class="mt-2 flex items-center gap-2 rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
+                @click="closeMobileMenu"
+              >
+                Dashboard
+              </NuxtLink>
+            </div>
+
+            <div class="mt-4">
+              <p class="px-3 text-[11px] font-semibold uppercase text-gray-500">Devices Management</p>
+              <div class="mt-2 flex flex-col">
+                <NuxtLink
+                  to="/devices-control/control-dashboard"
+                  class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
+                  @click="closeMobileMenu"
+                >
+                  Devices Control
+                </NuxtLink>
+                <NuxtLink
+                  to="/devices-control/map-configuration"
+                  class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
+                  @click="closeMobileMenu"
+                >
+                  Map Configuration
+                </NuxtLink>
+                <NuxtLink
+                  to="/devices-control/devices-registration"
+                  class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
+                  @click="closeMobileMenu"
+                >
+                  Devices Registration
+                </NuxtLink>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <p class="px-3 text-[11px] font-semibold uppercase text-gray-500">System Monitoring</p>
+              <div class="mt-2 flex flex-col">
+                <NuxtLink
+                  to="/system-logs"
+                  class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
+                  @click="closeMobileMenu"
+                >
+                  System Logs
+                </NuxtLink>
+                <NuxtLink
+                  to="/alerts"
+                  class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
+                  @click="closeMobileMenu"
+                >
+                  Alerts
+                </NuxtLink>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <p class="px-3 text-[11px] font-semibold uppercase text-gray-500">Internal</p>
+              <div class="mt-2 flex flex-col">
+                <NuxtLink
+                  to="/users-management"
+                  class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
+                  @click="closeMobileMenu"
+                >
+                  Users Management
+                </NuxtLink>
+                <NuxtLink
+                  to="/company-setup"
+                  class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
+                  @click="closeMobileMenu"
+                >
+                  Company Setup
+                </NuxtLink>
+              </div>
+            </div>
+          </div>
+          <div class="border-t border-gray-200 p-4 text-sm font-semibold text-gray-700">
+            <p class="px-1 text-xs text-gray-500">Account</p>
+            <NuxtLink
+              to="/user-account"
+              class="mt-2 block rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
+              @click="closeMobileMenu"
+            >
+              Management
+            </NuxtLink>
+            <button
+              type="button"
+              class="mt-2 w-full rounded-md border border-red-200 px-3 py-2 text-left text-red-600 hover:bg-red-50"
+              :disabled="isLoggingOut"
+              @click="handleLogout"
+            >
+              {{ isLoggingOut ? "Logging out..." : "Logout" }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </header>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { apiConfig } from "../../config/api"
 import { useAuthStore } from "~~/stores/auth";
 
 const openDropdown = ref<string | null>(null);
 const isLoggingOut = ref(false);
+const isMobileMenuOpen = ref(false);
 const router = useRouter();
 const AUTH_API = apiConfig.auth;
 const authStore = useAuthStore();
 const userName = computed(() => authStore.user?.name ?? "Account");
+const route = useRoute();
 
 // Toggle dropdown (Devices, Internal, Account)
 function toggleDropdown(name: "devices" | "monitoring" | "internal" | "account") {
@@ -238,6 +365,23 @@ function toggleDropdown(name: "devices" | "monitoring" | "internal" | "account")
 function closeDropdown() {
   openDropdown.value = null;
 }
+
+function openMobileMenu() {
+  isMobileMenuOpen.value = true;
+  closeDropdown();
+}
+
+function closeMobileMenu() {
+  isMobileMenuOpen.value = false;
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    closeDropdown();
+    closeMobileMenu();
+  }
+);
 
 async function handleLogout() {
   if (!import.meta.client || isLoggingOut.value) return;
@@ -263,6 +407,7 @@ async function handleLogout() {
     localStorage.removeItem("remember_me");
     isLoggingOut.value = false;
     openDropdown.value = null;
+    closeMobileMenu();
     await router.push("/login");
   }
 }
