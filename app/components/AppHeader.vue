@@ -1,5 +1,5 @@
 <template>
-  <header class="w-full bg-white border-b border-gray-200 shadow-sm">
+  <header class="w-full bg-white border-b border-gray-200 ">
     <div class="max-w-8xl mx-auto flex items-center py-3 px-5">
       <!-- Left: App name -->
       <NuxtLink to="/">
@@ -17,61 +17,13 @@
           <BootstrapIcon name="grid-1x2" class="w-3 h-3" />
           Dashboard
         </NuxtLink>
-        <!-- Devices Management dropdown -->
-        <div class="relative text-sm font-semibold cursor-pointer">
-          <button
-            @click="toggleDropdown('devices')"
-            class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
-          >
-            <BootstrapIcon name="hdd-network" class="w-3 h-3" />
-            Devices Management
-            <svg
-              class="w-2 h-2 ml-1 mt-1 transition-transform duration-200"
-              :class="{ 'rotate-180': openDropdown === 'devices' }"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
-
-          <div
-            v-if="openDropdown === 'devices'"
-            @click.outside="closeDropdown"
-            class="absolute left-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
-          >
-            <NuxtLink
-              to="/devices-control/control-dashboard"
-              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
-              @click="closeDropdown"
-            >
-              Devices Control
-            </NuxtLink>
-
-            <NuxtLink
-              to="/devices-control/map-configuration"
-              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
-              @click="closeDropdown"
-            >
-              Map Configuration
-            </NuxtLink>
-
-            <NuxtLink
-              to="/devices-control/devices-registration"
-              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
-              @click="closeDropdown"
-            >
-              Devices Registation
-            </NuxtLink>
-          </div>
-        </div>
+        <NuxtLink
+          to="/devices-control/devices-registration"
+          class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors cursor-pointer border-b-2 border-transparent py-1 hover:border-blue-500"
+        >
+          <BootstrapIcon name="hdd-network" class="w-3 h-3" />
+          Device Control Center
+        </NuxtLink>
         <div class="relative text-sm font-semibold cursor-pointer">
           <button
             @click="toggleDropdown('monitoring')"
@@ -252,22 +204,8 @@
             </div>
 
             <div class="mt-4">
-              <p class="px-3 text-[11px] font-semibold uppercase text-gray-500">Devices Management</p>
+              <p class="px-3 text-[11px] font-semibold uppercase text-gray-500">Device Control Center</p>
               <div class="mt-2 flex flex-col">
-                <NuxtLink
-                  to="/devices-control/control-dashboard"
-                  class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
-                  @click="closeMobileMenu"
-                >
-                  Devices Control
-                </NuxtLink>
-                <NuxtLink
-                  to="/devices-control/map-configuration"
-                  class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
-                  @click="closeMobileMenu"
-                >
-                  Map Configuration
-                </NuxtLink>
                 <NuxtLink
                   to="/devices-control/devices-registration"
                   class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
@@ -356,8 +294,8 @@ const authStore = useAuthStore();
 const userName = computed(() => authStore.user?.name ?? "Account");
 const route = useRoute();
 
-// Toggle dropdown (Devices, Internal, Account)
-function toggleDropdown(name: "devices" | "monitoring" | "internal" | "account") {
+// Toggle dropdown (Monitoring, Internal, Account)
+function toggleDropdown(name: "monitoring" | "internal" | "account") {
   openDropdown.value = openDropdown.value === name ? null : name;
 }
 

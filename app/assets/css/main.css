@@ -1,2 +1,19 @@
 @import "tailwindcss";
 @import "./modal-transitions.css";
+/* Devices registration tabs */
+.custom-tabs .ant-tabs-nav {
+  margin-bottom: 1rem;
+  background-color: white;
+}
+
+.custom-tabs .ant-tabs-tab {
+  min-width: 100px;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.custom-tabs .ant-tabs-tab-btn {
+  width: 100%;
+  text-align: center;
+}

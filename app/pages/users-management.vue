@@ -1,6 +1,6 @@
 <template>
   <div class="max-w-8xl mx-auto min-h-[80vh] p-4">
-    <div class="flex flex-col gap-4 lg:flex-row">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div
         :class="[
           'bg-white shadow-sm rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
@@ -8,7 +8,7 @@
         ]"
       >
         <div class="bg-gray-50 px-3 py-2 border-b border-gray-200">
-          <h4 class="text-sm font-semibold text-gray-700">Filters</h4>
+          <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
           <p class="text-xs text-gray-500">Refine the user results.</p>
         </div>
         <AdvancedFilterPanel
@@ -23,15 +23,21 @@
         />
       </div>
 
-      <div
+      <DataBoxCard
         :class="[
-          'bg-white shadow-sm rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm relative w-full text-xs',
+          'relative w-full text-xs lg:self-start',
           isFilterVisible ? 'flex-1' : 'max-w-7xl w-full mx-auto',
         ]"
+        :is-loading="isAnimating"
+        :pagination="pagination"
+        :has-data="filteredUsers.length > 0"
+        :columns="6"
+        @prev-page="prevPage"
+        @next-page="nextPage"
+        @change-per-page="changePerPage"
       >
-        <!-- Header Section -->
-        <div class="bg-gray-50 px-2 py-1 border-b border-gray-200">
-          <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <template #header>
+          <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between w-full">
             <div class="flex items-center gap-2">
               <h3 class="font-medium text-gray-700">
                 {{ title || "User Management" }}
@@ -45,7 +51,6 @@
               </button>
             </div>
 
-            <!-- Search + Actions -->
             <div class="flex items-center gap-2">
               <div class="relative">
                 <input
@@ -92,70 +97,59 @@
               </button>
             </div>
           </div>
-        </div>
+        </template>
 
-        <!-- Table Section -->
-        <DataBox
-          :is-loading="isAnimating"
-          :pagination="pagination"
-          :has-data="filteredUsers.length > 0"
-          :columns="6"
-          @prev-page="prevPage"
-          @next-page="nextPage"
-          @change-per-page="changePerPage"
-        >
-          <template #head>
-            <tr class="bg-gray-50 border-b border-gray-200">
-              <th class="px-2 py-2 text-left font-medium text-gray-600">ID</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Name</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Email</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Role</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">
-                Created At
-              </th>
-              <th class="px-2 py-2 text-center font-medium text-gray-600">
-                Actions
-              </th>
-            </tr>
-          </template>
+        <template #head>
+          <tr class="bg-gray-50 border-b border-gray-200">
+            <th class="px-2 py-2 text-left font-medium text-gray-600">ID</th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">Name</th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">Email</th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">Role</th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">
+              Created At
+            </th>
+            <th class="px-2 py-2 text-center font-medium text-gray-600">
+              Actions
+            </th>
+          </tr>
+        </template>
 
-          <template #default>
-            <tr
-              v-for="user in filteredUsers"
-              :key="user.id"
-              class="hover:bg-gray-50 transition-colors"
-            >
-              <td class="px-2 py-1">{{ user.id }}</td>
-              <td class="px-2 py-1">{{ user.name }}</td>
-              <td class="px-2 py-1">{{ user.email }}</td>
-              <td class="px-2 py-1">{{ user.role }}</td>
-              <td class="px-2 py-1 text-gray-600">
-                {{ formatCreatedAt(user.createdAt) }}
-              </td>
-              <td class="px-2 py-1 text-center align-middle">
-                <div class="inline-flex items-center gap-2">
-                  <button
-                    @click="editUser(user)"
-                    class="p-1 rounded hover:bg-gray-100 text-blue-600"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    @click="confirmDelete(user)"
-                    class="p-1 rounded hover:bg-gray-100 text-red-600"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </template>
+        <template #default>
+          <tr
+            v-for="user in filteredUsers"
+            :key="user.id"
+            class="hover:bg-gray-50 transition-colors"
+          >
+            <td class="px-2 py-1">{{ user.id }}</td>
+            <td class="px-2 py-1">{{ user.name }}</td>
+            <td class="px-2 py-1">{{ user.email }}</td>
+            <td class="px-2 py-1">{{ user.role }}</td>
+            <td class="px-2 py-1 text-gray-600">
+              {{ formatCreatedAt(user.createdAt) }}
+            </td>
+            <td class="px-2 py-1 text-center align-middle">
+              <div class="inline-flex items-center gap-2">
+                <button
+                  @click="editUser(user)"
+                  class="p-1 rounded hover:bg-gray-100 text-blue-600"
+                >
+                  Edit
+                </button>
+                <button
+                  @click="confirmDelete(user)"
+                  class="p-1 rounded hover:bg-gray-100 text-red-600"
+                >
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+        </template>
 
-          <template #empty>
-            No users found.
-          </template>
-        </DataBox>
-      </div>
+        <template #empty>
+          No users found.
+        </template>
+      </DataBoxCard>
     </div>
 
     <!-- Modals -->
@@ -181,7 +175,7 @@ import UserDetailModal from "../components/Modals/Users/UserDetailModal.vue";
 import AdvancedFilterPanel, {
   type FilterFieldRow,
 } from "@/components/common/AdvancedFilterPanel.vue";
-import DataBox from "@/components/common/DataBox.vue";
+import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
 

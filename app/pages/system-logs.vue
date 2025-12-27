@@ -1,6 +1,6 @@
 <template>
   <div class="w-full min-h-[80vh] p-4">
-    <div class="flex flex-col gap-4 lg:flex-row">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
       <!-- Filters sidebar -->
       <div
         :class="[
@@ -10,7 +10,7 @@
       >
         <div class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
           <div>
-            <h4 class="text-sm font-semibold text-gray-700">Filters</h4>
+            <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
             <p class="text-xs text-gray-500">Refine the log results.</p>
           </div>
           <button
@@ -34,17 +34,23 @@
       </div>
 
       <!-- Logs table -->
-      <div
+      <DataBoxCard
         :class="[
-          'bg-white shadow-sm rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm',
+          'lg:self-start',
           isFilterVisible ? 'flex-1' : 'max-w-7xl w-full mx-auto',
         ]"
+        :is-loading="isLoading"
+        :pagination="pagination"
+        :has-data="displayedLogs.length > 0"
+        :columns="7"
+        loading-text="Loading logs..."
+        @prev-page="prevPage"
+        @next-page="nextPage"
+        @change-per-page="changePerPage"
       >
-        <div
-          class="bg-gray-50 px-2 py-2 border-b border-gray-200 flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
-        >
+        <template #header>
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-gray-700 text-sm">
+            <h3 class="font-semibold text-gray-700 text-xs">
               {{ title || "System Logs" }}
             </h3>
             <button
@@ -92,127 +98,114 @@
               Export
             </button>
           </div>
-        </div>
+        </template>
 
-        <DataBox
-          :is-loading="isLoading"
-          :pagination="pagination"
-          :has-data="displayedLogs.length > 0"
-          :columns="7"
-          loading-text="Loading logs..."
-          @prev-page="prevPage"
-          @next-page="nextPage"
-          @change-per-page="changePerPage"
-        >
-          <template #head>
-            <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600">
-              <th class="px-2 py-2 text-left font-medium text-gray-600 ">
-                Timestamp
-              </th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">Level</th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">
-                Source / Action
-              </th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600 ">
-                Message
-              </th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600 ">
-                Actor
-              </th>
-              <th class="px-2 py-2 text-left font-medium text-gray-600">
-                Origin
-              </th>
-              <th class="px-2 py-2 text-center font-medium text-gray-600">
-                Detail
-              </th>
-            </tr>
-          </template>
+        <template #head>
+          <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600">
+            <th class="px-2 py-2 text-left font-medium text-gray-600 ">
+              Timestamp
+            </th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">Level</th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">
+              Source / Action
+            </th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600 ">
+              Message
+            </th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600 ">
+              Actor
+            </th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">
+              Origin
+            </th>
+            <th class="px-2 py-2 text-center font-medium text-gray-600">
+              Detail
+            </th>
+          </tr>
+        </template>
 
-          <template #default>
-            <tr
-              v-for="log in displayedLogs"
-              :key="log.id"
-              class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100"
-            >
-              <td class="px-2 py-1 whitespace-nowrap text-gray-600 align-top">
-                <div>{{ formatTimestamp(log.createdAt) }}</div>
-                <div class="text-[11px] text-gray-400">#{{ log.id }}</div>
-              </td>
-              <td class="px-2 py-1 align-top">
+        <template #default>
+          <tr
+            v-for="log in displayedLogs"
+            :key="log.id"
+            class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100"
+          >
+            <td class="px-2 py-1 whitespace-nowrap text-gray-600 align-top">
+              <div>{{ formatTimestamp(log.createdAt) }}</div>
+              <div class="text-[11px] text-gray-400">#{{ log.id }}</div>
+            </td>
+            <td class="px-2 py-1 align-top">
+              <span
+                class="inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wide"
+                :class="levelBadgeClass(log.level)"
+              >
+                {{ (log.level || "info").toUpperCase() }}
+              </span>
+            </td>
+            <td class="px-2 py-1 align-top">
+              <div class="text-gray-800 font-medium leading-5 text-xs">
+                {{ log.source || "Unknown source" }}
+              </div>
+              <div v-if="log.tags?.length" class="flex flex-wrap gap-1 mt-1">
                 <span
-                  class="inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wide"
-                  :class="levelBadgeClass(log.level)"
+                  v-for="tag in log.tags"
+                  :key="tag"
+                  class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full text-[10px] uppercase tracking-wide"
                 >
-                  {{ (log.level || "info").toUpperCase() }}
+                  {{ tag }}
                 </span>
-              </td>
-              <td class="px-2 py-1 align-top">
-                <div class="text-gray-800 font-medium leading-5 text-xs">
-                  {{ log.source || "Unknown source" }}
-                </div>
-                <div v-if="log.tags?.length" class="flex flex-wrap gap-1 mt-1">
-                  <span
-                    v-for="tag in log.tags"
-                    :key="tag"
-                    class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full text-[10px] uppercase tracking-wide"
-                  >
-                    {{ tag }}
-                  </span>
-                </div>
-              </td>
-              <td class="px-2 py-1 text-gray-700 leading-5 wrap-break-words align-top">
-                <p class="text-xs text-gray-800 leading-5">
-                  {{ log.message }}
-                </p>
-                <p
-                  v-if="metadataPreview(log.metadata)"
-                  class="text-[11px] text-gray-500 mt-1"
-                >
-                  {{ metadataPreview(log.metadata) }}
-                </p>
-              </td>
-              <td class="px-2 py-1 align-top">
-                <div class="text-gray-800 font-medium">
-                  {{ log.actor || "System" }}
-                </div>
-                <div v-if="log.actorEmail" class="text-[11px] text-gray-500">
-                  {{ log.actorEmail }}
-                </div>
-                <div v-if="log.userId" class="text-[11px] text-gray-500">
-                  User ID: {{ log.userId }}
-                </div>
-              </td>
-              <td class="px-2 py-1 align-top">
-                <div v-if="log.deviceId" class="text-gray-800 font-medium">
-                  {{ log.deviceId }}
-                </div>
-                <div v-else class="text-gray-800 font-medium">N/A</div>
-                <div v-if="log.ipAddress" class="text-[11px] text-gray-500">
-                  IP: {{ log.ipAddress }}
-                </div>
-              </td>
-              <td class="px-2 py-1 align-top text-center">
-                <button
-                  type="button"
-                  class="inline-flex items-center justify-center w-8 h-8 border border-gray-200 rounded text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 transition disabled:opacity-60"
-                  :title="`View details for log #${log.id}`"
-                  @click="openDetailModal(log)"
-                >
-                  <BootstrapIcon name="info-circle" class="w-4 h-4" />
-                  <span class="sr-only">View details</span>
-                </button>
-              </td>
-            </tr>
-          </template>
+              </div>
+            </td>
+            <td class="px-2 py-1 text-gray-700 leading-5 wrap-break-words align-top">
+              <p class="text-xs text-gray-800 leading-5">
+                {{ log.message }}
+              </p>
+              <p
+                v-if="metadataPreview(log.metadata)"
+                class="text-[11px] text-gray-500 mt-2"
+              >
+                {{ metadataPreview(log.metadata) }}
+              </p>
+            </td>
+            <td class="px-2 py-1 align-top">
+              <div class="text-gray-800 font-medium">
+                {{ log.actor || "System" }}
+              </div>
+              <div v-if="log.actorEmail" class="text-[11px] text-gray-500">
+                {{ log.actorEmail }}
+              </div>
+              <div v-if="log.userId" class="text-[11px] text-gray-500">
+                User ID: {{ log.userId }}
+              </div>
+            </td>
+            <td class="px-2 py-1 align-top">
+              <div v-if="log.deviceId" class="text-gray-800 font-medium">
+                {{ log.deviceId }}
+              </div>
+              <div v-else class="text-gray-800 font-medium">N/A</div>
+              <div v-if="log.ipAddress" class="text-[11px] text-gray-500">
+                IP: {{ log.ipAddress }}
+              </div>
+            </td>
+            <td class="px-2 py-1 align-top text-center">
+              <button
+                type="button"
+                class="inline-flex items-center justify-center w-8 h-8 border border-gray-200 rounded text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 transition disabled:opacity-60"
+                :title="`View details for log #${log.id}`"
+                @click="openDetailModal(log)"
+              >
+                <BootstrapIcon name="info-circle" class="w-4 h-4" />
+                <span class="sr-only">View details</span>
+              </button>
+            </td>
+          </tr>
+        </template>
 
-          <template #empty>
-            No system logs to show yet.
-          </template>
-        </DataBox>
+        <template #empty>
+          No system logs to show yet.
+        </template>
 
-        <div
-          class="px-2 py-1 border-t border-gray-100 text-[11px] text-gray-400 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
-        >
+        <template #footer>
           <span>
             Showing {{ displayedLogs.length }} entries on this page.
           </span>
@@ -222,8 +215,8 @@
               {{ formattedLastUpdated }}
             </span>
           </span>
-        </div>
-      </div>
+        </template>
+      </DataBoxCard>
     </div>
 
     <SystemLogDetailModal
@@ -239,7 +232,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from "vue";
 import { message } from "ant-design-vue";
-import DataBox from "@/components/common/DataBox.vue";
+import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import SystemLogDetailModal from "@/components/Modals/Devices/SystemLogDetailModal.vue";
 import AdvancedFilterPanel, {
   type FilterFieldRow,
