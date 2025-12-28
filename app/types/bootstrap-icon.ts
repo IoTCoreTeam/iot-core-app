@@ -1,0 +1,2 @@
+export type BootstrapIconName = keyof typeof import("bootstrap-icons/font/bootstrap-icons.json");
+

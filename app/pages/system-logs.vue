@@ -4,7 +4,7 @@
       <!-- Filters sidebar -->
       <div
         :class="[
-          'bg-white shadow-sm rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
+          'bg-white rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
           { hidden: !isFilterVisible },
         ]"
       >
@@ -235,6 +235,7 @@ import { message } from "ant-design-vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import SystemLogDetailModal from "@/components/Modals/Devices/SystemLogDetailModal.vue";
 import AdvancedFilterPanel, {
+  type FilterFieldOption,
   type FilterFieldRow,
 } from "@/components/common/AdvancedFilterPanel.vue";
 import { apiConfig } from "~~/config/api";
@@ -256,11 +257,13 @@ interface LogEntry {
 }
 
 interface AdvancedFiltersState {
+  keyword: string;
   action: string;
   userId: string;
   ipAddress: string;
-  startDate: string;
-  endDate: string;
+  level: string;
+  start: string;
+  end: string;
 }
 
 const { title } = defineProps({
@@ -282,18 +285,57 @@ const pagination = ref({
 const lastUpdatedAt = ref<string | null>(null);
 
 const defaultAdvancedFilters: AdvancedFiltersState = {
+  keyword: "",
   action: "",
   userId: "",
   ipAddress: "",
-  startDate: "",
-  endDate: "",
+  level: "",
+  start: "",
+  end: "",
 };
 
 const advancedFilters = reactive<AdvancedFiltersState>({
   ...defaultAdvancedFilters,
 });
 
-const systemFilterFields: FilterFieldRow[] = [
+const FALLBACK_LEVELS = ["critical", "error", "warning", "notice", "info", "debug"];
+const levelOptions = ref<FilterFieldOption[]>([]);
+
+const resolvedLevelOptions = computed<FilterFieldOption[]>(() => {
+  const normalized =
+    levelOptions.value.length > 0
+      ? levelOptions.value
+      : FALLBACK_LEVELS.map((level) => ({
+          value: level,
+          label: formatLevelLabel(level),
+        }));
+
+  const unique = normalized.reduce<FilterFieldOption[]>((acc, option) => {
+    const value = option.value?.trim();
+    if (!value) {
+      return acc;
+    }
+    if (!acc.find((existing) => existing.value === value)) {
+      acc.push({
+        value,
+        label: option.label?.trim() || formatLevelLabel(value),
+      });
+    }
+    return acc;
+  }, []);
+
+  return [{ label: "All levels", value: "" }, ...unique];
+});
+
+const systemFilterFields = computed<FilterFieldRow[]>(() => [
+  [
+    {
+      key: "keyword",
+      label: "Keyword",
+      type: "text",
+      placeholder: "Search message or source",
+    },
+  ],
   [
     {
       key: "action",
@@ -321,26 +363,104 @@ const systemFilterFields: FilterFieldRow[] = [
   ],
   [
     {
-      key: "startDate",
+      key: "level",
+      label: "Log Level",
+      type: "select",
+      options: resolvedLevelOptions.value,
+    },
+  ],
+  [
+    {
+      key: "start",
       label: "Start Date",
       type: "datetime-local",
     },
     {
-      key: "endDate",
+      key: "end",
       label: "End Date",
       type: "datetime-local",
     },
   ],
-];
+]);
 
 function snapshotAdvancedFilters() {
   return {
+    keyword: advancedFilters.keyword.trim(),
     action: advancedFilters.action.trim(),
     userId: advancedFilters.userId.trim(),
     ipAddress: advancedFilters.ipAddress.trim(),
-    startDate: advancedFilters.startDate,
-    endDate: advancedFilters.endDate,
+    level: advancedFilters.level.trim(),
+    start: advancedFilters.start,
+    end: advancedFilters.end,
   };
+}
+
+function updateLevelOptionsFromResponse(raw: unknown) {
+  if (!raw) {
+    return;
+  }
+
+  const options = normalizeLevelOptions(raw);
+  if (options.length > 0) {
+    levelOptions.value = options;
+  }
+}
+
+function normalizeLevelOptions(raw: unknown): FilterFieldOption[] {
+  const uniqueOptions = new Map<string, FilterFieldOption>();
+
+  const registerOption = (value: string, label?: string) => {
+    const normalizedValue = value.trim();
+    if (!normalizedValue || uniqueOptions.has(normalizedValue)) {
+      return;
+    }
+    uniqueOptions.set(normalizedValue, {
+      value: normalizedValue,
+      label: label?.trim() || formatLevelLabel(normalizedValue),
+    });
+  };
+
+  if (Array.isArray(raw)) {
+    raw.forEach((item) => {
+      if (typeof item === "string") {
+        registerOption(item, formatLevelLabel(item));
+      } else if (item && typeof item === "object") {
+        const value = String(
+          (item as Record<string, unknown>).value ??
+            (item as Record<string, unknown>).name ??
+            (item as Record<string, unknown>).key ??
+            ""
+        );
+        const label = String(
+          (item as Record<string, unknown>).label ??
+            (item as Record<string, unknown>).name ??
+            (item as Record<string, unknown>).value ??
+            ""
+        );
+        registerOption(value, label);
+      }
+    });
+  } else if (typeof raw === "object") {
+    Object.entries(raw as Record<string, unknown>).forEach(([key, value]) => {
+      const label =
+        typeof value === "string"
+          ? value
+          : value !== undefined && value !== null
+          ? String(value)
+          : key;
+      registerOption(key, label);
+    });
+  }
+
+  return Array.from(uniqueOptions.values());
+}
+
+function formatLevelLabel(value: string) {
+  if (!value) return "";
+  return value
+    .replace(/[_-]+/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 const appliedAdvancedFilters = ref(snapshotAdvancedFilters());
@@ -545,8 +665,14 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
       queryParams.append("search", keyword);
     }
     const advanced = appliedAdvancedFilters.value;
+    if (advanced.keyword) {
+      queryParams.append("keyword", advanced.keyword);
+    }
     if (advanced.action) {
       queryParams.append("action", advanced.action);
+    }
+    if (advanced.level) {
+      queryParams.append("level", advanced.level);
     }
     if (advanced.ipAddress) {
       queryParams.append("ip_address", advanced.ipAddress);
@@ -555,11 +681,11 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
     if (normalizedUserId !== null) {
       queryParams.append("user_id", String(normalizedUserId));
     }
-    if (advanced.startDate) {
-      queryParams.append("start", advanced.startDate);
+    if (advanced.start) {
+      queryParams.append("start", advanced.start);
     }
-    if (advanced.endDate) {
-      queryParams.append("end", advanced.endDate);
+    if (advanced.end) {
+      queryParams.append("end", advanced.end);
     }
 
     const headers: Record<string, string> = {
@@ -593,6 +719,29 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
       }
     } else if (Array.isArray(data?.logs)) {
       list = data.logs;
+    }
+
+    const filterMetadata =
+      (paginatedBlock && typeof paginatedBlock === "object" && paginatedBlock.filters
+        ? paginatedBlock.filters
+        : null) ??
+      (payload && typeof payload === "object" && (payload as Record<string, unknown>).filters
+        ? (payload as Record<string, unknown>).filters
+        : null) ??
+      data?.filters ??
+      data?.filter ??
+      null;
+
+    const levelsSource =
+      filterMetadata?.levels ??
+      paginatedBlock?.levels ??
+      payload?.levels ??
+      data?.levels ??
+      data?.meta?.levels ??
+      null;
+
+    if (levelsSource) {
+      updateLevelOptionsFromResponse(levelsSource);
     }
 
     logs.value = list.map(mapLogEntry);

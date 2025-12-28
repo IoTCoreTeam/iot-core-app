@@ -39,12 +39,6 @@
         <span>Current level</span>
         <span>{{ progress.toFixed(0) }}%</span>
       </div>
-      <div class="h-1.5 overflow-hidden rounded-full bg-gray-100">
-        <div
-          class="h-full rounded-full bg-blue-600"
-          :style="{ width: progressWidth }"
-        />
-      </div>
     </div>
 
     <div v-if="chartPoints" class="mt-3">
@@ -68,6 +62,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import type { BootstrapIconName } from "@/types/bootstrap-icon";
 
 type Status = "good" | "warning" | "critical" | "info";
 
@@ -77,7 +72,7 @@ const props = withDefaults(
     subtitle?: string;
     value: number | string;
     unit?: string;
-    icon: string;
+    icon: BootstrapIconName;
     change?: number | null;
     status?: Status;
     statusText?: string;
@@ -110,10 +105,6 @@ const progress = computed(() => {
 
   return Math.min(100, Math.max(0, percent));
 });
-
-const progressWidth = computed(() =>
-  progress.value !== null ? `${progress.value.toFixed(0)}%` : "0%"
-);
 
 const displayValue = computed(() =>
   typeof props.value === "number"
@@ -150,10 +141,12 @@ const chartPoints = computed(() =>
   chartCoordinates.value.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ")
 );
 
-// const chartAreaPoints = computed(() => {
-//   if (!chartCoordinates.value.length) return "";
-//   const firstX = chartCoordinates.value[0].x.toFixed(2);
-//   const lastX = chartCoordinates.value[chartCoordinates.value.length - 1].x.toFixed(2);
-//   return `${chartPoints.value} ${lastX},50 ${firstX},50`;
-// });
+const chartAreaPoints = computed(() => {
+  const coordinates = chartCoordinates.value;
+  if (!coordinates.length) return "";
+  const [firstPoint] = coordinates;
+  const lastPoint = coordinates[coordinates.length - 1];
+  if (!firstPoint || !lastPoint) return "";
+  return `${chartPoints.value} ${lastPoint.x.toFixed(2)},50 ${firstPoint.x.toFixed(2)},50`;
+});
 </script>

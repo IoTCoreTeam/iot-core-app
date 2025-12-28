@@ -8,13 +8,15 @@ export interface StatusRule {
   dangerHigh?: number;
 }
 
+import type { BootstrapIconName } from "./bootstrap-icon";
+
 export interface DashboardMetric {
   key: string;
   title: string;
   subtitle: string;
   value: number;
   unit: string;
-  icon: string;
+  icon: BootstrapIconName;
   change: number | null;
   status: Status;
   statusText: string;

@@ -18,7 +18,7 @@
           Dashboard
         </NuxtLink>
         <NuxtLink
-          to="/devices-control/devices-registration"
+          to="/devices-control/device-control-center"
           class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors cursor-pointer border-b-2 border-transparent py-1 hover:border-blue-500"
         >
           <BootstrapIcon name="hdd-network" class="w-3 h-3" />
@@ -207,7 +207,7 @@
               <p class="px-3 text-[11px] font-semibold uppercase text-gray-500">Device Control Center</p>
               <div class="mt-2 flex flex-col">
                 <NuxtLink
-                  to="/devices-control/devices-registration"
+                  to="/devices-control/device-control-center"
                   class="rounded-md px-3 py-2 hover:bg-blue-50 hover:text-blue-700"
                   @click="closeMobileMenu"
                 >
