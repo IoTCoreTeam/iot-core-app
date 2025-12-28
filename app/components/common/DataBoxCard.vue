@@ -2,7 +2,6 @@
   <section
     :class="[
       'bg-white rounded border border-slate-200 overflow-hidden transition-all duration-200',
-      elevated ? 'shadow-sm hover:shadow' : '',
       padded ? 'text-xs' : '',
     ]"
   >
