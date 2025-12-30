@@ -8,7 +8,10 @@
     @after-leave="handleAfterLeave"
   >
     <div class="space-y-6 text-xs">
-      <div v-if="!log" class="py-6 text-center text-gray-500">
+      <div v-if="isLoading" class="py-6 flex justify-center">
+        <LoadingState message="Loading log details..." />
+      </div>
+      <div v-else-if="!log" class="py-6 text-center text-gray-500">
         No log entry selected.
       </div>
       <template v-else>
@@ -134,6 +137,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import BaseModal from "../BaseModal.vue";
+import LoadingState from "@/components/common/LoadingState.vue";
 
 interface LogEntry {
   id: string | number;
@@ -159,6 +163,8 @@ const emit = defineEmits<{
   (e: "update:modelValue", value: boolean): void;
   (e: "close"): void;
 }>();
+
+const isLoading = computed(() => props.modelValue && !props.log);
 
 const generalInfo = computed(() => {
   const log = props.log;

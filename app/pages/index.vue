@@ -21,17 +21,30 @@
           </button>
         </div>
       </header> -->
-      <section class="grid grid-cols-1 gap-2 lg:grid-cols-3 xl:grid-cols-5 items-start">
+      <section
+        class="grid grid-cols-1 gap-2 lg:grid-cols-3 xl:grid-cols-5 items-start"
+      >
         <SingleMetricChart
           class="lg:col-span-2 xl:col-span-4"
           :metrics="metrics"
+          :series="chartSeries"
+          :selected-metric-key="selectedMetricKey"
+          :selected-timeframe="selectedTimeframe"
+          @update:selected-metric-key="handleMetricChange"
+          @update:selected-timeframe="handleTimeframeChange"
         />
         <div class="flex flex-col gap-4 h-full lg:col-span-1 xl:col-span-1">
           <DevicesControlAlertsPanel :alerts="alerts" />
         </div>
       </section>
-      <section class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <DashboardSensorCard v-for="metric in metricCardItems" :key="metric.key" v-bind="metric.props" />
+      <section
+        class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+      >
+        <DashboardSensorCard
+          v-for="metric in metricCardItems"
+          :key="metric.key"
+          v-bind="metric.props"
+        />
       </section>
 
       <section class="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
@@ -47,10 +60,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import DashboardSensorCard from "@/components/DashboardSensorCard.vue";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
-import type { DashboardMetric } from "@/types/dashboard";
+import type {
+  DashboardMetric,
+  SeriesPoint,
+  TimeframeKey,
+} from "@/types/dashboard";
 
 interface ActiveDeviceItem {
   id: number;
@@ -77,7 +94,6 @@ interface AutomationBatchItem {
   status: "Completed" | "Running";
   updated: string;
 }
-
 
 const metrics = ref<DashboardMetric[]>([
   {
@@ -184,26 +200,31 @@ const metricCardItems = computed(() =>
   }))
 );
 
-const activeDevices = ref<ActiveDeviceItem[]>([
-  { id: 1, short: "GW", name: "Gateway North-41", location: "Plant 3 ? Hanoi", version: "3.4.9", status: "Online", lastPing: "12s ago" },
-  { id: 2, short: "ST", name: "Storage Sensor 12", location: "Warehouse ? Da Nang", version: "2.2.1", status: "Limited", lastPing: "35s ago" },
-  { id: 3, short: "EN", name: "Energy Meter 07", location: "Building B ? HCMC", version: "4.0.0", status: "Offline", lastPing: "5m ago" },
-  { id: 4, short: "AQ", name: "Air Quality Kit", location: "HQ ? HCMC", version: "5.1.2", status: "Online", lastPing: "50s ago" },
-]);
+const activeDevices = ref<ActiveDeviceItem[]>([]);
 
-const alerts = ref<AlertPanelItem[]>([
-  { id: 1, title: "Offline device", message: "Energy Meter 07 lost connection for more than 5 minutes.", timestamp: "2 minutes ago" },
-  { id: 2, title: "Battery threshold", message: "Storage Sensor 12 is at 17% battery.", timestamp: "18 minutes ago" },
-  { id: 3, title: "New firmware available", message: "Gateway North-41 can upgrade to 3.4.10.", timestamp: "Today, 08:21" },
-]);
+const alerts = ref<AlertPanelItem[]>([]);
 
-const automationBatches = ref<AutomationBatchItem[]>([
-  { id: 1, name: "Night irrigation", devices: 28, trigger: "Soil moisture < 40%", status: "Completed", updated: "10 minutes ago" },
-  { id: 2, name: "Morning ventilation", devices: 14, trigger: "Temperature > 30?C", status: "Running", updated: "Just now" },
-  { id: 3, name: "Weekly firmware roll", devices: 42, trigger: "Manual approval", status: "Completed", updated: "Yesterday" },
-]);
+const automationBatches = ref<AutomationBatchItem[]>([]);
+
+const selectedMetricKey = ref<string>(metrics.value[0]?.key || "");
+const selectedTimeframe = ref<TimeframeKey>("hour");
+// const chartSeries = ref<SeriesPoint[]>([]); // handled in child or removed
+const chartSeries = ref<SeriesPoint[]>([]);
+
+function handleMetricChange(key: string) {
+  selectedMetricKey.value = key;
+  // fetchChartData(); // Removed
+}
+
+function handleTimeframeChange(timeframe: TimeframeKey) {
+  selectedTimeframe.value = timeframe;
+  // fetchChartData(); // Removed
+}
 
 onMounted(() => {
   lastUpdated.value = new Date();
+  // if (selectedMetricKey.value) {
+  //   fetchChartData();
+  // }
 });
 </script>

@@ -1,16 +1,16 @@
 ﻿<template>
   <aside
     class="bg-white text-slate-900 flex flex-col sticky top-0 min-h-screen border-r border-slate-100 transition-all duration-200"
-    :class="isSidebarCollapsed ? 'w-20' : 'w-64'"
+    :class="isSidebarCollapsed ? 'w-20' : 'w-60'"
   >
-    <div class="px-4 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div
+      class="px-4 py-4 border-b border-slate-100 flex items-center justify-between"
+    >
       <div v-if="!isSidebarCollapsed">
         <p class="text-[0.55rem] uppercase tracking-[0.4em] text-slate-400">
-          Devices
+          Device Management
         </p>
-        <p class="text-sm font-semibold text-slate-900">
-          Management Center
-        </p>
+        <p class="text-sm font-semibold text-slate-900">Control Center</p>
       </div>
       <button
         type="button"
@@ -18,11 +18,12 @@
         @click="handleToggle"
         :title="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
       >
-        <span v-if="isSidebarCollapsed"><BootstrapIcon name="caret-right" /></span>
+        <span v-if="isSidebarCollapsed"
+          ><BootstrapIcon name="caret-right"
+        /></span>
         <span v-else><BootstrapIcon name="caret-left" /></span>
       </button>
     </div>
-
 
     <nav class="flex-1 py-4 overflow-y-auto space-y-2">
       <button
@@ -34,7 +35,7 @@
           section.id === activeTab
             ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-400'
             : 'text-slate-600 hover:bg-slate-50',
-          isSidebarCollapsed ? 'justify-center' : 'text-left'
+          isSidebarCollapsed ? 'justify-center' : 'text-left',
         ]"
         @click="handleSectionClick(section.id)"
         :title="section.label"
@@ -57,9 +58,6 @@
 
         <div v-if="!isSidebarCollapsed">
           <p class="text-sm font-semibold">{{ section.label }}</p>
-          <p class="text-xs text-slate-500">
-            {{ section.description }}
-          </p>
         </div>
       </button>
     </nav>

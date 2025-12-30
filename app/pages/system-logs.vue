@@ -4,7 +4,7 @@
       <!-- Filters sidebar -->
       <div
         :class="[
-          'bg-white rounded border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-sm w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
+          'bg-white rounded border border-gray-200 overflow-hidden transition-all duration-200 w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
           { hidden: !isFilterVisible },
         ]"
       >

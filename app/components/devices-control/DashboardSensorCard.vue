@@ -1,7 +1,11 @@
 <template>
-  <div class="relative overflow-hidden rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+  <div
+    class="relative overflow-hidden rounded border border-slate-200 bg-white p-3"
+  >
     <div class="flex items-center gap-3">
-      <div class="flex h-9 w-9 items-center justify-center rounded-md bg-gray-100 text-gray-700">
+      <div
+        class="flex h-9 w-9 items-center justify-center rounded-md bg-gray-100 text-gray-700"
+      >
         <BootstrapIcon :name="icon" class="h-3.5 w-3.5" />
       </div>
       <div>
@@ -44,7 +48,14 @@
     <div v-if="chartPoints" class="mt-3">
       <svg viewBox="0 0 100 60" class="h-16 w-full">
         <rect x="0" y="0" width="100" height="60" fill="transparent" />
-        <line x1="0" y1="50" x2="100" y2="50" stroke="#e5e7eb" stroke-width="1" />
+        <line
+          x1="0"
+          y1="50"
+          x2="100"
+          y2="50"
+          stroke="#e5e7eb"
+          stroke-width="1"
+        />
         <line x1="8" y1="5" x2="8" y2="50" stroke="#e5e7eb" stroke-width="1" />
         <polygon :points="chartAreaPoints" fill="#dbeafe" opacity="0.8" />
         <polyline
@@ -138,7 +149,9 @@ const chartCoordinates = computed<ChartPoint[]>(() => {
 });
 
 const chartPoints = computed(() =>
-  chartCoordinates.value.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ")
+  chartCoordinates.value
+    .map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+    .join(" ")
 );
 
 const chartAreaPoints = computed(() => {

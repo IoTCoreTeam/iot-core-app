@@ -1,12 +1,13 @@
 ﻿import type { Component } from "vue";
 
-export type DeviceTabKey = "pending" | "approved" | "all";
+export type DeviceTabKey = "gateways" | "nodes" | "controller" | "sensor";
 
 export type DeviceRow = {
   id: string;
   name: string;
   serialNumber: string;
   connectionKey: string;
+  status: "pending" | "approved" | "deleted";
   connectionHint?: string;
   location?: string;
   ipAddress?: string | null;
@@ -28,6 +29,7 @@ export type DeviceFilterState = {
   connectionKey: string;
   location: string;
   ipAddress: string;
+  status: string;
 };
 
 export type SectionCard = {

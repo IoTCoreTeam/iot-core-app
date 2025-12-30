@@ -9,7 +9,7 @@
         :key="tab.key"
         :tab="tab.label"
       >
-        <div v-if="tab.key === activeMapTab" class="pb-2">
+        <div v-if="tab.key === activeMapTab" class="pb-4">
           <div class="bg-white rounded border border-slate-200 p-4 map-display">
             <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
@@ -17,7 +17,7 @@
                   {{ currentMapTab.label }} Overview
                 </p>
                 <p class="text-sm text-slate-600">
-                  {{ mapSummary.total }} devices mapped across {{ currentMapTab.label.toLowerCase() }}.
+                  {{ mapSummary.total }} Nodes mapped across {{ currentMapTab.label.toLowerCase() }}.
                 </p>
               </div>
               <div class="flex gap-3 text-xs">
@@ -41,7 +41,7 @@
                 <div
                   v-for="marker in highlightedRows"
                   :key="marker.id"
-                  class="bg-white/80 backdrop-blur rounded-lg border border-slate-200 px-3 py-2 text-xs shadow-sm max-w-[180px]"
+                  class="bg-white/80 backdrop-blur rounded border border-slate-200 px-3 py-2 text-xs max-w-[180px]"
                 >
                   <p class="font-semibold text-slate-700">
                     {{ marker.name }}
@@ -100,13 +100,13 @@
             <DataBoxCard
               :class="[
                 'lg:self-start',
-                isFilterVisible ? 'flex-1' : 'max-w-7xl w-full mx-auto',
+                isFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
               ]"
               :is-loading="isLoading"
               :columns="mapTableColumns.length"
               :has-data="displayedRows.length > 0"
               :pagination="pagination"
-              loading-text="Loading map devices..."
+              loading-text="Loading map Nodes..."
               @prev-page="prevPage"
               @next-page="nextPage"
               @change-per-page="changePerPage"
@@ -560,7 +560,7 @@ const mapFilterFields: FilterFieldRow[] = [
 const mapTableColumns = [
   "Location",
   "Coordinates",
-  "Device",
+  "Node",
   "Status",
   "Network",
   "Last Update",
@@ -729,7 +729,7 @@ function exportRows() {
   if (!import.meta.client) return;
   const rows = filteredRows.value;
   if (!rows.length) {
-    message.warning("No map devices to export.");
+    message.warning("No map Nodes to export.");
     return;
   }
 
@@ -787,7 +787,7 @@ function exportRows() {
   link.click();
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
-  message.success("Map devices exported.");
+  message.success("Map Nodes exported.");
 }
 
 function prevPage() {

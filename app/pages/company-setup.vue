@@ -1,9 +1,7 @@
 <template>
-  <div
-    class="flex flex-col items-center justify-start pb-10 bg-gray-50 p-4"
-  >
+  <div class="flex flex-col items-center justify-start pb-10 bg-gray-50 p-4">
     <div
-      class="w-full max-w-8xl bg-white rounded-sm shadow-sm p-8 px-12 text-xs"
+      class="w-full max-w-8xl bg-white rounded p-8 px-12 text-xs border border-slate-200"
     >
       <div class="mb-6">
         <h2 class="text-base font-semibold text-gray-800">
@@ -87,7 +85,7 @@
 import { ref, onMounted } from "vue";
 import { message } from "ant-design-vue";
 import LoadingState from "@/components/common/LoadingState.vue";
-import { apiConfig } from "../../config/api"
+import { apiConfig } from "../../config/api";
 import { useAuthStore } from "~~/stores/auth";
 
 const form = ref({
@@ -99,7 +97,7 @@ const form = ref({
 });
 const loading = ref(false);
 const authStore = useAuthStore();
-const apiUrl =  apiConfig.auth + "/company";
+const apiUrl = apiConfig.auth + "/company";
 
 const buildAuthHeaders = () => {
   const authorization = authStore.authorizationHeader;
@@ -136,7 +134,6 @@ const fetchCompanyData = async () => {
       phone: company?.phone ?? "",
       fax: company?.fax ?? "",
     });
-
   } catch (error) {
     if (error?.message?.includes("Missing access token")) {
       message.error("Missing access token");
