@@ -1,6 +1,6 @@
 <template>
   <footer
-    class="w-full flex items-center justify-between px-6 py-10 bg-white border-t border-gray-200 shadow-sm mt-auto"
+    class="w-full flex items-center justify-between px-6 py-10 bg-white border-t border-gray-200 mt-auto"
   >
     <!-- Left: Copyright -->
     <div>

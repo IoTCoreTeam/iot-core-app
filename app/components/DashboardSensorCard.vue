@@ -1,5 +1,5 @@
 <template>
-  <div class="relative overflow-hidden rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+  <div class="relative overflow-hidden rounded-lg border border-gray-200 bg-white p-4">
     <div class="flex items-center gap-3">
       <div class="flex h-9 w-9 items-center justify-center rounded-md bg-gray-100 text-gray-700">
         <BootstrapIcon :name="icon" class="h-3.5 w-3.5" />

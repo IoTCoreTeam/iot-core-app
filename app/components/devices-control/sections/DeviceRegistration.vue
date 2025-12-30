@@ -1,15 +1,22 @@
 <template>
-  <section class="min-h-[100vh]">
-    <a-tabs
-      v-model:activeKey="activeDeviceTab"
-      class="px-6 pt-4 custom-tabs"
-    >
-      <a-tab-pane
-        v-for="tab in deviceTabs"
-        :key="tab.key"
-        :tab="tab.label"
-      >
+  <section class="min-h-screen">
+    <a-tabs v-model:activeKey="activeDeviceTab" class="px-6 pt-4 custom-tabs">
+      <a-tab-pane v-for="tab in deviceTabs" :key="tab.key" :tab="tab.label">
         <div v-if="tab.key === activeDeviceTab" class="pb-2">
+          <div v-if="tab.key === 'sensor'">
+            <div class="mb-4">
+              <SingleMetricChart
+                class="rounded-lg border border-gray-200 bg-white"
+                :metrics="availableMetrics"
+                :selected-metric-key="selectedMetricKey"
+                :selected-timeframe="selectedTimeframe"
+                :sensor-ids="selectedSensorId ? [selectedSensorId] : []"
+                @update:selected-metric-key="handleMetricChange"
+                @update:selected-timeframe="handleTimeframeChange"
+              />
+            </div>
+          </div>
+
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
             <div
               :class="[
@@ -17,10 +24,12 @@
                 { hidden: !isDeviceFilterVisible },
               ]"
             >
-              <div class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+              <div
+                class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between"
+              >
                 <div>
                   <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
-                  <p class="text-xs text-gray-500">Refine the device list.</p>
+                  <p class="text-xs text-gray-500">Refine the devices list.</p>
                 </div>
                 <button
                   type="button"
@@ -48,7 +57,7 @@
                 isDeviceFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
               ]"
               :is-loading="isDeviceLoading"
-              :columns="7"
+              :columns="8"
               :has-data="displayedDeviceRows.length > 0"
               :pagination="devicePagination"
               loading-text="Loading devices..."
@@ -59,14 +68,16 @@
               <template #header>
                 <div class="flex items-center gap-2">
                   <h3 class="font-semibold text-gray-700 text-xs">
-                    {{ currentDeviceTab.label }} Devices
+                    {{ currentDeviceTab.label }}
                   </h3>
                   <button
                     type="button"
                     class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
                     @click="toggleDeviceFilters"
                   >
-                    {{ isDeviceFilterVisible ? "Hide Filters" : "Show Filters" }}
+                    {{
+                      isDeviceFilterVisible ? "Hide Filters" : "Show Filters"
+                    }}
                   </button>
                 </div>
 
@@ -102,14 +113,19 @@
                     :disabled="isDeviceLoading || !filteredDeviceRows.length"
                     @click="exportDevices"
                   >
-                    <BootstrapIcon name="file-earmark-arrow-down" class="w-3 h-3 mr-1" />
+                    <BootstrapIcon
+                      name="file-earmark-arrow-down"
+                      class="w-3 h-3 mr-1"
+                    />
                     Export
                   </button>
                 </div>
               </template>
 
               <template #head>
-                <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600">
+                <tr
+                  class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600"
+                >
                   <th
                     v-for="column in deviceTableColumns"
                     :key="column"
@@ -123,24 +139,54 @@
                 <tr
                   v-for="row in displayedDeviceRows"
                   :key="row.id"
-                  class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100 py-1"
+                  :class="[
+                    'transition-colors text-xs align-top border-b border-gray-100 py-1',
+                    activeDeviceTab === 'sensor'
+                      ? 'hover:bg-blue-50 cursor-pointer'
+                      : 'hover:bg-gray-50',
+                    activeDeviceTab === 'sensor' && row.id === selectedSensorId
+                      ? 'bg-blue-50'
+                      : '',
+                  ]"
+                  @click="
+                    activeDeviceTab === 'sensor' && handleSensorRowClick(row.id)
+                  "
                 >
-                  <td class="px-2 py-1 whitespace-nowrap text-gray-800 align-top">
+                  <td
+                    class="px-2 py-1 whitespace-nowrap text-gray-800 align-top"
+                  >
                     <div class="font-semibold text-xs">{{ row.name }}</div>
-                    <div class="text-[11px] text-gray-500 mt-2">ID: {{ row.id }}</div>
+                    <div class="text-[11px] text-gray-500 mt-2">
+                      ID: {{ row.id }}
+                    </div>
                   </td>
                   <td class="px-2 py-1 text-gray-700 align-top">
                     <p class="text-xs font-medium">{{ row.serialNumber }}</p>
                   </td>
-                  <td class="px-2 py-1 text-gray-700 leading-5 wrap-break-words align-top">
+                  <td
+                    class="px-2 py-1 text-gray-700 leading-5 wrap-break-words align-top"
+                  >
                     <p class="text-xs font-semibold text-gray-800">
                       {{ row.connectionKey }}
                     </p>
-                    <p v-if="row.connectionHint" class="text-[11px] text-gray-500 mt-2">
+                    <p
+                      v-if="row.connectionHint"
+                      class="text-[11px] text-gray-500 mt-2"
+                    >
                       {{ row.connectionHint }}
                     </p>
                   </td>
-                  <td class="px-2 py-1 text-gray-700 leading-5 wrap-break-words align-top">
+                  <td class="px-2 py-1 text-gray-700 align-top">
+                    <span
+                      class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px]"
+                      :class="statusBadgeClass(row.status)"
+                    >
+                      {{ formatDeviceStatus(row.status) }}
+                    </span>
+                  </td>
+                  <td
+                    class="px-2 py-1 text-gray-700 leading-5 wrap-break-words align-top"
+                  >
                     <p class="text-xs text-gray-800">
                       {{ row.location || "N/A" }}
                     </p>
@@ -152,13 +198,19 @@
                     <div class="text-xs font-medium">
                       {{ row.ipAddress || "N/A" }}
                     </div>
-                    <div v-if="row.lastHeartbeat" class="text-[11px] text-gray-500 mt-2">
+                    <div
+                      v-if="row.lastHeartbeat"
+                      class="text-[11px] text-gray-500 mt-2"
+                    >
                       Last ping: {{ row.lastHeartbeat }}
                     </div>
                   </td>
                   <td class="px-2 py-1 text-gray-700 align-top">
                     <div>{{ row.updatedAt }}</div>
-                    <div v-if="row.updatedBy" class="text-[11px] text-gray-500 mt-2">
+                    <div
+                      v-if="row.updatedBy"
+                      class="text-[11px] text-gray-500 mt-2"
+                    >
                       By {{ row.updatedBy }}
                     </div>
                   </td>
@@ -175,22 +227,31 @@
                       <button
                         type="button"
                         class="w-8 h-8 inline-flex items-center justify-center rounded border border-emerald-200 text-emerald-600 hover:bg-emerald-50 cursor-pointer"
-                        title="Approve device"
+                        title="Approve Device"
                       >
-                        <BootstrapIcon name="check-circle" class="w-3.5 h-3.5" />
+                        <BootstrapIcon
+                          name="check-circle"
+                          class="w-3.5 h-3.5"
+                        />
                         <span class="sr-only">Approve</span>
                       </button>
                     </div>
                   </td>
                 </tr>
               </template>
-              <template #empty>
-                No devices to display yet.
-              </template>
+              <template #empty> No devices to display yet. </template>
 
               <template #footer>
-                <span>Showing {{ displayedDeviceRows.length }} entries on this page.</span>
-                <span>Total filtered: <span class="text-gray-600 font-medium">{{ filteredDeviceRows.length }}</span></span>
+                <span
+                  >Showing {{ displayedDeviceRows.length }} entries on this
+                  page.</span
+                >
+                <span
+                  >Total filtered:
+                  <span class="text-gray-600 font-medium">{{
+                    filteredDeviceRows.length
+                  }}</span></span
+                >
               </template>
             </DataBoxCard>
           </div>
@@ -207,6 +268,7 @@ import AdvancedFilterPanel, {
   type FilterFieldRow,
 } from "@/components/common/AdvancedFilterPanel.vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
+import SingleMetricChart from "@/components/SingleMetricChart.vue";
 import type {
   DeviceFilterState,
   DeviceRow,
@@ -214,130 +276,172 @@ import type {
   DeviceTabKey,
   Section,
 } from "@/types/devices-control";
+import type {
+  DashboardMetric,
+  SeriesPoint,
+  TimeframeKey,
+} from "@/types/dashboard";
 
 defineProps<{
   section: Section;
 }>();
 
-const pendingRows: DeviceRow[] = [
+const gatewayRows: DeviceRow[] = [];
+
+const nodeRows: DeviceRow[] = [];
+
+const controllerRows: DeviceRow[] = [];
+
+const sensorRows: DeviceRow[] = [];
+
+const availableMetrics: DashboardMetric[] = [
   {
-    id: "GW-1101",
-    name: "Enviro Sensor Pro",
-    serialNumber: "ESP-4421",
-    connectionKey: "esp-4421-0a8d",
-    connectionHint: "Last handshake 2 minutes ago",
-    location: "Batch 12 / North Site",
-    ipAddress: "10.21.4.12",
-    updatedAt: "Updated 5 minutes ago",
-    updatedBy: "QA Ops",
-    note: "New device waiting for paperwork review.",
-    lastHeartbeat: "5 min ago",
+    key: "temperature",
+    title: "Temperature",
+    subtitle: "Ambient",
+    value: 0,
+    unit: "°C",
+    icon: "thermometer",
+    status: "good",
+    min: 0,
+    max: 100,
+    change: 0,
+    statusText: "Normal",
+    description: "Temperature sensor",
+    trend: [],
   },
   {
-    id: "GW-1102",
-    name: "Tracker Lite",
-    serialNumber: "TL-0082",
-    connectionKey: "tracker-lite-a4",
-    connectionHint: "Pending approval workflow",
-    location: "Pilot Fleet A4",
-    ipAddress: "10.21.4.21",
-    updatedAt: "Updated 18 minutes ago",
-    updatedBy: "Factory QA",
-    note: "Checklist already returned by QA.",
-    lastHeartbeat: "18 min ago",
+    key: "humidity",
+    title: "Humidity",
+    subtitle: "Relative",
+    value: 0,
+    unit: "%",
+    icon: "droplet",
+    status: "good",
+    min: 0,
+    max: 100,
+    change: 0,
+    statusText: "Normal",
+    description: "Humidity sensor",
+    trend: [],
   },
   {
-    id: "GW-1103",
-    name: "Gateway Core",
-    serialNumber: "GC-7710",
-    connectionKey: "gc-7710-main",
-    connectionHint: "Waiting on firmware manifest",
-    location: "Wave 7 / Factory A",
-    ipAddress: null,
-    updatedAt: "Updated 32 minutes ago",
-    updatedBy: "Design team",
-    note: "Missing the latest BOM file.",
-    lastHeartbeat: "45 min ago",
+    key: "light",
+    title: "Light Level",
+    subtitle: "Ambient",
+    value: 0,
+    unit: "%",
+    icon: "brightness-high",
+    status: "good",
+    min: 0,
+    max: 100,
+    change: 0,
+    statusText: "Normal",
+    description: "Light sensor",
+    trend: [],
+  },
+  {
+    key: "soil_moisture",
+    title: "Soil Moisture",
+    subtitle: "Content",
+    value: 0,
+    unit: "%",
+    icon: "moisture",
+    status: "good",
+    min: 0,
+    max: 100,
+    change: 0,
+    statusText: "Normal",
+    description: "Soil moisture sensor",
+    trend: [],
+  },
+  {
+    key: "rain",
+    title: "Rain Sensor",
+    subtitle: "Status",
+    value: 0,
+    unit: "%",
+    icon: "cloud-rain",
+    status: "good",
+    min: 0,
+    max: 100,
+    change: 0,
+    statusText: "Normal",
+    description: "Rain sensor status",
+    trend: [],
   },
 ];
 
-const approvedRows: DeviceRow[] = [
-  {
-    id: "GW-1088",
-    name: "Enviro Sensor Pro",
-    serialNumber: "ESP-4418",
-    connectionKey: "esp-4418-1b90",
-    connectionHint: "MQTT with TLS",
-    location: "Batch 11 / North Site",
-    ipAddress: "10.21.3.8",
-    updatedAt: "Approved 1 hour ago",
-    updatedBy: "Ops Bot",
-    note: "Synced with CMDB successfully.",
-    lastHeartbeat: "12 min ago",
-  },
-  {
-    id: "GW-1083",
-    name: "Tracker Lite",
-    serialNumber: "TL-0065",
-    connectionKey: "tracker-lite-a3",
-    connectionHint: "Bound to staging cluster",
-    location: "Pilot Fleet A3",
-    ipAddress: "10.21.3.21",
-    updatedAt: "Approved 3 hours ago",
-    updatedBy: "Warehouse",
-    note: "Queued for warehouse release.",
-    lastHeartbeat: "29 min ago",
-  },
-  {
-    id: "GW-1077",
-    name: "Gateway Core",
-    serialNumber: "GC-7708",
-    connectionKey: "gc-7708-edge",
-    connectionHint: "Provisioned with API token",
-    location: "Wave 6 / Factory A",
-    ipAddress: "10.19.7.5",
-    updatedAt: "Approved yesterday",
-    updatedBy: "Supervisor",
-    note: "Anti-counterfeit tags installed.",
-    lastHeartbeat: "1 hour ago",
-  },
-];
+let deviceRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const deviceTabs: DeviceTab[] = [
-  {
-    key: "pending",
-    label: "Pending",
-    rows: pendingRows,
-  },
-  {
-    key: "approved",
-    label: "Approved",
-    rows: approvedRows,
-  },
-  {
-    key: "all",
-    label: "All",
-    rows: [
-      ...pendingRows,
-      ...approvedRows,
-      {
-        id: "GW-1099",
-        name: "Edge Control Nano",
-        serialNumber: "ECN-3301",
-        connectionKey: "ecn-3301-lab",
-        connectionHint: "Auto escalated by telemetry",
-        location: "Lab Stage / Bay 6",
-        ipAddress: "10.30.0.44",
-        updatedAt: "Flagged 10 minutes ago",
-        updatedBy: "Telemetry Bot",
-        note: "Automatically escalated by telemetry.",
-        lastHeartbeat: "2 min ago",
-      },
-    ],
-  },
+  { key: "gateways", label: "Gateways", rows: gatewayRows },
+  { key: "nodes", label: "Nodes", rows: nodeRows },
+  { key: "controller", label: "Controller", rows: controllerRows },
+  { key: "sensor", label: "Sensor", rows: sensorRows },
 ];
 
+const defaultDeviceTab = deviceTabs[0]!;
+const activeDeviceTab = ref<DeviceTabKey>(defaultDeviceTab.key);
+const isDeviceFilterVisible = ref(true);
+const deviceSearchKeyword = ref("");
+const isDeviceLoading = ref(false);
+const selectedMetricKey = ref<string>("");
+const selectedTimeframe = ref<TimeframeKey>("hour");
+const devicePagination = ref({ page: 1, perPage: 5, lastPage: 1, total: 0 });
+const deviceTableColumns = [
+  "Name",
+  "Serial Number",
+  "Connection Key",
+  "Status",
+  "Location",
+  "IP Address",
+  "Last Update",
+  "Action",
+];
+
+const defaultDeviceFilters: DeviceFilterState = {
+  name: "",
+  serialNumber: "",
+  connectionKey: "",
+  location: "",
+  ipAddress: "",
+  status: "",
+};
+const deviceFilters = reactive<DeviceFilterState>({ ...defaultDeviceFilters });
+const appliedDeviceFilters = ref({ ...defaultDeviceFilters }); // Initialize simple
+const currentDeviceTab = computed(
+  () =>
+    deviceTabs.find((tab) => tab.key === activeDeviceTab.value) ??
+    defaultDeviceTab
+);
+const currentDeviceRows = computed<DeviceRow[]>(
+  () => currentDeviceTab.value.rows
+);
+const filteredDeviceRows = computed<DeviceRow[]>(() =>
+  filterDeviceRows(currentDeviceRows.value)
+);
+const displayedDeviceRows = computed<DeviceRow[]>(() => {
+  const start =
+    (devicePagination.value.page - 1) * devicePagination.value.perPage;
+  const end = start + devicePagination.value.perPage;
+  return filteredDeviceRows.value.slice(start, end);
+});
+
 const deviceFilterFields: FilterFieldRow[] = [
+  [
+    {
+      key: "status",
+      label: "Status",
+      type: "select",
+      options: [
+        { label: "All", value: "" },
+        { label: "Approved", value: "approved" },
+        { label: "Pending", value: "pending" },
+        { label: "Deleted", value: "deleted" },
+      ],
+    },
+  ],
   [
     {
       key: "name",
@@ -380,69 +484,29 @@ const deviceFilterFields: FilterFieldRow[] = [
   ],
 ];
 
-const defaultDeviceTab = deviceTabs[0];
-if (!defaultDeviceTab) {
-  throw new Error("No device tabs configured for device-registration view.");
-}
-
-const activeDeviceTab = ref<DeviceTabKey>(defaultDeviceTab.key);
-const isDeviceFilterVisible = ref(true);
-const deviceSearchKeyword = ref("");
-const isDeviceLoading = ref(false);
-const devicePagination = ref({
-  page: 1,
-  perPage: 5,
-  lastPage: 1,
-  total: 0,
+const selectedSensorId = ref<DeviceRow["id"] | null>(sensorRows[0]?.id ?? null);
+const selectedSensorRow = computed<DeviceRow | null>(() => {
+  if (!selectedSensorId.value) return null;
+  return sensorRows.find((row) => row.id === selectedSensorId.value) ?? null;
 });
 
-const deviceTableColumns = [
-  "Name",
-  "Serial Number",
-  "Connection Key",
-  "Location",
-  "IP Address",
-  "Last Update",
-  "Action",
-];
-
-const defaultDeviceFilters: DeviceFilterState = {
-  name: "",
-  serialNumber: "",
-  connectionKey: "",
-  location: "",
-  ipAddress: "",
-};
-
-const deviceFilters = reactive<DeviceFilterState>({
-  ...defaultDeviceFilters,
-});
-const appliedDeviceFilters = ref(snapshotDeviceFilters());
-const currentDeviceTab = computed(
-  () =>
-    deviceTabs.find((tab) => tab.key === activeDeviceTab.value) ?? defaultDeviceTab
+// Watchers to init chart
+watch(
+  () => availableMetrics,
+  (metrics) => {
+    if (metrics.length > 0 && !selectedMetricKey.value) {
+      selectedMetricKey.value = metrics[0]!.key;
+    }
+  },
+  { immediate: true }
 );
-const currentDeviceRows = computed<DeviceRow[]>(() => currentDeviceTab.value.rows);
-const filteredDeviceRows = computed<DeviceRow[]>(() =>
-  filterDeviceRows(currentDeviceRows.value)
-);
-const displayedDeviceRows = computed<DeviceRow[]>(() => {
-  const start = (devicePagination.value.page - 1) * devicePagination.value.perPage;
-  const end = start + devicePagination.value.perPage;
-  return filteredDeviceRows.value.slice(start, end);
-});
-
-let deviceRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function filterDeviceRows(rows: DeviceRow[]) {
   const keyword = deviceSearchKeyword.value.trim().toLowerCase();
-  const normalizedName = appliedDeviceFilters.value.name.trim().toLowerCase();
-  const normalizedSerial = appliedDeviceFilters.value.serialNumber.trim().toLowerCase();
-  const normalizedConnection = appliedDeviceFilters.value.connectionKey.trim().toLowerCase();
-  const normalizedLocation = appliedDeviceFilters.value.location.trim().toLowerCase();
-  const normalizedIp = appliedDeviceFilters.value.ipAddress.trim().toLowerCase();
+  const filters = appliedDeviceFilters.value;
 
   return rows.filter((row) => {
+    // Basic keyword search
     if (keyword) {
       const haystack = [
         row.name,
@@ -451,65 +515,64 @@ function filterDeviceRows(rows: DeviceRow[]) {
         row.location,
         row.ipAddress,
         row.note,
+        row.status,
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-      if (!haystack.includes(keyword)) {
-        return false;
-      }
+      if (!haystack.includes(keyword)) return false;
     }
 
-    if (normalizedName && !row.name.toLowerCase().includes(normalizedName)) {
-      return false;
-    }
-
+    // Specific field filters
     if (
-      normalizedSerial &&
-      !(row.serialNumber || "").toLowerCase().includes(normalizedSerial)
-    ) {
+      filters.name &&
+      !row.name.toLowerCase().includes(filters.name.toLowerCase())
+    )
       return false;
-    }
-
     if (
-      normalizedConnection &&
-      !(row.connectionKey || "").toLowerCase().includes(normalizedConnection)
-    ) {
+      filters.serialNumber &&
+      !(row.serialNumber || "")
+        .toLowerCase()
+        .includes(filters.serialNumber.toLowerCase())
+    )
       return false;
-    }
-
-    if (normalizedLocation && !(row.location || "").toLowerCase().includes(normalizedLocation)) {
+    if (
+      filters.connectionKey &&
+      !(row.connectionKey || "")
+        .toLowerCase()
+        .includes(filters.connectionKey.toLowerCase())
+    )
       return false;
-    }
-
-    if (normalizedIp && !(row.ipAddress || "").toLowerCase().includes(normalizedIp)) {
+    if (
+      filters.location &&
+      !(row.location || "")
+        .toLowerCase()
+        .includes(filters.location.toLowerCase())
+    )
       return false;
-    }
+    if (
+      filters.ipAddress &&
+      !(row.ipAddress || "")
+        .toLowerCase()
+        .includes(filters.ipAddress.toLowerCase())
+    )
+      return false;
+    if (filters.status && row.status !== filters.status) return false;
 
     return true;
   });
 }
 
 function snapshotDeviceFilters() {
-  return {
-    name: deviceFilters.name.trim(),
-    serialNumber: deviceFilters.serialNumber.trim(),
-    connectionKey: deviceFilters.connectionKey.trim(),
-    location: deviceFilters.location.trim(),
-    ipAddress: deviceFilters.ipAddress.trim(),
-  };
+  return { ...deviceFilters };
 }
 
 function handleDeviceFilterModelUpdate(value: Record<string, string>) {
-  (Object.keys(defaultDeviceFilters) as (keyof DeviceFilterState)[]).forEach((key) => {
-    deviceFilters[key] = value[key] ?? "";
-  });
+  Object.assign(deviceFilters, value);
 }
 
 function applyDeviceFilters(payload?: Record<string, string>) {
-  if (payload) {
-    handleDeviceFilterModelUpdate(payload);
-  }
+  if (payload) Object.assign(deviceFilters, payload);
   appliedDeviceFilters.value = snapshotDeviceFilters();
   devicePagination.value.page = 1;
 }
@@ -523,6 +586,11 @@ function toggleDeviceFilters() {
   isDeviceFilterVisible.value = !isDeviceFilterVisible.value;
 }
 
+function handleSensorRowClick(rowId: DeviceRow["id"]) {
+  if (activeDeviceTab.value !== "sensor") return;
+  selectedSensorId.value = rowId;
+}
+
 function refreshDevices() {
   if (isDeviceLoading.value) return;
   isDeviceLoading.value = true;
@@ -532,6 +600,14 @@ function refreshDevices() {
   deviceRefreshTimeout = setTimeout(() => {
     isDeviceLoading.value = false;
   }, 800);
+}
+
+function handleMetricChange(key: string) {
+  selectedMetricKey.value = key;
+}
+
+function handleTimeframeChange(timeframe: TimeframeKey) {
+  selectedTimeframe.value = timeframe;
 }
 
 function exportDevices() {
@@ -546,6 +622,7 @@ function exportDevices() {
     "Name",
     "Serial Number",
     "Connection Key",
+    "Status",
     "Location",
     "IP Address",
     "Last Update",
@@ -565,6 +642,7 @@ function exportDevices() {
         row.name,
         row.serialNumber,
         row.connectionKey,
+        row.status,
         row.location,
         row.ipAddress,
         row.updatedAt,
@@ -585,12 +663,28 @@ function exportDevices() {
   const link = document.createElement("a");
   const timestamp = new Date().toISOString().split("T")[0];
   link.href = url;
-  link.setAttribute("download", `devices-${currentDeviceTab.value.label}-${timestamp}.csv`);
+  link.setAttribute(
+    "download",
+    `devices-${currentDeviceTab.value.label}-${timestamp}.csv`
+  );
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
   message.success("Devices exported.");
+}
+
+function formatDeviceStatus(status: DeviceRow["status"]) {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function statusBadgeClass(status: DeviceRow["status"]) {
+  const classes: Record<DeviceRow["status"], string> = {
+    approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    pending: "bg-amber-50 text-amber-700 border-amber-200",
+    deleted: "bg-rose-50 text-rose-700 border-rose-200",
+  };
+  return classes[status];
 }
 
 function prevDevicePage() {
@@ -613,16 +707,23 @@ function changeDevicePerPage(value: number) {
 function recalculateDevicePagination() {
   const total = filteredDeviceRows.value.length;
   devicePagination.value.total = total;
-  const lastPage = Math.max(1, Math.ceil(total / devicePagination.value.perPage));
+  const lastPage = Math.max(
+    1,
+    Math.ceil(total / devicePagination.value.perPage)
+  );
   devicePagination.value.lastPage = lastPage;
   if (devicePagination.value.page > lastPage) {
     devicePagination.value.page = lastPage;
   }
 }
 
-watch(filteredDeviceRows, () => {
-  recalculateDevicePagination();
-}, { immediate: true });
+watch(
+  filteredDeviceRows,
+  () => {
+    recalculateDevicePagination();
+  },
+  { immediate: true }
+);
 
 watch(
   () => devicePagination.value.perPage,

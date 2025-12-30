@@ -1,8 +1,10 @@
 <template>
-  <article class="bg-white border border-slate-200 rounded-lg shadow-sm">
-    <header class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+  <article class="bg-white border border-slate-200 rounded">
+    <header
+      class="flex items-center justify-between px-6 py-4 border-b border-slate-100"
+    >
       <div>
-        <p class="text-sm font-semibold text-slate-900">Active devices</p>
+        <p class="text-sm font-semibold text-slate-900">Active Nodes</p>
         <p class="text-xs text-slate-500">
           Ordered by most recent activity. Click a row to see the mock controls.
         </p>
@@ -22,7 +24,9 @@
         type="button"
         class="w-full text-left px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors"
       >
-        <span class="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-sm font-semibold text-slate-600">
+        <span
+          class="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-sm font-semibold text-slate-600"
+        >
           {{ device.short }}
         </span>
         <div class="flex-1">
