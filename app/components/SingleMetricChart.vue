@@ -317,6 +317,19 @@ async function fetchData() {
 
     const data = await res.json();
 
+    // Sort data from oldest to newest
+    data.sort((a: any, b: any) => {
+      const getTimestamp = (item: any) =>
+        item[time_field] ||
+        item._id.time ||
+        item._id.timestamp ||
+        item.timestamp;
+      return (
+        new Date(getTimestamp(a)).getTime() -
+        new Date(getTimestamp(b)).getTime()
+      );
+    });
+
     // Group result by sensorId to create multiple series
     const groups: Record<string, any[]> = {};
 
