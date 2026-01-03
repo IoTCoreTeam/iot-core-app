@@ -46,6 +46,13 @@
               {{ option.label }}
             </button>
           </div>
+          <button
+            type="button"
+            class="ml-2 rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+            @click="toggleLimitVisibility"
+          >
+            {{ limitToggleLabel }}
+          </button>
         </div>
       </div>
     </div>
@@ -111,6 +118,8 @@ import type {
   SeriesPoint,
   TimeframeKey,
 } from "@/types/dashboard";
+import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
 
 const props = defineProps<{
   metrics: DashboardMetric[];
@@ -131,6 +140,12 @@ const emit = defineEmits<{
 }>();
 
 const ApexChart = defineAsyncComponent(() => import("vue3-apexcharts"));
+const authStore = useAuthStore();
+
+const showLimit = ref(true);
+const limitToggleLabel = computed(() =>
+  showLimit.value ? "Hide limit" : "Show limit"
+);
 
 const timeframeOptions: { label: string; value: TimeframeKey }[] = [
   { label: "second", value: "second" },
@@ -138,6 +153,20 @@ const timeframeOptions: { label: string; value: TimeframeKey }[] = [
   { label: "hour", value: "hour" },
   { label: "day", value: "day" },
 ];
+
+const CONTROL_MODULE_BASE = (apiConfig.controlModule || "").replace(/\/$/, "");
+
+const sensorTypeMapping: Record<string, string> = {
+  soilMoisture: "soil_moisture",
+  airHumidity: "humidity",
+};
+function resolveSensorTypeForApi() {
+  const sensorKey = props.sensorType || props.selectedMetricKey;
+  if (!sensorKey) {
+    return undefined;
+  }
+  return sensorTypeMapping[sensorKey] || sensorKey;
+}
 
 const selectedMetric = computed(() =>
   props.metrics.find((metric) => metric.key === props.selectedMetricKey)
@@ -162,6 +191,7 @@ const fetchedSeries = ref<{ name: string; data: { x: string; y: number }[] }[]>(
 );
 const isFetching = ref(false);
 const fetchError = ref<string | null>(null);
+const metricLimit = ref<number | null>(null);
 
 const displayLoading = computed(() => props.isLoading || isFetching.value);
 const displayError = computed(() => props.error || fetchError.value);
@@ -179,7 +209,11 @@ const displaySeries = computed(() => {
 
 // Calculate extent from all data points
 const allValues = computed(() => {
-  return displaySeries.value.flatMap((s) => s.data.map((p: any) => p.y));
+  const values = displaySeries.value.flatMap((s) => s.data.map((p: any) => p.y));
+  if (metricLimit.value !== null && showLimit.value) {
+    values.push(metricLimit.value);
+  }
+  return values;
 });
 
 const seriesExtent = computed(() => {
@@ -249,6 +283,23 @@ const chartOptions = computed<ApexOptions>(() => {
         formatter: (val: number) => val.toFixed(3),
       },
     },
+    annotations: {
+      yaxis:
+        showLimit.value && metricLimit.value !== null
+          ? [
+              {
+                y: metricLimit.value,
+                borderColor: "#f97316",
+                strokeDashArray: 4,
+                label: {
+                  borderColor: "#f97316",
+                  style: { color: "#fff", background: "#f97316" },
+                  text: limitAnnotationLabel.value,
+                },
+              },
+            ]
+          : [],
+    },
     grid: {
       strokeDashArray: 3,
       borderColor: "#e5e7eb",
@@ -276,6 +327,16 @@ const selectedSeriesMaxLabel = computed(() => {
   return `Max ${formatValue(max)}${unit ? ` ${unit}` : ""}`;
 });
 
+const limitAnnotationLabel = computed(() => {
+  if (metricLimit.value === null) return "";
+  const unit = selectedMetric.value?.unit ?? "";
+  return `Limit ${formatValue(metricLimit.value)}${unit ? ` ${unit}` : ""}`;
+});
+
+function toggleLimitVisibility() {
+  showLimit.value = !showLimit.value;
+}
+
 async function fetchData() {
   // Use sensorIds if available, else fallback to deviceId (converted to array)
   const ids = props.sensorIds || (props.deviceId ? [props.deviceId] : []);
@@ -295,16 +356,13 @@ async function fetchData() {
     };
     const time_field = timeFieldMap[props.selectedTimeframe] || "hour";
 
-    const metricMapping: Record<string, string> = {
-      soilMoisture: "soil_moisture",
-      airHumidity: "humidity",
-    };
-    const sType = props.sensorType || props.selectedMetricKey;
-    const mappedType = metricMapping[sType] || sType;
+    const mappedType = resolveSensorTypeForApi();
 
     const params = new URLSearchParams();
     params.append("time_field", time_field);
-    params.append("sensor_type", mappedType);
+    if (mappedType) {
+      params.append("sensor_type", mappedType);
+    }
     if (ids.length > 0) {
       ids.forEach((id) => params.append("sensor_id", id));
     }
@@ -390,6 +448,49 @@ async function fetchData() {
   }
 }
 
+async function fetchMetricLimit() {
+  const sensorType = resolveSensorTypeForApi();
+  if (!sensorType) {
+    metricLimit.value = null;
+    return;
+  }
+
+  if (!CONTROL_MODULE_BASE || !authStore.authorizationHeader) {
+    metricLimit.value = null;
+    return;
+  }
+
+  const headers: Record<string, string> = {};
+  if (authStore.authorizationHeader) {
+        headers.Authorization = authStore.authorizationHeader;
+  }
+
+  try {
+    const res = await fetch(
+      `${CONTROL_MODULE_BASE}/node-sensors/metric-limit/${encodeURIComponent(
+        sensorType
+      )}`,
+      { headers }
+    );
+
+    if (!res.ok) {
+      throw new Error("Metric limit API error");
+    }
+
+    const payload = await res.json();
+
+    if (!payload.success) {
+      throw new Error(payload.message || "Metric limit not available");
+    }
+
+    const limitValue = Number(payload.data);
+    metricLimit.value = Number.isNaN(limitValue) ? null : limitValue;
+  } catch (err: any) {
+    console.error(err);
+    metricLimit.value = null;
+  }
+}
+
 watch(
   [
     () => props.selectedMetricKey,
@@ -400,6 +501,18 @@ watch(
   ],
   () => {
     fetchData();
+  },
+  { immediate: true }
+);
+
+watch(
+  [
+    () => props.sensorType,
+    () => props.selectedMetricKey,
+    () => authStore.authorizationHeader,
+  ],
+  () => {
+    fetchMetricLimit();
   },
   { immediate: true }
 );
