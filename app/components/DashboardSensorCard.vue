@@ -1,5 +1,5 @@
 <template>
-  <div class="relative overflow-hidden rounded-lg border border-gray-200 bg-white p-4">
+  <div class="relative overflow-hidden rounded border border-gray-200 bg-white p-4">
     <div class="flex items-center gap-3">
       <div class="flex h-9 w-9 items-center justify-center rounded-md bg-gray-100 text-gray-700">
         <BootstrapIcon :name="icon" class="h-3.5 w-3.5" />
@@ -14,30 +14,13 @@
       </div>
     </div>
 
-    <div class="mt-3 flex items-baseline gap-2">
-      <span class="text-2xl font-bold text-gray-900">
-        {{ displayValue }}
-      </span>
-      <span class="text-sm text-gray-500">{{ unit }}</span>
-      <span
-        v-if="change !== null"
-        :class="[
-          'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
-          change >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700',
-        ]"
-      >
-        <BootstrapIcon
-          :name="change >= 0 ? 'arrow-up-right' : 'arrow-down-right'"
-          class="h-3 w-3"
-        />
-        {{ Math.abs(change).toFixed(1) }}%
-      </span>
-    </div>
-
-    <div v-if="progress !== null" class="mt-3 space-y-1">
-      <div class="flex justify-between text-[10px] text-gray-500">
-        <span>Current level</span>
-        <span>{{ progress.toFixed(0) }}%</span>
+    <div class="mt-3">
+      <div class="text-[10px] uppercase tracking-wide text-gray-500">
+        Current level
+      </div>
+      <div class="mt-1 flex items-baseline gap-2">
+        <span class="text-2xl font-bold text-gray-900">{{ latestValue }}</span>
+        <span v-if="unit" class="text-sm text-gray-500">{{ unit }}</span>
       </div>
     </div>
 
@@ -61,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import type { BootstrapIconName } from "@/types/bootstrap-icon";
 
 type Status = "good" | "warning" | "critical" | "info";
@@ -80,6 +63,7 @@ const props = withDefaults(
     min?: number;
     max?: number;
     trend?: number[];
+    sensorType?: string;
   }>(),
   {
     subtitle: "Live monitor",
@@ -91,6 +75,7 @@ const props = withDefaults(
     min: undefined,
     max: undefined,
     trend: () => [],
+    sensorType: undefined,
   }
 );
 
@@ -117,20 +102,35 @@ interface ChartPoint {
   y: number;
 }
 
-const chartCoordinates = computed<ChartPoint[]>(() => {
-  if (!props.trend || props.trend.length < 2) return [];
+const fetchedTrend = ref<number[]>([]);
 
-  const max = Math.max(...props.trend);
-  const min = Math.min(...props.trend);
+const chartTrend = computed(() => {
+  if (fetchedTrend.value.length >= 2) return fetchedTrend.value;
+  return props.trend ?? [];
+});
+
+const latestValue = computed(() => {
+  const series = chartTrend.value;
+  const lastValue = series[series.length - 1];
+  if (typeof lastValue === "number" && !Number.isNaN(lastValue)) {
+    return Number(lastValue.toFixed(1)).toString();
+  }
+  return displayValue.value;
+});
+
+const chartCoordinates = computed<ChartPoint[]>(() => {
+  if (!chartTrend.value || chartTrend.value.length < 2) return [];
+
+  const max = Math.max(...chartTrend.value);
+  const min = Math.min(...chartTrend.value);
   const range = max === min ? 1 : max - min;
   const paddedMin = min - range * 0.1;
   const paddedRange = range === 0 ? 1 : range * 1.2;
   const xOffset = 8;
   const usableWidth = 92;
   const yScale = 40;
-
-  return props.trend.map((value, index) => {
-    const x = (index / (props.trend.length - 1)) * usableWidth + xOffset;
+  return chartTrend.value.map((value, index) => {
+    const x = (index / (chartTrend.value.length - 1)) * usableWidth + xOffset;
     const normalizedY = 50 - ((value - paddedMin) / paddedRange) * yScale;
     const y = Math.min(50, Math.max(0, normalizedY));
     return { x, y };
@@ -149,4 +149,61 @@ const chartAreaPoints = computed(() => {
   if (!firstPoint || !lastPoint) return "";
   return `${chartPoints.value} ${lastPoint.x.toFixed(2)},50 ${firstPoint.x.toFixed(2)},50`;
 });
+
+const TIME_FIELD = "hour";
+
+const getTimestamp = (item: any) =>
+  item[TIME_FIELD] ||
+  item._id?.time ||
+  item._id?.timestamp ||
+  item.timestamp;
+
+const toTimestamp = (value: unknown) => {
+  const time = new Date(value as string | number).getTime();
+  return Number.isNaN(time) ? 0 : time;
+};
+
+async function fetchSensorTrend() {
+  const sensorType = props.sensorType;
+  if (!sensorType) {
+    fetchedTrend.value = [];
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({
+      time_field: TIME_FIELD,
+      sensor_type: sensorType,
+    });
+
+    const response = await fetch(
+      `http://localhost:8017/v1/sensors/query?${params.toString()}`
+    );
+
+    if (!response.ok) throw new Error("Failed to reach sensor endpoint");
+
+    const data = await response.json();
+
+    const sorted = (data ?? []).slice().sort((a: any, b: any) => {
+      return (
+        toTimestamp(getTimestamp(a)) - toTimestamp(getTimestamp(b))
+      );
+    });
+
+    fetchedTrend.value = sorted
+      .map((item: any) => Number(item.value ?? item._id?.value ?? 0))
+      .filter((value) => !Number.isNaN(value));
+  } catch (error) {
+    console.error(error);
+    fetchedTrend.value = [];
+  }
+}
+
+watch(
+  () => props.sensorType,
+  () => {
+    fetchSensorTrend();
+  },
+  { immediate: true }
+);
 </script>
