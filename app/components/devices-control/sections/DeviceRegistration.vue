@@ -272,7 +272,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { message } from "ant-design-vue";
-import { io } from "socket.io-client";
 import AdvancedFilterPanel, {
   type FilterFieldRow,
 } from "@/components/common/AdvancedFilterPanel.vue";
@@ -290,22 +289,26 @@ import type {
   SeriesPoint,
   TimeframeKey,
 } from "@/types/dashboard";
+import { useDeviceSocket } from "@/composables/devices-controls/useDeviceSocket";
 
 defineProps<{
   section: Section;
 }>();
 
-// WebSocket
-let socket: any = null;
-
-// Device data
-const gatewayRows = ref<DeviceRow[]>([]);
-const nodeRows = ref<DeviceRow[]>([]);
-const controllerRows = ref<DeviceRow[]>([]);
-const sensorRows = ref<DeviceRow[]>([]);
+const {
+  gatewayRows,
+  nodeRows,
+  controllerRows,
+  sensorRows,
+  activeDevicesMap,
+  selectedSensorId,
+  socket,
+  setupDeviceSocket,
+  disconnectDeviceSocket,
+  requestDeviceStatus,
+} = useDeviceSocket();
 
 // Map để track active devices - KEY LÀ external_id hoặc ID
-const activeDevicesMap = ref<Map<string, any>>(new Map());
 
 const availableMetrics: DashboardMetric[] = [
   {
@@ -499,137 +502,6 @@ const deviceFilterFields: FilterFieldRow[] = [
   ],
 ];
 
-const selectedSensorId = ref<DeviceRow["id"] | null>(null);
-
-function transformToDeviceRow(device: any, type: string): DeviceRow {
-  return {
-    id: device.id,
-    name: device.name,
-    serialNumber: device.serial,     
-    connectionKey: device.connKey,   
-    status: device.status,
-    location: device.location,
-    ipAddress: device.ip,
-    updatedAt: device.lastUpdate ? new Date(device.lastUpdate).toLocaleString() : 'N/A',
-    lastHeartbeat: device.lastUpdate ? new Date(device.lastUpdate).toLocaleString() : '',
-    updatedBy: 'System',
-    note: ''
-  };
-}
-// Setup WebSocket
-function setupWebSocket() {
-  // ✅ Sửa từ 3001 thành 8017
-  const SOCKET_URL = 'http://localhost:8017';
-  
-  console.log('🔌 Connecting to:', SOCKET_URL);
-  
-  socket = io(SOCKET_URL, {
-    transports: ['websocket', 'polling'],
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionAttempts: 10,
-    timeout: 20000
-  });
-
-  socket.on('connect', () => {
-    console.log(' WebSocket Connected to', SOCKET_URL);
-    console.log('Socket ID:', socket.id);
-    console.log('Transport:', socket.io.engine.transport.name);
-    message.success('Connected to device server');
-    
-    // Request initial data
-    socket.emit('REQUEST_DEVICE_STATUS');
-  });
-
-  socket.on('DEVICE_STATUS_UPDATE', (data: any) => {
-    console.log('📡 Received DEVICE_STATUS_UPDATE');
-    console.log('Data:', {
-      gateways: data.gateways?.length,
-      nodes: data.nodes?.length,
-      activeDevices: data.devices?.activeRegistered?.length
-    });
-    updateDeviceData(data);
-  });
-
-  socket.on('disconnect', (reason: any) => {
-    console.log('❌ Disconnected. Reason:', reason);
-    message.warning('Disconnected from device server');
-  });
-
-  socket.on('connect_error', (error: any) => {
-    console.error('⚠️ Connection Error:', error.message);
-    console.error('URL:', SOCKET_URL);
-    message.error(`Connection failed: ${error.message}`);
-  });
-
-  socket.on('reconnect', (attemptNumber: any) => {
-    console.log(`✅ Reconnected after ${attemptNumber} attempts`);
-    message.success('Reconnected to device server');
-  });
-}
-// Update device data from WebSocket
-function updateDeviceData(data: any) {
-  try {
-    console.log('🔄 Updating device data...');
-    
-    // 1. Clear và rebuild activeDevicesMap
-    activeDevicesMap.value.clear();
-    
-    // Add active registered devices
-    if (data.devices?.activeRegistered) {
-      console.log('Active Registered:', data.devices.activeRegistered);
-      data.devices.activeRegistered.forEach((device: any) => {
-        const key = device.external_id || device.id;
-        activeDevicesMap.value.set(key, device);
-        console.log('  Added to activeMap:', key);
-      });
-    }
-
-    console.log('📊 Active Devices Map size:', activeDevicesMap.value.size);
-    console.log('📊 Keys in map:', Array.from(activeDevicesMap.value.keys()));
-
-    // 2. Update Gateways
-    if (data.gateways && Array.isArray(data.gateways)) {
-      console.log('🌐 Processing', data.gateways.length, 'gateways');
-      gatewayRows.value = data.gateways.map((gw: any) => {
-        const row = transformToDeviceRow(gw, 'gateway');
-        console.log('  Gateway:', row.name, 'Status:', row.status);
-        return row;
-      });
-    }
-
-    // 3. Update Nodes
-    if (data.nodes && Array.isArray(data.nodes)) {
-      nodeRows.value = data.nodes.map((node: any) => 
-        transformToDeviceRow(node, 'node')
-      );
-    }
-
-    // 4. Update Sensors
-    const allSensors = [
-      ...(data.devices?.activeRegistered || []),
-      ...(data.devices?.inactiveRegistered || []),
-      ...(data.devices?.unregistered || [])
-    ];
-
-    if (allSensors.length > 0) {
-      sensorRows.value = allSensors.map((sensor: any) => 
-        transformToDeviceRow(sensor, 'sensor')
-      );
-
-      if (!selectedSensorId.value && sensorRows.value.length > 0) {
-        selectedSensorId.value = sensorRows.value[0]!.id;
-      }
-    }
-
-    console.log('✅ Data update complete');
-    //message.success('Device data updated');
-  } catch (error) {
-    console.error('❌ Error updating device data:', error);
-    message.error('Failed to update device data');
-  }
-}
-
 // DeviceRegistration.vue
 
 function getRowBackgroundClass(row: DeviceRow): string {
@@ -745,9 +617,7 @@ function refreshDevices() {
   if (isDeviceLoading.value) return;
   isDeviceLoading.value = true;
   
-  if (socket && socket.connected) {
-    socket.emit('REQUEST_DEVICE_STATUS');
-  }
+  requestDeviceStatus();
   
   if (deviceRefreshTimeout) {
     clearTimeout(deviceRefreshTimeout);
@@ -898,16 +768,14 @@ watch(activeDeviceTab, () => {
 });
 
 onMounted(() => {
-  setupWebSocket();
+  setupDeviceSocket();
 });
 
 onBeforeUnmount(() => {
   if (deviceRefreshTimeout) {
     clearTimeout(deviceRefreshTimeout);
   }
-  if (socket) {
-    socket.disconnect();
-  }
+  disconnectDeviceSocket();
 });
 </script>
 

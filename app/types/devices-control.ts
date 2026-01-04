@@ -7,7 +7,7 @@ export type DeviceRow = {
   name: string;
   serialNumber: string;
   connectionKey: string;
-  status: "pending" | "approved" | "deleted";
+  status: "pending" | "approved" | "deleted" | "active" | "inactive" | "registered";
   connectionHint?: string;
   location?: string;
   ipAddress?: string | null;

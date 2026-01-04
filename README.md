@@ -1,80 +1,47 @@
-# Nuxt Minimal Starter
+# IoT Core Frontend
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+This Nuxt 3 project hosts the dashboard and device control experience for the IoT Core platform. It ships with a component-driven layout, reusable composables, and configuration helpers so you can connect live device telemetry via WebSocket and REST APIs.
 
-## Setup
+## Getting started
 
-Make sure to install dependencies:
+### Prerequisites
+
+- Node.js 18+ (LTS)
+- Yarn/npm 9+ (or your package manager of choice)
+- Backend services running on their configured ports (`apiConfig` in `frontend/config/api.ts`)
+
+### Install
 
 ```bash
-# npm
-npm install
-
-# pnpm
-pnpm install
-
-# yarn
 yarn install
-
-# bun
-bun install
 ```
 
-## Development Server
+You can also use `npm install` if you prefer.
 
-Start the development server on `http://localhost:3000`:
+### Run
 
-```bash
-# npm
-npm run dev
+- Development: `yarn dev`
+- Production build: `yarn build`
+- Preview build: `yarn preview`
 
-# pnpm
-pnpm dev
+These commands delegate to the Nuxt CLI and run inside `frontend/`. The dev server defaults to `http://localhost:3000`.
 
-# yarn
-yarn dev
+## Directory structure
 
-# bun
-bun run dev
-```
+- `app/`: Nuxt app config and layouts.
+  - `components/`: Reusable UI pieces grouped by feature, including `devices-control` sections and charts.
+  - `composables/`: Vue composables such as `devices-controls/useDeviceSocket.ts` that keep logic portable.
+  - `assets/`: Static styles, fonts, or images used across the app.
+  - `config/`: Centralized configuration (e.g., `api.ts` defines external service endpoints).
+  - `pages/`: Nuxt pages that render the high-level views.
+  - `middleware/`, `plugins/`, `stores/`: Standard Nuxt runtime hooks and Pinia stores (if applicable).
+  - `types/`: Shared TypeScript definitions for devices, dashboards, etc.
 
-## Production
+## API configuration
 
-Build the application for production:
+Edit `frontend/config/api.ts` to point the frontend at your backend endpoints; e.g., `apiConfig.server` drives the WebSocket connection and chart API calls. Keep the `auth` and `controlModule` entries aligned with the Laravel or Node services in the repo.
 
-```bash
-# npm
-npm run build
+## Notes
 
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
-"# iot-core-frontend" 
-
-## Telemetry integration
-
-The dashboard's `SingleMetricChart` now issues API calls whenever the selected metric or timeframe changes. Configure the backend URL in `config/api.ts` via the new `apiConfig.sensorData` entry (defaults to `http://127.0.0.1:3000/api`). The component expects the endpoint to accept `device_id`, `start`, `end`, and `interval` query parameters, returning an array of history points that include timestamps and numeric readings.
+- Device views rely on `useDeviceSocket` to manage Socket.IO events; keep that composable in sync if you adjust the protocol.
+- Run `yarn lint` or `yarn test` if you introduce new features or want to validate formatting.

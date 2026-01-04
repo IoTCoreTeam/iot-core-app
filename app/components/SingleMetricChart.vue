@@ -96,7 +96,7 @@
           />
           <template #fallback>
             <div
-              class="flex min-h-[260px] items-center justify-center gap-2 text-sm text-gray-500"
+              class="flex min-h-[300px] items-center justify-center gap-2 text-sm text-gray-500"
             >
               <span
                 class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-200 border-t-blue-500"
