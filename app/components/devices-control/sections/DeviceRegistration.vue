@@ -5,9 +5,8 @@
         <div v-if="tab.key === activeDeviceTab" class="pb-2">
           <!-- Debug Info -->
           <div class="mb-2 p-2 bg-blue-50 rounded text-xs">
-            <strong>Debug:</strong> Active Devices: {{ activeDevicesMap.size }}, 
-            Gateways: {{ gatewayRows.length }}, 
-            Connected: {{ socket?.connected ? 'Yes' : 'No' }}
+            <strong>Debug:</strong> Active Devices: {{ activeDevicesMap.size }},
+            Gateways: {{ gatewayRows.length }}
           </div>
 
           <div v-if="tab.key === 'sensor'">
@@ -270,7 +269,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { message } from "ant-design-vue";
 import AdvancedFilterPanel, {
   type FilterFieldRow,
@@ -289,24 +288,17 @@ import type {
   SeriesPoint,
   TimeframeKey,
 } from "@/types/dashboard";
-import { useDeviceSocket } from "@/composables/devices-controls/useDeviceSocket";
 
 defineProps<{
   section: Section;
 }>();
 
-const {
-  gatewayRows,
-  nodeRows,
-  controllerRows,
-  sensorRows,
-  activeDevicesMap,
-  selectedSensorId,
-  socket,
-  setupDeviceSocket,
-  disconnectDeviceSocket,
-  requestDeviceStatus,
-} = useDeviceSocket();
+const gatewayRows = ref<DeviceRow[]>([]);
+const nodeRows = ref<DeviceRow[]>([]);
+const controllerRows = ref<DeviceRow[]>([]);
+const sensorRows = ref<DeviceRow[]>([]);
+const activeDevicesMap = ref<Map<string, any>>(new Map());
+const selectedSensorId = ref<DeviceRow["id"] | null>(null);
 
 // Map để track active devices - KEY LÀ external_id hoặc ID
 
@@ -616,9 +608,7 @@ function handleSensorRowClick(rowId: DeviceRow["id"]) {
 function refreshDevices() {
   if (isDeviceLoading.value) return;
   isDeviceLoading.value = true;
-  
-  requestDeviceStatus();
-  
+
   if (deviceRefreshTimeout) {
     clearTimeout(deviceRefreshTimeout);
   }
@@ -763,20 +753,6 @@ watch(deviceSearchKeyword, () => {
   devicePagination.value.page = 1;
 });
 
-watch(activeDeviceTab, () => {
-  devicePagination.value.page = 1;
-});
-
-onMounted(() => {
-  setupDeviceSocket();
-});
-
-onBeforeUnmount(() => {
-  if (deviceRefreshTimeout) {
-    clearTimeout(deviceRefreshTimeout);
-  }
-  disconnectDeviceSocket();
-});
 </script>
 
 <style scoped>

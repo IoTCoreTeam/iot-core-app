@@ -106,12 +106,53 @@
           </template>
         </ClientOnly>
       </div>
+      <div
+        class="mt-2 flex flex-row flex-wrap items-center justify-start gap-2 text-xs text-gray-500"
+      >
+        <div class="flex items-center gap-2">
+          <label class="text-[11px] text-gray-600">Per page</label>
+          <select
+            class="rounded border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-700"
+            :value="pageSize"
+            @change="handlePageSizeChange"
+          >
+            <option
+              v-for="option in pageSizeOptions"
+              :key="option"
+              :value="option"
+            >
+              {{ option }}
+            </option>
+          </select>
+        </div>
+        <button
+          type="button"
+          class="rounded border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:opacity-40"
+          :disabled="!canNextPage"
+          @click="goToNextPage"
+        >
+          ← Prev
+        </button>
+        <span
+          class="px-3 py-1 text-xs text-gray-600"
+        >
+          {{ currentPageLabel }}
+        </span>
+        <button
+          type="button"
+          class="rounded border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:opacity-40"
+          :disabled="!canPrevPage"
+          @click="goToPreviousPage"
+        >
+          → Next
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref, watch, onMounted } from "vue";
+import { computed, defineAsyncComponent, ref, watch } from "vue";
 import type { ApexOptions } from "apexcharts";
 import type {
   DashboardMetric,
@@ -155,6 +196,7 @@ const timeframeOptions: { label: string; value: TimeframeKey }[] = [
 ];
 
 const CONTROL_MODULE_BASE = (apiConfig.controlModule || "").replace(/\/$/, "");
+const SENSOR_QUERY_BASE = (apiConfig.server || "").replace(/\/$/, "");
 
 const sensorTypeMapping: Record<string, string> = {
   soilMoisture: "soil_moisture",
@@ -184,6 +226,40 @@ function formatValue(value: number) {
   return value.toFixed(3);
 }
 
+type MongoDecimalWrapper = {
+  $numberDecimal?: string;
+  $numberLong?: string;
+  $numberDouble?: string;
+  $numberInt?: string;
+  value?: unknown;
+};
+
+function resolveNumericValue(input: unknown): number | null {
+  if (input === null || input === undefined) {
+    return null;
+  }
+
+  if (typeof input === "object") {
+    const wrapper = input as MongoDecimalWrapper;
+    const wrappedDecimal = wrapper.$numberDecimal ?? wrapper.$numberLong ?? wrapper.$numberDouble ?? wrapper.$numberInt;
+    if (typeof wrappedDecimal === "string") {
+      const parsed = Number(wrappedDecimal);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+
+    if ("value" in wrapper) {
+      return resolveNumericValue(wrapper.value);
+    }
+
+    return null;
+  }
+
+  const normalized = Number(input);
+  return Number.isFinite(normalized) ? normalized : null;
+}
+
 // Local state for fetched data
 // Now handling multiple series: { name: string, data: {x,y}[] }
 const fetchedSeries = ref<{ name: string; data: { x: string; y: number }[] }[]>(
@@ -193,7 +269,13 @@ const isFetching = ref(false);
 const fetchError = ref<string | null>(null);
 const metricLimit = ref<number | null>(null);
 
-const displayLoading = computed(() => props.isLoading || isFetching.value);
+const displayLoading = computed(() => {
+  const isGroupedView =
+    props.selectedTimeframe === "minute" ||
+    props.selectedTimeframe === "hour" ||
+    props.selectedTimeframe === "day";
+  return props.isLoading || (isGroupedView && isFetching.value);
+});
 const displayError = computed(() => props.error || fetchError.value);
 
 const displaySeries = computed(() => {
@@ -209,7 +291,9 @@ const displaySeries = computed(() => {
 
 // Calculate extent from all data points
 const allValues = computed(() => {
-  const values = displaySeries.value.flatMap((s) => s.data.map((p: any) => p.y));
+  const values = displaySeries.value.flatMap((s) =>
+    s.data.map((p: any) => p.y)
+  );
   if (metricLimit.value !== null && showLimit.value) {
     values.push(metricLimit.value);
   }
@@ -274,6 +358,7 @@ const chartOptions = computed<ApexOptions>(() => {
       labels: { style: { fontSize: "11px", colors: "#6b7280" } },
       axisBorder: { color: "#e5e7eb" },
       axisTicks: { color: "#e5e7eb" },
+      reversed: true,
     },
     yaxis: {
       min: seriesExtent.value.min,
@@ -337,6 +422,46 @@ function toggleLimitVisibility() {
   showLimit.value = !showLimit.value;
 }
 
+const pageSizeOptions = [10, 20, 50];
+const pageSize = ref(10);
+const currentPage = ref(1);
+const hasMore = ref(false);
+
+const canPrevPage = computed(() => currentPage.value > 1);
+const canNextPage = computed(() => hasMore.value);
+const currentPageLabel = computed(() =>
+  currentPage.value === 1 ? "Latest" : String(currentPage.value)
+);
+
+function resetPagination() {
+  currentPage.value = 1;
+  hasMore.value = false;
+}
+
+function goToPreviousPage() {
+  if (!canPrevPage.value) return;
+  currentPage.value -= 1;
+  fetchData();
+}
+
+function goToNextPage() {
+  if (!canNextPage.value) return;
+  currentPage.value += 1;
+  fetchData();
+}
+
+function handlePageSizeChange(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  const rawValue = Number(target.value ?? pageSizeOptions[0]);
+  const value: number = Number.isNaN(rawValue)
+    ? (pageSizeOptions[0] ?? 0)
+    : rawValue;
+  if (value === pageSize.value) return;
+  pageSize.value = value;
+  resetPagination();
+  fetchData();
+}
+
 async function fetchData() {
   // Use sensorIds if available, else fallback to deviceId (converted to array)
   const ids = props.sensorIds || (props.deviceId ? [props.deviceId] : []);
@@ -360,6 +485,8 @@ async function fetchData() {
 
     const params = new URLSearchParams();
     params.append("time_field", time_field);
+    params.append("limit", String(pageSize.value));
+    params.append("page", String(currentPage.value));
     if (mappedType) {
       params.append("sensor_type", mappedType);
     }
@@ -368,7 +495,7 @@ async function fetchData() {
     }
 
     const res = await fetch(
-      `http://localhost:8017/v1/sensors/query?${params.toString()}`
+      `${SENSOR_QUERY_BASE}/v1/sensors/query?${params.toString()}`
     );
 
     if (!res.ok) throw new Error("API Error");
@@ -378,28 +505,51 @@ async function fetchData() {
     // Sort data from oldest to newest
     data.sort((a: any, b: any) => {
       const getTimestamp = (item: any) =>
-        item[time_field] ||
-        item._id.time ||
-        item._id.timestamp ||
-        item.timestamp;
+        item.timestamp || item._id?.timestamp || item._id?.time;
       return (
         new Date(getTimestamp(a)).getTime() -
         new Date(getTimestamp(b)).getTime()
       );
     });
 
+    const normalizeTimestamp = (item: any) => {
+      const value =
+        item.timestamp || item._id?.timestamp || item._id?.time || null;
+      return value ? new Date(value).toISOString() : null;
+    };
+
+    const uniqueTimes = Array.from(
+      new Set(data.map((item: any) => normalizeTimestamp(item)).filter(Boolean))
+    ) as string[];
+
+    let filteredData = data;
+    let extraTimestamp: string | null = null;
+    if (uniqueTimes.length > pageSize.value) {
+      extraTimestamp = uniqueTimes[0] ?? null;
+      filteredData = data.filter(
+        (item: any) => normalizeTimestamp(item) !== extraTimestamp
+      );
+    }
+
+    hasMore.value = Boolean(extraTimestamp);
+    const renderData = filteredData;
+
     // Group result by sensorId to create multiple series
     const groups: Record<string, any[]> = {};
 
-    data.forEach((item: any) => {
-      const sId = item._id.sensorId;
-      const time =
-        item[time_field] ||
-        item._id.time ||
-        item._id.timestamp ||
-        item.timestamp;
-      const val = item.value;
-      const name = item._id.sensorName || sId;
+    renderData.forEach((item: any) => {
+      const sId =
+        item._id?.sensorId || item.sensorId || item.id || "unknown-sensor";
+      const time = item.timestamp || item._id?.timestamp || item._id?.time;
+      const rawValue = item.value ?? item._id?.value;
+      const normalizedValue = resolveNumericValue(rawValue);
+      if (normalizedValue === null) {
+        return;
+      }
+      const sensorName =
+        item._id?.sensorName || item.sensorName || sId || "sensor";
+      const sensorTypeLabel = item._id?.sensorType || item.sensorType;
+      const name = sensorName || sensorTypeLabel || sId;
 
       if (!groups[name]) groups[name] = [];
 
@@ -432,17 +582,19 @@ async function fetchData() {
         }
       } catch (e) {}
 
-      groups[name].push({ x: label, y: val });
+      groups[name].push({ x: label, y: normalizedValue });
     });
 
     fetchedSeries.value = Object.keys(groups).map((name) => ({
       name,
       data: groups[name] ?? [],
     }));
+    hasMore.value = data.length >= pageSize.value;
   } catch (err: any) {
     console.error(err);
     fetchError.value = err.message || "Failed to fetch data";
     fetchedSeries.value = [];
+    hasMore.value = false;
   } finally {
     isFetching.value = false;
   }
@@ -462,7 +614,7 @@ async function fetchMetricLimit() {
 
   const headers: Record<string, string> = {};
   if (authStore.authorizationHeader) {
-        headers.Authorization = authStore.authorizationHeader;
+    headers.Authorization = authStore.authorizationHeader;
   }
 
   try {
@@ -491,6 +643,11 @@ async function fetchMetricLimit() {
   }
 }
 
+const refreshFilteredData = () => {
+  resetPagination();
+  fetchData();
+};
+
 watch(
   [
     () => props.selectedMetricKey,
@@ -499,9 +656,7 @@ watch(
     () => props.sensorType,
     () => props.deviceId,
   ],
-  () => {
-    fetchData();
-  },
+  refreshFilteredData,
   { immediate: true }
 );
 
@@ -516,8 +671,4 @@ watch(
   },
   { immediate: true }
 );
-
-onMounted(() => {
-  fetchData();
-});
 </script>
