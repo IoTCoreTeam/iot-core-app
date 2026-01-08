@@ -241,7 +241,7 @@ const metricCardItems = computed(() =>
 );
 
 const selectedMetricKey = ref<string>(metrics.value[0]?.key || "");
-const selectedTimeframe = ref<TimeframeKey>("hour");
+const selectedTimeframe = ref<TimeframeKey>("second");
 // const chartSeries = ref<SeriesPoint[]>([]); // handled in child or removed
 const chartSeries = ref<SeriesPoint[]>([]);
 

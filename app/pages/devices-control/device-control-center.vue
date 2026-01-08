@@ -21,6 +21,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch, type Component } from "vue";
+import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
 import {
   CpuChipIcon,
   MapIcon,
@@ -34,6 +36,9 @@ import MapSection from "@/components/devices-control/sections/MapSection.vue";
 import ScenarioSection from "@/components/devices-control/sections/ScenarioSection.vue";
 import DevicesLogSection from "@/components/devices-control/sections/DevicesLogSection.vue";
 import type { Section } from "@/types/devices-control";
+
+const controlModuleBase = (apiConfig.controlModule || "").replace(/\/$/, "");
+const authStore = useAuthStore();
 
 const ACTIVE_SECTION_STORAGE_KEY = "device-registration-active-section";
 
@@ -172,5 +177,33 @@ onMounted(() => {
   ) {
     activeTab.value = storedSection;
   }
+
+  void validateControlModuleJwt();
 });
+
+async function validateControlModuleJwt(): Promise<void> {
+  if (!import.meta.client || !controlModuleBase) {
+    return;
+  }
+
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    return;
+  }
+
+  try {
+    await fetch(
+      `${controlModuleBase}/devices-control/devices-registration/test-jwt`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: authorization,
+          Accept: "application/json",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Unable to validate control module JWT:", error);
+  }
+}
 </script>

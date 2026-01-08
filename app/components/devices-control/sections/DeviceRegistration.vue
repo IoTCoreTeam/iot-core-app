@@ -3,12 +3,6 @@
     <a-tabs v-model:activeKey="activeDeviceTab" class="px-6 pt-4 custom-tabs">
       <a-tab-pane v-for="tab in deviceTabs" :key="tab.key" :tab="tab.label">
         <div v-if="tab.key === activeDeviceTab" class="pb-2">
-          <!-- Debug Info -->
-          <div class="mb-2 p-2 bg-blue-50 rounded text-xs">
-            <strong>Debug:</strong> Active Devices: {{ activeDevicesMap.size }},
-            Gateways: {{ gatewayRows.length }}
-          </div>
-
           <div v-if="tab.key === 'sensor'">
             <div class="mb-4">
               <SingleMetricChart
