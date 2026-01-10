@@ -2,19 +2,16 @@
 
 export type DeviceTabKey = "gateways" | "nodes" | "controller" | "sensor";
 
+export type DeviceRowStatus = "online" | "inactive";
+
 export type DeviceRow = {
   id: string;
   name: string;
-  serialNumber: string;
-  connectionKey: string;
-  status: "pending" | "approved" | "deleted" | "active" | "inactive" | "registered";
-  connectionHint?: string;
-  location?: string;
-  ipAddress?: string | null;
-  updatedAt: string;
-  updatedBy?: string;
-  note?: string;
-  lastHeartbeat?: string;
+  ip?: string | null;
+  mac?: string | null;
+  status: DeviceRowStatus;
+  registered?: boolean;
+  lastSeen?: string | null;
 };
 
 export type DeviceTab = {

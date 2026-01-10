@@ -4,7 +4,7 @@
       <!-- Left: App name -->
       <NuxtLink to="/">
         <h1 class="text-sm font-bold text-blue-800 tracking-tight px-1">
-          IOT CORE SYSTEM
+          IOT MANAGEMENT SYSTEM
         </h1>
       </NuxtLink>
 

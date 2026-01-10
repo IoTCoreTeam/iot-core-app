@@ -30,7 +30,7 @@
           </svg>
         </div>
         <h1 class="text-2xl font-bold text-white mb-1 tracking-wide">
-          IOT CORE SYSTEM
+          IOT MANAGEMENT SYSTEM
         </h1>
         <p class="text-xs text-slate-400">
           Smart Industrial Management Platform

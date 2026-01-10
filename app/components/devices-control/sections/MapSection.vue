@@ -1,5 +1,5 @@
 <template>
-  <section class="min-h-[100vh]">
+  <section class="min-h-screen">
     <a-tabs
       v-model:activeKey="activeMapTab"
       class="px-6 pt-4 custom-tabs"
@@ -584,6 +584,7 @@ const defaultFilters: DeviceFilterState = {
   connectionKey: "",
   location: "",
   ipAddress: "",
+  status: "",
 };
 
 const filters = reactive<DeviceFilterState>({ ...defaultFilters });
