@@ -148,7 +148,6 @@
                     activeDeviceTab === 'sensor' && row.id === selectedSensorId
                       ? 'bg-blue-50'
                       : '',
-                    getRowBackgroundClass(row),
                   ]"
                   @click="
                     activeDeviceTab === 'sensor' && handleSensorRowClick(row.id)
@@ -172,7 +171,7 @@
                   </td>
                   <td class="px-2 py-4 align-top">
                     <div
-                      class="text-xs font-semibold"
+                      class="text-xs font-semibold uppercase"
                       :class="statusTextColorClass(row.status)"
                     >
                       {{ formatDeviceStatus(row.status) }}
@@ -180,7 +179,7 @@
                   </td>
                   <td class="px-2 py-4 align-top">
                     <div
-                      class="text-xs font-semibold"
+                      class="text-xs font-semibold uppercase"
                       :class="registrationTextColorClass(row.registered)"
                     >
                       {{ formatRegistrationStatus(row.registered) }}
@@ -209,10 +208,7 @@
                           title="Register Device"
                           @click.stop="handleEnroll(row)"
                         >
-                          <BootstrapIcon
-                            name="person-check"
-                            class="w-3.5 h-3.5"
-                          />
+                          <BootstrapIcon name="plus-lg" class="w-3.5 h-3.5" />
                           <span class="sr-only">Register</span>
                         </button>
                       </template>
@@ -457,7 +453,7 @@ const deviceTableColumnDefinitions = [
   { label: "Action", width: "10%" },
 ] as const;
 const deviceTableColumns = deviceTableColumnDefinitions.map(
-  (column) => column.label
+  (column) => column.label,
 );
 
 const defaultDeviceFilters: GatewayFilterState = {
@@ -475,13 +471,13 @@ const appliedDeviceFilters = ref<GatewayFilterState>({
 const currentDeviceTab = computed(
   () =>
     deviceTabs.value.find((tab) => tab.key === activeDeviceTab.value) ??
-    defaultDeviceTab.value
+    defaultDeviceTab.value,
 );
 const currentDeviceRows = computed<DeviceRow[]>(
-  () => currentDeviceTab.value.rows
+  () => currentDeviceTab.value.rows,
 );
 const filteredDeviceRows = computed<DeviceRow[]>(() =>
-  filterDeviceRows(currentDeviceRows.value)
+  filterDeviceRows(currentDeviceRows.value),
 );
 const displayedDeviceRows = computed<DeviceRow[]>(() => {
   const start =
@@ -508,6 +504,7 @@ const deviceFilterFields: FilterFieldRow[] = [
       key: "name",
       label: "Name",
       type: "text",
+      placeholder: "e.g. Gateway 001",
     },
   ],
   [
@@ -515,6 +512,7 @@ const deviceFilterFields: FilterFieldRow[] = [
       key: "id",
       label: "Gateway ID",
       type: "text",
+      placeholder: "e.g. GW_001",
     },
   ],
   [
@@ -522,6 +520,7 @@ const deviceFilterFields: FilterFieldRow[] = [
       key: "ip",
       label: "IP Address",
       type: "text",
+      placeholder: "e.g. 192.168.1.1",
     },
   ],
   [
@@ -529,24 +528,10 @@ const deviceFilterFields: FilterFieldRow[] = [
       key: "mac",
       label: "MAC Address",
       type: "text",
+      placeholder: "e.g. 00:1A:2B:3C:4D:5E",
     },
   ],
 ];
-
-// DeviceRegistration.vue
-
-function getRowBackgroundClass(row: DeviceRow): string {
-  if (
-    activeDeviceTab.value === "gateways" ||
-    activeDeviceTab.value === "sensor"
-  ) {
-    if (row.registered === false) {
-      return "bg-red-300";
-    }
-    return row.status === "inactive" ? "bg-red-300" : "bg-white";
-  }
-  return "";
-}
 
 // Watchers
 watch(
@@ -556,7 +541,7 @@ watch(
       selectedMetricKey.value = metrics[0]!.key;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 function filterDeviceRows(rows: DeviceRow[]) {
@@ -662,7 +647,7 @@ function exportDevices() {
     ...rows.map((row) =>
       [row.id, row.name, row.ip, row.mac, row.status, row.lastSeen]
         .map(escapeValue)
-        .join(",")
+        .join(","),
     ),
   ];
 
@@ -676,7 +661,7 @@ function exportDevices() {
   link.href = url;
   link.setAttribute(
     "download",
-    `devices-${currentDeviceTab.value.label}-${timestamp}.csv`
+    `devices-${currentDeviceTab.value.label}-${timestamp}.csv`,
   );
   document.body.appendChild(link);
   link.click();
@@ -756,7 +741,7 @@ function recalculateDevicePagination() {
   devicePagination.value.total = total;
   const lastPage = Math.max(
     1,
-    Math.ceil(total / devicePagination.value.perPage)
+    Math.ceil(total / devicePagination.value.perPage),
   );
   devicePagination.value.lastPage = lastPage;
   if (devicePagination.value.page > lastPage) {
@@ -803,7 +788,7 @@ function updateGatewayFromPayload(payload: GatewayEventPayload) {
 
 function syncGatewayRows() {
   gatewayRows.value = Array.from(gatewayCache.values()).sort(
-    (a, b) => parseTimestamp(b.lastSeen) - parseTimestamp(a.lastSeen)
+    (a, b) => parseTimestamp(b.lastSeen) - parseTimestamp(a.lastSeen),
   );
 }
 
@@ -863,7 +848,7 @@ watch(
   () => {
     recalculateDevicePagination();
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 watch(
@@ -871,7 +856,7 @@ watch(
   () => {
     devicePagination.value.page = 1;
     recalculateDevicePagination();
-  }
+  },
 );
 
 watch(deviceSearchKeyword, () => {

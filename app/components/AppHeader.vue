@@ -4,7 +4,7 @@
       <!-- Left: App name -->
       <NuxtLink to="/">
         <h1 class="text-sm font-bold text-blue-800 tracking-tight px-1">
-          IOT MANAGEMENT SYSTEM
+          IOT CORE SYSTEM
         </h1>
       </NuxtLink>
 
@@ -12,9 +12,7 @@
       <nav class="hidden md:flex items-center space-x-10 ml-16">
         <NuxtLink
           to="/"
-          class="flex items-center gap-2 text-gray-700 text-sm font-semibold
-                 hover:text-blue-700 transition-colors
-                 border-b-2 border-transparent py-1 hover:border-blue-500"
+          class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
         >
           <BootstrapIcon name="grid-1x2" class="w-3 h-3" />
           Dashboard
@@ -22,9 +20,7 @@
 
         <NuxtLink
           to="/devices-control/device-control-center"
-          class="flex items-center gap-2 text-gray-700 text-sm font-semibold
-                 hover:text-blue-700 transition-colors
-                 border-b-2 border-transparent py-1 hover:border-blue-500"
+          class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
         >
           <BootstrapIcon name="hdd-network" class="w-3 h-3" />
           Devices Control Center
@@ -32,9 +28,7 @@
 
         <NuxtLink
           to="/system-logs"
-          class="flex items-center gap-2 text-gray-700 text-sm font-semibold
-                 hover:text-blue-700 transition-colors
-                 border-b-2 border-transparent py-1 hover:border-blue-500"
+          class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
         >
           <BootstrapIcon name="clipboard-data" class="w-3 h-3" />
           System Monitoring
@@ -44,9 +38,7 @@
         <div class="relative text-sm font-semibold cursor-pointer">
           <button
             @click="toggleDropdown('internal')"
-            class="flex items-center gap-2 text-gray-700 hover:text-blue-700
-                   transition-colors border-b-2 border-transparent
-                   py-1 hover:border-blue-500"
+            class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
           >
             <BootstrapIcon name="building" class="w-3 h-3" />
             Internal
@@ -70,13 +62,11 @@
           <div
             v-if="openDropdown === 'internal'"
             @click.outside="closeDropdown"
-            class="absolute left-0 mt-2 w-48 bg-white border
-                   border-gray-200 rounded-lg shadow-lg py-2 z-50"
+            class="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
           >
             <NuxtLink
               to="/users-management"
-              class="block px-4 py-2 text-gray-700 text-sm
-                     hover:bg-blue-50 hover:text-blue-700"
+              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
               @click="closeDropdown"
             >
               Users Management
@@ -84,8 +74,7 @@
 
             <NuxtLink
               to="/company-setup"
-              class="block px-4 py-2 text-gray-700 text-sm
-                     hover:bg-blue-50 hover:text-blue-700"
+              class="block px-4 py-2 text-gray-700 text-sm hover:bg-blue-50 hover:text-blue-700"
               @click="closeDropdown"
             >
               Company Setup
@@ -95,12 +84,12 @@
       </nav>
 
       <!-- Account dropdown -->
-      <div class="relative ml-auto hidden md:block text-sm font-semibold cursor-pointer">
+      <div
+        class="relative ml-auto hidden md:block text-sm font-semibold cursor-pointer"
+      >
         <button
           @click="toggleDropdown('account')"
-          class="flex items-center gap-2 text-gray-700 hover:text-blue-700
-                 transition-colors border-b-2 border-transparent
-                 py-1 hover:border-blue-500"
+          class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
         >
           {{ userName }}
           <svg
@@ -123,13 +112,11 @@
         <div
           v-if="openDropdown === 'account'"
           @click.outside="closeDropdown"
-          class="absolute right-0 mt-2 w-40 bg-white border
-                 border-gray-200 rounded-lg shadow-lg py-2 z-50"
+          class="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
         >
           <NuxtLink
             to="/user-account"
-            class="block px-4 py-2 text-sm text-gray-700
-                   hover:bg-blue-50 hover:text-blue-700"
+            class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
             @click="closeDropdown"
           >
             Management
@@ -137,8 +124,7 @@
 
           <button
             type="button"
-            class="w-full text-left px-4 py-2 text-sm text-red-500
-                   hover:bg-red-50 hover:text-red-600"
+            class="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 hover:text-red-600"
             :disabled="isLoggingOut"
             @click="handleLogout"
           >
@@ -150,9 +136,7 @@
       <!-- Mobile menu button -->
       <button
         type="button"
-        class="ml-auto inline-flex items-center justify-center
-               rounded-md border border-gray-300 p-2 text-gray-700
-               hover:bg-gray-100 md:hidden"
+        class="ml-auto inline-flex items-center justify-center rounded-md border border-gray-300 p-2 text-gray-700 hover:bg-gray-100 md:hidden"
         @click="openMobileMenu"
         aria-label="Open navigation"
       >
@@ -164,7 +148,9 @@
     <transition name="fade">
       <div v-if="isMobileMenuOpen" class="fixed inset-0 z-50 md:hidden">
         <div class="absolute inset-0 bg-black/40" @click="closeMobileMenu" />
-        <div class="relative ml-auto h-full w-72 bg-white shadow-xl flex flex-col">
+        <div
+          class="relative ml-auto h-full w-72 bg-white shadow-xl flex flex-col"
+        >
           <div class="flex items-center justify-between border-b px-4 py-3">
             <h2 class="text-sm font-semibold text-gray-800">Navigation</h2>
             <button
@@ -177,7 +163,11 @@
           </div>
 
           <div class="flex-1 overflow-y-auto px-4 py-5 text-sm">
-            <NuxtLink to="/" class="block px-3 py-2 hover:bg-blue-50" @click="closeMobileMenu">
+            <NuxtLink
+              to="/"
+              class="block px-3 py-2 hover:bg-blue-50"
+              @click="closeMobileMenu"
+            >
               Dashboard
             </NuxtLink>
 
@@ -257,7 +247,7 @@ watch(
   () => {
     closeDropdown();
     closeMobileMenu();
-  }
+  },
 );
 
 async function handleLogout() {

@@ -4,8 +4,12 @@
   >
     <!-- Background decoration -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
-      <div class="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-sm blur-3xl"></div>
-      <div class="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-sm blur-3xl"></div>
+      <div
+        class="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-sm blur-3xl"
+      ></div>
+      <div
+        class="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-sm blur-3xl"
+      ></div>
     </div>
 
     <!-- Login container -->
@@ -30,7 +34,7 @@
           </svg>
         </div>
         <h1 class="text-2xl font-bold text-white mb-1 tracking-wide">
-          IOT MANAGEMENT SYSTEM
+          IOT CORE SYSTEM
         </h1>
         <p class="text-xs text-slate-400">
           Smart Industrial Management Platform
@@ -114,7 +118,7 @@
           <button
             type="submit"
             :disabled="loading"
-            class="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-sm transition duration-200 flex items-center justify-center gap-2 mt-4   shadow-md shadow-blue-500/20"
+            class="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-sm transition duration-200 flex items-center justify-center gap-2 mt-4 shadow-md shadow-blue-500/20"
           >
             <svg
               v-if="loading"
@@ -142,7 +146,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { apiConfig } from "../../config/api"
+import { apiConfig } from "../../config/api";
 import { useAuthStore } from "~~/stores/auth";
 
 interface LoginForm {
@@ -242,7 +246,8 @@ const handleLogin = async () => {
       throw new Error("Access token missing from server response.");
     }
 
-    const tokenType = payloadData?.token_type ?? payload?.token_type ?? "Bearer";
+    const tokenType =
+      payloadData?.token_type ?? payload?.token_type ?? "Bearer";
     const expiresAt = payloadData?.expires_at ?? payload?.expires_at ?? "";
     const user = payloadData?.user ?? payload?.user ?? null;
 
@@ -268,8 +273,7 @@ const handleLogin = async () => {
       loading.value = false;
       return;
     }
-    error.value =
-      err?.message ?? "Unable to sign in. Please try again.";
+    error.value = err?.message ?? "Unable to sign in. Please try again.";
   } finally {
     loading.value = false;
   }

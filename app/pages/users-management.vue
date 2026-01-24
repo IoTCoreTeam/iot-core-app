@@ -37,7 +37,9 @@
         @change-per-page="changePerPage"
       >
         <template #header>
-          <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between w-full">
+          <div
+            class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between w-full"
+          >
             <div class="flex items-center gap-2">
               <h3 class="font-medium text-gray-700">
                 {{ title || "User Management" }}
@@ -146,9 +148,7 @@
           </tr>
         </template>
 
-        <template #empty>
-          No users found.
-        </template>
+        <template #empty> No users found. </template>
       </DataBoxCard>
     </div>
 
@@ -219,7 +219,7 @@ const isFilterVisible = ref(true);
 
 const pagination = ref({
   page: 1,
-  perPage: 15,
+  perPage: 20,
   lastPage: 1,
   total: 0,
 });
@@ -267,7 +267,9 @@ const normalizeFilters = (payload: Partial<UserFilters> = {}): UserFilters => ({
   ...payload,
 });
 
-const hasFilterValue = (payload: UserFilters | null): payload is UserFilters => {
+const hasFilterValue = (
+  payload: UserFilters | null,
+): payload is UserFilters => {
   if (!payload) {
     return false;
   }
@@ -299,7 +301,7 @@ const filteredUsers = computed<User[]>(() => {
     (u) =>
       u.email.toLowerCase().includes(q) ||
       u.name.toLowerCase().includes(q) ||
-      u.role.toLowerCase().includes(q)
+      u.role.toLowerCase().includes(q),
   );
 });
 
@@ -358,7 +360,7 @@ function handleAddUser(user: User) {
 
 function handleApplyFilter(filters?: Record<string, string>) {
   const normalized = normalizeFilters(
-    (filters as Partial<UserFilters> | undefined) ?? userFilterDraft.value
+    (filters as Partial<UserFilters> | undefined) ?? userFilterDraft.value,
   );
   const hasValues = hasFilterValue(normalized);
 
@@ -414,7 +416,7 @@ function exportToExcel() {
         formatCreatedAt(user.createdAt),
       ]
         .map(escapeValue)
-        .join(",")
+        .join(","),
     ),
   ];
 
@@ -493,9 +495,7 @@ async function fetchUserData(options: { showLoader?: boolean } = {}) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok || data?.success === false) {
-      throw new Error(
-        data?.message ?? `Unable to load users (${res.status}).`
-      );
+      throw new Error(data?.message ?? `Unable to load users (${res.status}).`);
     }
 
     const userList = Array.isArray(data?.data) ? data.data : [];
@@ -579,8 +579,7 @@ async function deleteUser(id: number) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok || data?.success === false) {
-      const errorMessage =
-        data?.message ?? "Failed to delete user!";
+      const errorMessage = data?.message ?? "Failed to delete user!";
       throw new Error(errorMessage);
     }
 
