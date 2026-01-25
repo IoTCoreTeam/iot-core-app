@@ -75,7 +75,7 @@ withDefaults(
   }>(),
   {
     sections: () => [],
-  }
+  },
 );
 
 const emit = defineEmits<{

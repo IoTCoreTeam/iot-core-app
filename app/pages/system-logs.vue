@@ -8,7 +8,9 @@
           { hidden: !isFilterVisible },
         ]"
       >
-        <div class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+        <div
+          class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between"
+        >
           <div>
             <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
             <p class="text-xs text-gray-500">Refine the log results.</p>
@@ -94,7 +96,10 @@
               :disabled="isLoading || !logs.length"
               @click="exportLogs"
             >
-              <BootstrapIcon name="file-earmark-arrow-down" class="w-3 h-3 mr-1" />
+              <BootstrapIcon
+                name="file-earmark-arrow-down"
+                class="w-3 h-3 mr-1"
+              />
               Export
             </button>
           </div>
@@ -102,19 +107,17 @@
 
         <template #head>
           <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600">
-            <th class="px-2 py-2 text-left font-medium text-gray-600 ">
+            <th class="px-2 py-2 text-left font-medium text-gray-600">
               Timestamp
             </th>
             <th class="px-2 py-2 text-left font-medium text-gray-600">Level</th>
             <th class="px-2 py-2 text-left font-medium text-gray-600">
               Source / Action
             </th>
-            <th class="px-2 py-2 text-left font-medium text-gray-600 ">
+            <th class="px-2 py-2 text-left font-medium text-gray-600">
               Message
             </th>
-            <th class="px-2 py-2 text-left font-medium text-gray-600 ">
-              Actor
-            </th>
+            <th class="px-2 py-2 text-left font-medium text-gray-600">Actor</th>
             <th class="px-2 py-2 text-left font-medium text-gray-600">
               Origin
             </th>
@@ -156,7 +159,9 @@
                 </span>
               </div>
             </td>
-            <td class="px-2 py-1 text-gray-700 leading-5 wrap-break-words align-top">
+            <td
+              class="px-2 py-1 text-gray-700 leading-5 wrap-break-words align-top"
+            >
               <p class="text-xs text-gray-800 leading-5">
                 {{ log.message }}
               </p>
@@ -201,9 +206,7 @@
           </tr>
         </template>
 
-        <template #empty>
-          No system logs to show yet.
-        </template>
+        <template #empty> No system logs to show yet. </template>
 
         <template #footer>
           <span>
@@ -230,7 +233,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from "vue";
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  reactive,
+} from "vue";
 import { message } from "ant-design-vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import SystemLogDetailModal from "@/components/Modals/Devices/SystemLogDetailModal.vue";
@@ -298,7 +308,14 @@ const advancedFilters = reactive<AdvancedFiltersState>({
   ...defaultAdvancedFilters,
 });
 
-const FALLBACK_LEVELS = ["critical", "error", "warning", "notice", "info", "debug"];
+const FALLBACK_LEVELS = [
+  "critical",
+  "error",
+  "warning",
+  "notice",
+  "info",
+  "debug",
+];
 const levelOptions = ref<FilterFieldOption[]>([]);
 
 const resolvedLevelOptions = computed<FilterFieldOption[]>(() => {
@@ -429,13 +446,13 @@ function normalizeLevelOptions(raw: unknown): FilterFieldOption[] {
           (item as Record<string, unknown>).value ??
             (item as Record<string, unknown>).name ??
             (item as Record<string, unknown>).key ??
-            ""
+            "",
         );
         const label = String(
           (item as Record<string, unknown>).label ??
             (item as Record<string, unknown>).name ??
             (item as Record<string, unknown>).value ??
-            ""
+            "",
         );
         registerOption(value, label);
       }
@@ -446,8 +463,8 @@ function normalizeLevelOptions(raw: unknown): FilterFieldOption[] {
         typeof value === "string"
           ? value
           : value !== undefined && value !== null
-          ? String(value)
-          : key;
+            ? String(value)
+            : key;
       registerOption(key, label);
     });
   }
@@ -469,7 +486,9 @@ const displayedLogs = computed(() => logs.value);
 const formattedLastUpdated = computed(() => {
   if (!lastUpdatedAt.value) return "—";
   const date = new Date(lastUpdatedAt.value);
-  return Number.isNaN(date.getTime()) ? lastUpdatedAt.value : date.toLocaleString();
+  return Number.isNaN(date.getTime())
+    ? lastUpdatedAt.value
+    : date.toLocaleString();
 });
 
 function levelBadgeClass(level: string) {
@@ -520,7 +539,9 @@ function metadataPreview(meta: LogEntry["metadata"]) {
       .join(", ");
   }
   const entries = Object.entries(meta).slice(0, 2);
-  return entries.map(([key, value]) => `${key}: ${previewValue(value)}`).join(", ");
+  return entries
+    .map(([key, value]) => `${key}: ${previewValue(value)}`)
+    .join(", ");
 }
 
 function resolveActor(entry: any) {
@@ -574,14 +595,14 @@ function generateFallbackId() {
 
 function mapLogEntry(entry: any): LogEntry {
   const normalizedLevel = String(
-    entry?.level ?? entry?.severity ?? entry?.type ?? "info"
+    entry?.level ?? entry?.severity ?? entry?.type ?? "info",
   ).toLowerCase();
 
   const tags: string[] = Array.isArray(entry?.tags)
     ? entry.tags
     : entry?.tag
-    ? [entry.tag]
-    : [];
+      ? [entry.tag]
+      : [];
 
   const { actorName, actorEmail } = resolveActor(entry);
 
@@ -698,12 +719,14 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
       {
         method: "GET",
         headers,
-      }
+      },
     );
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data?.success === false) {
-      throw new Error(data?.message ?? `Unable to load logs (${response.status}).`);
+      throw new Error(
+        data?.message ?? `Unable to load logs (${response.status}).`,
+      );
     }
 
     const payload = data?.data;
@@ -722,10 +745,14 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
     }
 
     const filterMetadata =
-      (paginatedBlock && typeof paginatedBlock === "object" && paginatedBlock.filters
+      (paginatedBlock &&
+      typeof paginatedBlock === "object" &&
+      paginatedBlock.filters
         ? paginatedBlock.filters
         : null) ??
-      (payload && typeof payload === "object" && (payload as Record<string, unknown>).filters
+      (payload &&
+      typeof payload === "object" &&
+      (payload as Record<string, unknown>).filters
         ? (payload as Record<string, unknown>).filters
         : null) ??
       data?.filters ??
@@ -750,7 +777,7 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
       paginatedBlock?.last_page ??
         paginatedBlock?.lastPage ??
         data?.last_page ??
-        data?.lastPage
+        data?.lastPage,
     );
     if (typeof resolvedLastPage === "number") {
       pagination.value.lastPage = resolvedLastPage;
@@ -760,7 +787,7 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
       paginatedBlock?.current_page ??
         paginatedBlock?.currentPage ??
         data?.current_page ??
-        data?.currentPage
+        data?.currentPage,
     );
     if (typeof resolvedCurrentPage === "number") {
       pagination.value.page = resolvedCurrentPage;
@@ -774,7 +801,7 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
       paginatedBlock?.per_page ??
         paginatedBlock?.perPage ??
         data?.per_page ??
-        data?.perPage
+        data?.perPage,
     );
     if (typeof resolvedPerPage === "number") {
       pagination.value.perPage = resolvedPerPage;
@@ -793,11 +820,11 @@ async function fetchLogs(options: { showLoader?: boolean } = {}) {
 }
 
 function handleAdvancedFilterModelUpdate(value: Record<string, string>) {
-  (Object.keys(defaultAdvancedFilters) as (keyof AdvancedFiltersState)[]).forEach(
-    (key) => {
-      advancedFilters[key] = value[key] ?? "";
-    }
-  );
+  (
+    Object.keys(defaultAdvancedFilters) as (keyof AdvancedFiltersState)[]
+  ).forEach((key) => {
+    advancedFilters[key] = value[key] ?? "";
+  });
 }
 
 function applyAdvancedFilters(payload?: Record<string, string>) {
@@ -858,7 +885,7 @@ function exportLogs() {
         log.ipAddress || "",
       ]
         .map(escapeValue)
-        .join(",")
+        .join(","),
     ),
   ];
 

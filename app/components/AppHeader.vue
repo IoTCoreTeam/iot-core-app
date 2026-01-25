@@ -133,6 +133,61 @@
         </div>
       </div>
 
+      <!-- Notification Icon -->
+      <div class="relative ml-4 hidden md:block group">
+        <button
+          @click="showDrawer"
+          class="flex items-center justify-center p-2 text-gray-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-200 relative overflow-hidden active:scale-95 cursor-pointer"
+          aria-label="Notifications"
+        >
+          <BootstrapIcon name="bell" class="w-3.5 h-3.5" />
+          <span
+            class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"
+          ></span>
+        </button>
+      </div>
+
+      <a-drawer
+        v-model:open="open"
+        class="custom-class"
+        root-class-name="root-class-name"
+        :root-style="{ color: 'blue' }"
+        style="color: red"
+        title="Notifications"
+        placement="right"
+        @after-open-change="afterOpenChange"
+      >
+        <div class="space-y-4">
+          <div class="p-3 bg-blue-50 rounded-lg border border-blue-100">
+            <p class="text-sm font-semibold text-blue-800">System Update</p>
+            <p class="text-xs text-blue-600">
+              The system has been updated to version 2.1.0.
+            </p>
+          </div>
+          <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <p class="text-sm font-semibold text-gray-800">
+              New Device Connected
+            </p>
+            <p class="text-xs text-gray-600">
+              Gateway #12 has been successfully registered.
+            </p>
+          </div>
+          <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <p class="text-sm font-semibold text-gray-800">
+              Low Battery Warning
+            </p>
+            <p class="text-xs text-gray-600">
+              Sensor TH-01 battery level is below 15%.
+            </p>
+          </div>
+        </div>
+        <template #footer>
+          <div class="flex justify-end p-2 border-t">
+            <a-button type="link" class="text-xs">Mark all as read</a-button>
+          </div>
+        </template>
+      </a-drawer>
+
       <!-- Mobile menu button -->
       <button
         type="button"
@@ -217,6 +272,7 @@ import { apiConfig } from "../../config/api";
 const openDropdown = ref<string | null>(null);
 const isMobileMenuOpen = ref(false);
 const isLoggingOut = ref(false);
+const open = ref<boolean>(false);
 
 const router = useRouter();
 const route = useRoute();
@@ -241,6 +297,14 @@ function openMobileMenu() {
 function closeMobileMenu() {
   isMobileMenuOpen.value = false;
 }
+
+const showDrawer = () => {
+  open.value = true;
+};
+
+const afterOpenChange = (bool: boolean) => {
+  console.log("open", bool);
+};
 
 watch(
   () => route.fullPath,

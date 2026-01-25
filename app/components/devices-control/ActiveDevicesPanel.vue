@@ -1,85 +1,253 @@
 <template>
-  <article class="bg-white border border-slate-200 rounded">
-    <header
-      class="flex items-center justify-between px-6 py-4 border-b border-slate-100"
+  <div class="bg-white border border-slate-200 rounded h-full flex flex-col">
+    <!-- Header -->
+    <div
+      class="p-4 border-b border-slate-100 flex items-center justify-between"
     >
-      <div>
-        <p class="text-sm font-semibold text-slate-900">Active Nodes</p>
-        <p class="text-xs text-slate-500">
-          Ordered by most recent activity. Click a row to see the mock controls.
-        </p>
+      <div class="flex items-center gap-2">
+        <p class="text-sm font-semibold text-slate-900">Active Devices</p>
       </div>
-      <button
-        type="button"
+      <NuxtLink
+        to="/devices-control/device-control-center"
         class="text-xs font-semibold text-blue-600 hover:text-blue-800"
-        @click="$emit('view-all')"
       >
-        View all
-      </button>
-    </header>
-    <div class="divide-y divide-slate-100">
-      <button
-        v-for="device in devices"
-        :key="device.id"
-        type="button"
-        class="w-full text-left px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors"
-      >
-        <span
-          class="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-sm font-semibold text-slate-600"
-        >
-          {{ device.short }}
-        </span>
-        <div class="flex-1">
-          <p class="text-sm font-semibold text-slate-900">
-            {{ device.name }}
-          </p>
-          <p class="text-xs text-slate-500">
-            {{ device.location }} · Firmware {{ device.version }}
-          </p>
-        </div>
-        <span
-          class="text-xs font-semibold px-2 py-1 rounded-full"
-          :class="statusClass(device.status)"
-        >
-          {{ device.status }}
-        </span>
-        <div class="text-right">
-          <p class="text-xs text-slate-500">Last ping</p>
-          <p class="text-sm font-medium text-slate-900">
-            {{ device.lastPing }}
-          </p>
-        </div>
-      </button>
+        View All
+      </NuxtLink>
     </div>
-  </article>
+
+    <!-- Tabs -->
+    <div class="px-4 pt-2 border-b border-slate-100">
+      <a-tabs v-model:activeKey="activeTab" class="w-full">
+        <a-tab-pane key="gateway" tab="Gateways" />
+        <a-tab-pane key="node" tab="Nodes" />
+        <a-tab-pane key="controller" tab="Controller" />
+        <a-tab-pane key="sensor" tab="Sensor" />
+      </a-tabs>
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 overflow-auto">
+      <DataBoxCard
+        :is-loading="isLoading"
+        :has-data="filteredDevices.length > 0"
+        :columns="3"
+        :elevated="false"
+        :padded="false"
+        class="border-0 shadow-none h-full flex flex-col"
+      >
+        <template #head>
+          <tr
+            class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider"
+          >
+            <th class="px-3 py-2 font-medium text-left">Name</th>
+            <th class="px-3 py-2 font-medium text-center">Status</th>
+            <th class="px-3 py-2 font-medium text-right">Last Seen</th>
+          </tr>
+        </template>
+
+        <template #default>
+          <tr
+            v-for="device in displayedDevices"
+            :key="device.id"
+            class="border-b border-gray-50 hover:bg-gray-50 transition-colors text-xs"
+          >
+            <td class="px-3 py-3">
+              <div class="font-medium text-gray-900 text-xs">
+                {{ device.name }}
+              </div>
+              <div class="text-[10px] text-gray-500">
+                {{ device.short || device.id }}
+              </div>
+            </td>
+            <td class="px-3 py-2.5 text-center">
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
+                :class="statusClass(device.status)"
+              >
+                {{ formatStatus(device.status) }}
+              </span>
+            </td>
+            <td class="px-3 py-2.5 text-right font-mono text-xs text-gray-600">
+              {{ formatLastSeen(device.lastPing) }}
+            </td>
+          </tr>
+        </template>
+      </DataBoxCard>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-interface ActiveDevice {
-  id: number | string;
-  short: string;
+import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
+import DataBoxCard from "@/components/common/DataBoxCard.vue";
+import { apiConfig } from "~~/config/api";
+
+export interface ActiveDevice {
+  id: string;
+  short: string; // usually same as ID or a short code
   name: string;
-  location: string;
-  version: string;
   status: string;
-  lastPing: string;
+  lastPing: string | null; // Timestamp string
+  type: "gateway" | "node" | "controller" | "sensor";
 }
 
-defineProps<{
-  devices: ActiveDevice[];
-}>();
+// Internal State
+const activeTab = ref<"gateway" | "node" | "controller" | "sensor">("gateway");
+const isLoading = ref(false);
+const isConnected = ref(false);
 
-defineEmits<{
-  (event: "view-all"): void;
-}>();
+const gatewayRows = ref<ActiveDevice[]>([]);
+const nodeRows = ref<ActiveDevice[]>([]); // To be implemented similarly
+const controllerRows = ref<ActiveDevice[]>([]); // To be implemented similarly
+const sensorRows = ref<ActiveDevice[]>([]); // To be implemented similarly
+
+// Cache maps for efficient updates
+const gatewayCache = new Map<string, ActiveDevice>();
+let gatewayEventSource: EventSource | null = null;
+
+// Derived State
+const filteredDevices = computed(() => {
+  switch (activeTab.value) {
+    case "gateway":
+      return gatewayRows.value;
+    case "node":
+      return nodeRows.value;
+    case "controller":
+      return controllerRows.value;
+    case "sensor":
+      return sensorRows.value;
+    default:
+      return [];
+  }
+});
+
+const displayedDevices = computed(() => {
+  return filteredDevices.value;
+});
+
+// SSE Logic
+function connectGatewaySse() {
+  if (!import.meta.client || !apiConfig.server) return;
+
+  disconnectGatewaySse();
+
+  try {
+    const endpoint = `${apiConfig.server.replace(/\/$/, "")}/events/gateways`;
+    const source = new EventSource(endpoint);
+
+    source.addEventListener("open", () => {
+      isConnected.value = true;
+    });
+
+    source.addEventListener("gateway-update", handleGatewayUpdate);
+    source.addEventListener("error", handleGatewayError);
+
+    gatewayEventSource = source;
+  } catch (error) {
+    console.error("Failed to connect to gateway SSE:", error);
+    isConnected.value = false;
+  }
+}
+
+function disconnectGatewaySse() {
+  if (gatewayEventSource) {
+    gatewayEventSource.close();
+    gatewayEventSource = null;
+    isConnected.value = false;
+  }
+}
+
+function handleGatewayUpdate(event: MessageEvent) {
+  if (!event.data) return;
+  try {
+    const payload = JSON.parse(event.data);
+    updateGatewayFromPayload(payload);
+  } catch (error) {
+    console.error("Failed to parse gateway SSE payload:", error);
+  }
+}
+
+function handleGatewayError(event: Event) {
+  console.error("Gateway SSE error:", event);
+  isConnected.value = false;
+  // Optional: Implement reconnection logic here if needed
+}
+
+function updateGatewayFromPayload(payload: any) {
+  if (!payload?.id) return;
+
+  // Only consider 'online' or specifically active devices if that's the intention of "ActiveDevicesPanel"
+  // But usually we show all and filter by status or just show current state.
+  // Assuming we show all known states for now, but sort by activity.
+
+  const device: ActiveDevice = {
+    id: payload.id,
+    short: payload.id,
+    name: payload.name || `Gateway ${payload.id}`,
+    status: (payload.status || "inactive").toLowerCase(),
+    lastPing: payload.lastSeen || null,
+    type: "gateway",
+  };
+
+  gatewayCache.set(device.id, device);
+
+  // Sync to reactive array and sort by lastPing descending
+  gatewayRows.value = Array.from(gatewayCache.values()).sort((a, b) => {
+    const timeA = a.lastPing ? new Date(a.lastPing).getTime() : 0;
+    const timeB = b.lastPing ? new Date(b.lastPing).getTime() : 0;
+    return timeB - timeA;
+  });
+}
+
+// UI Helpers
+function formatStatus(status: string) {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
 
 function statusClass(status: string) {
-  if (status === "Online") {
-    return "bg-emerald-50 text-emerald-600";
-  }
-  if (status === "Offline") {
-    return "bg-rose-50 text-rose-600";
-  }
-  return "bg-amber-50 text-amber-600";
+  const s = status.toLowerCase();
+  if (s === "online") return "bg-emerald-50 text-emerald-700";
+  if (s === "offline" || s === "inactive") return "bg-rose-50 text-rose-700";
+  return "bg-amber-50 text-amber-700";
 }
+
+const timeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "numeric",
+  second: "numeric",
+});
+
+function formatLastSeen(val: string | null) {
+  if (!val) return "-";
+  try {
+    const date = new Date(val);
+    if (isNaN(date.getTime())) return val;
+    return timeFormatter.format(date);
+  } catch {
+    return val;
+  }
+}
+
+// Lifecycle
+onMounted(() => {
+  connectGatewaySse();
+});
+
+onBeforeUnmount(() => {
+  disconnectGatewaySse();
+});
 </script>
+
+<style scoped>
+:deep(.ant-tabs-nav) {
+  margin-bottom: 0 !important;
+}
+:deep(.ant-tabs-tab) {
+  padding: 8px 0 !important;
+  margin: 0 16px 0 0 !important;
+  font-size: 12px !important;
+}
+:deep(.ant-tabs-tab + .ant-tabs-tab) {
+  margin: 0 16px !important;
+}
+</style>

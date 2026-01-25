@@ -1,29 +1,12 @@
 <template>
   <div class="w-full min-h-[80vh] bg-gray-50 p-4">
-    <div class="mx-auto flex max-w-8xl flex-col gap-4">
-      <!-- <header class="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div class="space-y-1">
-          <h1 class="text-lg font-semibold text-gray-900">Sensor overview</h1>
-          <p class="text-sm text-gray-600">Concise view of soil moisture, light, rain, air humidity, and temperature.</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
-            <div class="font-semibold text-gray-800">Last update</div>
-            <div>{{ lastUpdatedLabel }}</div>
-          </div>
-          <button
-            type="button"
-            class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
-            @click="simulateUpdate"
-          >
-            <BootstrapIcon name="arrow-clockwise" class="h-4 w-4" />
-            Refresh demo
-          </button>
-        </div>
-      </header> -->
+    <div class="mx-auto flex max-w-8xl flex-col gap-2">
       <section
         class="grid grid-cols-1 gap-2 lg:grid-cols-3 xl:grid-cols-5 items-start"
       >
+        <div class="flex flex-col gap-4 h-full lg:col-span-1 xl:col-span-1">
+          <DevicesControlLatestSensorDataPanel />
+        </div>
         <SingleMetricChart
           class="lg:col-span-2 xl:col-span-4"
           :metrics="metrics"
@@ -33,9 +16,6 @@
           @update:selected-metric-key="handleMetricChange"
           @update:selected-timeframe="handleTimeframeChange"
         />
-        <div class="flex flex-col gap-4 h-full lg:col-span-1 xl:col-span-1">
-          <DevicesControlAlertsPanel :alerts="alerts" />
-        </div>
       </section>
       <section
         class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
@@ -66,11 +46,18 @@
         </template>
       </section>
 
-      <section class="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
-        <div>
-          <DevicesControlActiveDevicesPanel :devices="activeDevices" />
+      <section class="grid grid-cols-1 gap-2 lg:grid-cols-5 items-start">
+        <div class="lg:col-span-1 h-full">
+          <!-- ActiveDevicesPanel now handles its own data fetching via SSE -->
+          <DevicesControlActiveDevicesPanel />
         </div>
-        <div>
+        <div class="lg:col-span-2 h-full">
+          <DevicesControlTypeDistributionPanel
+            :series="typeDistributionSeries"
+            :categories="typeDistributionCategories"
+          />
+        </div>
+        <div class="lg:col-span-2 h-full">
           <DevicesControlAutomationBatches :automations="automationBatches" />
         </div>
       </section>
@@ -80,30 +67,17 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
 import DashboardSensorCard from "@/components/DashboardSensorCard.vue";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
+
+const authStore = useAuthStore();
 import type {
   DashboardMetric,
   SeriesPoint,
   TimeframeKey,
 } from "@/types/dashboard";
-
-interface ActiveDeviceItem {
-  id: number;
-  short: string;
-  name: string;
-  location: string;
-  version: string;
-  status: "Online" | "Offline" | "Limited";
-  lastPing: string;
-}
-
-interface AlertPanelItem {
-  id: number;
-  title: string;
-  message: string;
-  timestamp: string;
-}
 
 interface AutomationBatchItem {
   id: number;
@@ -217,12 +191,11 @@ const lastUpdatedLabel = computed(() =>
         minute: "2-digit",
         second: "2-digit",
       }).format(lastUpdated.value)
-    : "Updating..."
+    : "Updating...",
 );
 
-const activeDevices = ref<ActiveDeviceItem[]>([]);
-
-const alerts = ref<AlertPanelItem[]>([]);
+const typeDistributionCategories = ref<string[]>([]);
+const typeDistributionSeries = ref<{ name: string; data: number[] }[]>([]);
 
 const automationBatches = ref<AutomationBatchItem[]>([]);
 
@@ -237,7 +210,7 @@ const metricCardItems = computed(() =>
       ...rest,
       sensorType: sensorTypeMap[key] ?? key,
     },
-  }))
+  })),
 );
 
 const selectedMetricKey = ref<string>(metrics.value[0]?.key || "");
@@ -260,8 +233,42 @@ onMounted(() => {
   setTimeout(() => {
     isSensorCardLoading.value = false;
   }, 600);
-  // if (selectedMetricKey.value) {
-  //   fetchChartData();
-  // }
+
+  if (authStore.accessToken) {
+    fetchTypeDistribution();
+  }
 });
+
+async function fetchTypeDistribution() {
+  if (!import.meta.client) return;
+
+  try {
+    const authorization = authStore.authorizationHeader;
+    if (!authorization) return;
+
+    const response = await fetch(
+      `${apiConfig.auth}/metrics/system-logs-count`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authorization,
+        },
+      },
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok && data) {
+      if (Array.isArray(data.categories)) {
+        typeDistributionCategories.value = data.categories;
+      }
+      if (Array.isArray(data.series)) {
+        typeDistributionSeries.value = data.series;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to fetch system logs distribution:", error);
+  }
+}
 </script>

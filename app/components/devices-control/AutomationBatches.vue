@@ -1,13 +1,10 @@
 <template>
   <section class="bg-white border border-slate-200 rounded">
     <header
-      class="px-6 py-4 border-b border-slate-100 flex items-center justify-between"
+      class="p-4 border-b border-slate-100 flex items-center justify-between"
     >
       <div>
         <p class="text-sm font-semibold text-slate-900">Automation batches</p>
-        <p class="text-xs text-slate-500">
-          Placeholder list of automations recently executed.
-        </p>
       </div>
       <button
         type="button"
