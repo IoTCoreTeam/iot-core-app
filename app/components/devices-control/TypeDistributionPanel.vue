@@ -17,29 +17,44 @@
         View All
       </NuxtLink>
     </header>
-    <div class="flex-1 p-4 min-h-[300px]">
-      <ClientOnly>
-        <ApexChart
-          height="100%"
-          width="100%"
-          type="bar"
-          :options="chartOptions"
-          :series="series"
-        />
-      </ClientOnly>
+    <div class="flex-1 p-4 pt-0 min-h-[300px]">
+      <div class="relative h-full">
+        <ClientOnly v-if="!props.isLoading">
+          <ApexChart
+            height="100%"
+            width="100%"
+            type="bar"
+            :options="chartOptions"
+            :series="series"
+          />
+        </ClientOnly>
+        <div
+          v-if="props.isLoading"
+          class="absolute inset-0 flex items-center justify-center"
+        >
+          <LoadingState message="Loading log distribution..." />
+        </div>
+      </div>
     </div>
   </article>
 </template>
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from "vue";
+import LoadingState from "@/components/common/LoadingState.vue";
 
 const ApexChart = defineAsyncComponent(() => import("vue3-apexcharts"));
 
-const props = defineProps<{
-  series: { name: string; data: number[] }[];
-  categories: string[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    series: { name: string; data: number[] }[];
+    categories: string[];
+    isLoading?: boolean;
+  }>(),
+  {
+    isLoading: false,
+  },
+);
 
 const chartOptions = computed(() => ({
   chart: {
@@ -52,32 +67,41 @@ const chartOptions = computed(() => ({
   },
   plotOptions: {
     bar: {
-      horizontal: false,
-      columnWidth: "20%",
-      borderRadius: 2,
+      horizontal: true,
+      barHeight: "60%",
+      borderRadius: 3,
+      dataLabels: {
+        position: "center",
+      },
     },
   },
   dataLabels: {
-    enabled: false,
+    enabled: true,
+    style: {
+      colors: ["#ffffff"],
+      fontSize: "11px",
+      fontWeight: 600,
+    },
+    formatter: (val: number) => (val ? val.toString() : ""),
   },
   stroke: {
     show: true,
-    width: 2,
-    colors: ["transparent"],
+    width: 1,
+    colors: ["#ffffff"],
   },
   xaxis: {
     categories: props.categories,
-    axisBorder: {
-      show: false,
-    },
-    axisTicks: {
-      show: false,
-    },
     labels: {
       style: {
         colors: "#64748b",
         fontSize: "11px",
       },
+    },
+    axisBorder: {
+      show: false,
+    },
+    axisTicks: {
+      show: false,
     },
   },
   yaxis: {
@@ -93,20 +117,19 @@ const chartOptions = computed(() => ({
     borderColor: "#f1f5f9",
     strokeDashArray: 4,
     yaxis: {
-      lines: {
-        show: true,
-      },
+      lines: { show: false },
     },
     padding: {
       top: 0,
       right: 0,
       bottom: 0,
-      left: 10,
+      left: 0,
     },
   },
   legend: {
-    position: "bottom" as const,
-    offsetY: 0,
+    position: "top" as const,
+    offsetY: 4,
+    offsetX: 0,
     itemMargin: {
       horizontal: 10,
       vertical: 0,

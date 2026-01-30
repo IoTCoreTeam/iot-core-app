@@ -308,14 +308,13 @@ type GatewayEventPayload = {
 
 const KNOWN_DEVICE_STATUSES = new Set<DeviceRow["status"]>([
   "online",
-  "inactive",
+  "offline",
 ]);
 
 const gatewayRows = ref<DeviceRow[]>([]);
 const nodeRows = ref<DeviceRow[]>([]);
 const controllerRows = ref<DeviceRow[]>([]);
 const sensorRows = ref<DeviceRow[]>([]);
-const activeDevicesMap = ref<Map<string, any>>(new Map());
 const selectedSensorId = ref<DeviceRow["id"] | null>(null);
 
 const { isDeactivatingDevice, deactivateDevice } = useDeviceDeactivation();
@@ -328,7 +327,7 @@ async function handleDeactivateSensor(row: DeviceRow) {
 
   const success = await deactivateDevice(row, activeDeviceTab.value);
   if (success) {
-    row.status = "inactive";
+    row.status = "offline";
   }
 }
 
@@ -488,16 +487,16 @@ const displayedDeviceRows = computed<DeviceRow[]>(() => {
 
 const deviceFilterFields: FilterFieldRow[] = [
   [
-    {
-      key: "status",
-      label: "Status",
-      type: "select",
-      options: [
-        { label: "All", value: "" },
-        { label: "Online", value: "online" },
-        { label: "Inactive", value: "inactive" },
-      ],
-    },
+      {
+        key: "status",
+        label: "Status",
+        type: "select",
+        options: [
+          { label: "All", value: "" },
+          { label: "Online", value: "online" },
+          { label: "Offline", value: "offline" },
+        ],
+      },
   ],
   [
     {
@@ -716,7 +715,7 @@ function isOnlineExactStatus(status?: DeviceRow["status"]) {
 
 function isUnactiveStatus(status?: DeviceRow["status"]) {
   const normalized = (status ?? "").toLowerCase();
-  return normalized === "inactive";
+  return normalized === "offline";
 }
 
 function prevDevicePage() {
@@ -757,14 +756,14 @@ function parseTimestamp(value?: string | null) {
 
 function normalizeStatus(value?: string | null): DeviceRow["status"] {
   if (!value) {
-    return "inactive";
+    return "offline";
   }
 
   const normalized = value.toLowerCase();
   if (KNOWN_DEVICE_STATUSES.has(normalized as DeviceRow["status"])) {
     return normalized as DeviceRow["status"];
   }
-  return "inactive";
+  return "offline";
 }
 
 function updateGatewayFromPayload(payload: GatewayEventPayload) {

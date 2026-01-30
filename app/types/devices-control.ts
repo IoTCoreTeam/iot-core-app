@@ -2,7 +2,7 @@
 
 export type DeviceTabKey = "gateways" | "nodes" | "controller" | "sensor";
 
-export type DeviceRowStatus = "online" | "inactive";
+export type DeviceRowStatus = "online" | "offline";
 
 export type DeviceRow = {
   id: string;

@@ -82,69 +82,72 @@
           </div>
         </div>
       </nav>
-
-      <!-- Account dropdown -->
-      <div
-        class="relative ml-auto hidden md:block text-sm font-semibold cursor-pointer"
-      >
-        <button
-          @click="toggleDropdown('account')"
-          class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
-        >
-          {{ userName }}
-          <svg
-            class="w-2 h-2 ml-1 mt-1 transition-transform duration-200"
-            :class="{ 'rotate-180': openDropdown === 'account' }"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </button>
-
-        <div
-          v-if="openDropdown === 'account'"
-          @click.outside="closeDropdown"
-          class="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
-        >
-          <NuxtLink
-            to="/user-account"
-            class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
-            @click="closeDropdown"
-          >
-            Management
-          </NuxtLink>
-
+      <div class="flex ml-auto space-x-10">
+        <!-- Notification -->
+        <div class="relative ml-4 hidden md:block">
           <button
-            type="button"
-            class="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 hover:text-red-600"
-            :disabled="isLoggingOut"
-            @click="handleLogout"
+            @click="showDrawer"
+            class="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500 relative"
+            aria-label="Notifications"
           >
-            {{ isLoggingOut ? "Logging out..." : "Logout" }}
+            <BootstrapIcon name="bell" class="w-3 h-3" />
+            <span>Notification</span>
+
+            <!-- Dot thông báo -->
+            <span
+              class="absolute -top-0.5 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"
+            ></span>
           </button>
         </div>
-      </div>
-
-      <!-- Notification Icon -->
-      <div class="relative ml-4 hidden md:block group">
-        <button
-          @click="showDrawer"
-          class="flex items-center justify-center p-2 text-gray-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-200 relative overflow-hidden active:scale-95 cursor-pointer"
-          aria-label="Notifications"
+        <!-- Account dropdown -->
+        <div
+          class="relative hidden md:block text-sm font-semibold cursor-pointer"
         >
-          <BootstrapIcon name="bell" class="w-3.5 h-3.5" />
-          <span
-            class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"
-          ></span>
-        </button>
+          <button
+            @click="toggleDropdown('account')"
+            class="flex items-center gap-2 text-gray-700 hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
+          >
+            {{ userName }}
+            <svg
+              class="w-2 h-2 ml-1 mt-1 transition-transform duration-200"
+              :class="{ 'rotate-180': openDropdown === 'account' }"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          <div
+            v-if="openDropdown === 'account'"
+            @click.outside="closeDropdown"
+            class="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
+          >
+            <NuxtLink
+              to="/user-account"
+              class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+              @click="closeDropdown"
+            >
+              Management
+            </NuxtLink>
+
+            <button
+              type="button"
+              class="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 hover:text-red-600"
+              :disabled="isLoggingOut"
+              @click="handleLogout"
+            >
+              {{ isLoggingOut ? "Logging out..." : "Logout" }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <a-drawer

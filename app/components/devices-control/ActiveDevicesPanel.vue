@@ -1,12 +1,8 @@
 <template>
   <div class="bg-white border border-slate-200 rounded h-full flex flex-col">
     <!-- Header -->
-    <div
-      class="p-4 border-b border-slate-100 flex items-center justify-between"
-    >
-      <div class="flex items-center gap-2">
-        <p class="text-sm font-semibold text-slate-900">Active Devices</p>
-      </div>
+    <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+      <p class="text-sm font-semibold text-slate-900">Active Devices</p>
       <NuxtLink
         to="/devices-control/device-control-center"
         class="text-xs font-semibold text-blue-600 hover:text-blue-800"
@@ -17,7 +13,7 @@
 
     <!-- Tabs -->
     <div class="px-4 pt-2 border-b border-slate-100">
-      <a-tabs v-model:activeKey="activeTab" class="w-full">
+      <a-tabs v-model:activeKey="activeTab">
         <a-tab-pane key="gateway" tab="Gateways" />
         <a-tab-pane key="node" tab="Nodes" />
         <a-tab-pane key="controller" tab="Controller" />
@@ -25,23 +21,23 @@
       </a-tabs>
     </div>
 
-    <!-- Content -->
     <div class="flex-1 overflow-auto">
       <DataBoxCard
-        :is-loading="isLoading"
+        :is-loading="false"
         :has-data="filteredDevices.length > 0"
-        :columns="3"
+        :columns="4"
         :elevated="false"
         :padded="false"
-        class="border-0 shadow-none h-full flex flex-col"
+        class="border-0 shadow-none h-full"
       >
         <template #head>
           <tr
-            class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider"
+            class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase"
           >
-            <th class="px-3 py-2 font-medium text-left">Name</th>
-            <th class="px-3 py-2 font-medium text-center">Status</th>
-            <th class="px-3 py-2 font-medium text-right">Last Seen</th>
+            <th class="px-3 py-2 text-left font-semibold">Name</th>
+            <th class="px-3 py-2 text-center font-semibold">Status</th>
+            <th class="px-3 py-2 text-center font-semibold">Registered</th>
+            <th class="px-3 py-2 text-right font-semibold">Last Seen</th>
           </tr>
         </template>
 
@@ -49,51 +45,61 @@
           <tr
             v-for="device in displayedDevices"
             :key="device.id"
-            class="border-b border-gray-50 hover:bg-gray-50 transition-colors text-xs"
+            class="hover:bg-gray-50 text-xs"
           >
             <td class="px-3 py-3">
-              <div class="font-medium text-gray-900 text-xs">
-                {{ device.name }}
-              </div>
+              <div class="font-medium">{{ device.name }}</div>
               <div class="text-[10px] text-gray-500">
                 {{ device.short || device.id }}
               </div>
             </td>
-            <td class="px-3 py-2.5 text-center">
+
+            <td class="px-3 text-center">
               <span
-                class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
-                :class="statusClass(device.status)"
+                class="px-1.5 py-0.5 rounded text-xs font-semibold"
+                :class="statusColorClass(device.status)"
               >
                 {{ formatStatus(device.status) }}
               </span>
             </td>
-            <td class="px-3 py-2.5 text-right font-mono text-xs text-gray-600">
+
+            <td class="px-1.5 py-0.5 rounded text-xs font-semibold text-center">
+              <span :class="registeredClass(device.registered)">
+                {{ formatRegistered(device.registered) }}
+              </span>
+            </td>
+
+            <td class="px-3 text-right text-gray-600">
               {{ formatLastSeen(device.lastPing) }}
             </td>
           </tr>
         </template>
+
+        <template #empty> No devices to display yet. </template>
       </DataBoxCard>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import { apiConfig } from "~~/config/api";
+
+type ActiveDeviceStatus = "online" | "offline";
 
 export interface ActiveDevice {
   id: string;
   short: string; // usually same as ID or a short code
   name: string;
-  status: string;
+  status: ActiveDeviceStatus;
   lastPing: string | null; // Timestamp string
+  registered?: boolean;
   type: "gateway" | "node" | "controller" | "sensor";
 }
 
 // Internal State
 const activeTab = ref<"gateway" | "node" | "controller" | "sensor">("gateway");
-const isLoading = ref(false);
 const isConnected = ref(false);
 
 const gatewayRows = ref<ActiveDevice[]>([]);
@@ -184,7 +190,8 @@ function updateGatewayFromPayload(payload: any) {
     id: payload.id,
     short: payload.id,
     name: payload.name || `Gateway ${payload.id}`,
-    status: (payload.status || "inactive").toLowerCase(),
+    status: normalizeActiveDeviceStatus(payload.status),
+    registered: payload.registered === true,
     lastPing: payload.lastSeen || null,
     type: "gateway",
   };
@@ -199,16 +206,18 @@ function updateGatewayFromPayload(payload: any) {
   });
 }
 
+function normalizeActiveDeviceStatus(value?: string | null): ActiveDeviceStatus {
+  return (value ?? "").toLowerCase() === "online" ? "online" : "offline";
+}
+
 // UI Helpers
-function formatStatus(status: string) {
+function formatStatus(status: ActiveDeviceStatus) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-function statusClass(status: string) {
-  const s = status.toLowerCase();
-  if (s === "online") return "bg-emerald-50 text-emerald-700";
-  if (s === "offline" || s === "inactive") return "bg-rose-50 text-rose-700";
-  return "bg-amber-50 text-amber-700";
+function statusColorClass(status: ActiveDeviceStatus) {
+  if (status === "online") return "text-emerald-600";
+  return "text-rose-600";
 }
 
 const timeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -228,6 +237,17 @@ function formatLastSeen(val: string | null) {
   }
 }
 
+function formatRegistered(value?: boolean) {
+  if (value === undefined) return "-";
+  return value ? "True" : "False";
+}
+
+function registeredClass(value?: boolean) {
+  if (value === undefined) {
+    return "text-gray-400";
+  }
+  return value ? "text-blue-600" : "text-rose-600";
+}
 // Lifecycle
 onMounted(() => {
   connectGatewaySse();

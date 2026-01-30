@@ -5,17 +5,14 @@
     <!-- Left: Copyright -->
     <div>
       <p class="text-sm text-gray-500">
-        &copy; 2024 IOT CORE. All rights reserved.
+        &copy; 2026 IOT CORE SYSTEM. All rights reserved.
       </p>
     </div>
     <!-- Right: Links -->
-    <div class="flex space-x-4">
-      <a href="#" class="text-sm text-blue-800 hover:underline"
-        >Privacy Policy</a
-      >
-      <a href="#" class="text-sm text-blue-800 hover:underline"
-        >Terms of Service</a
-      >
+    <div>
+      <p class="text-sm text-gray-500">
+        Designed by IOT CORE RESEARCH TEAM.
+      </p>
     </div>
   </footer>
 </template>

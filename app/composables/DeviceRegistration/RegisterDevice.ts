@@ -24,6 +24,7 @@ export function useRegisterDevice() {
       const registrationPayload = {
         name: row.name,
         ip_address: row.ip,
+        mac_address: row.mac,
         external_id: row.id,
       };
 

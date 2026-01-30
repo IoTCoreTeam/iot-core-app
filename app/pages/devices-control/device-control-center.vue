@@ -178,32 +178,6 @@ onMounted(() => {
     activeTab.value = storedSection;
   }
 
-  void validateControlModuleJwt();
 });
 
-async function validateControlModuleJwt(): Promise<void> {
-  if (!import.meta.client || !controlModuleBase) {
-    return;
-  }
-
-  const authorization = authStore.authorizationHeader;
-  if (!authorization) {
-    return;
-  }
-
-  try {
-    await fetch(
-      `${controlModuleBase}/devices-control/devices-registration/test-jwt`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: authorization,
-          Accept: "application/json",
-        },
-      }
-    );
-  } catch (error) {
-    console.error("Unable to validate control module JWT:", error);
-  }
-}
 </script>

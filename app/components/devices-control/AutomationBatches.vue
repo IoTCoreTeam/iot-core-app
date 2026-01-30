@@ -1,5 +1,5 @@
 <template>
-  <section class="bg-white border border-slate-200 rounded">
+  <section class="bg-white border border-slate-200 rounded h-full">
     <header
       class="p-4 border-b border-slate-100 flex items-center justify-between"
     >
