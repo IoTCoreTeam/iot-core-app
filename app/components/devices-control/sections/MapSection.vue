@@ -1,81 +1,231 @@
 <template>
   <section class="min-h-screen">
     <a-tabs
-      v-model:activeKey="activeMapTab"
-      class="px-6 pt-4 custom-tabs"
+      v-model:activeKey="activeTab"
+      class="px-4 custom-tabs text-xs"
     >
-      <a-tab-pane
-        v-for="tab in mapTabs"
-        :key="tab.key"
-        :tab="tab.label"
-      >
-        <div v-if="tab.key === activeMapTab" class="pb-4">
-          <div class="bg-white rounded border border-slate-200 p-4 map-display">
-            <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">
-                  {{ currentMapTab.label }} Overview
-                </p>
-                <p class="text-sm text-slate-600">
-                  {{ mapSummary.total }} Nodes mapped across {{ currentMapTab.label.toLowerCase() }}.
-                </p>
+      <a-tab-pane key="map" tab="Map">
+        <div v-if="activeTab === 'map'" class="pb-2">
+          <Transition name="slide-left" mode="out-in">
+            <MapConfig
+              v-if="isMapConfigOpen"
+              :map="selectedMap"
+              @back="closeMapConfig"
+            />
+            <div v-else class="flex flex-col gap-4 lg:flex-row lg:items-start">
+              <div
+                :class="[
+                  'bg-white rounded border border-slate-200 overflow-hidden w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
+                  { hidden: !isFilterVisible },
+                ]"
+              >
+                <div class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+                  <div>
+                    <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
+                    <p class="text-xs text-gray-500">
+                      Refine the {{ activeTitle.toLowerCase() }} list.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="text-xs text-gray-500 hover:text-gray-700 lg:hidden"
+                    @click="toggleFilters"
+                  >
+                    Close
+                  </button>
+                </div>
+                <AdvancedFilterPanel
+                  :fields="activeFilterFields"
+                  :model-value="activeFilters"
+                  :is-loading="isLoading"
+                  apply-label="Apply"
+                  reset-label="Reset"
+                  @update:modelValue="handleFilterModelUpdate"
+                  @apply="applyFilters"
+                  @reset="resetFilters"
+                />
               </div>
-              <div class="flex gap-3 text-xs">
-                <div class="flex items-center gap-1 text-emerald-600">
-                  <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                  Healthy {{ mapSummary.online }}
-                </div>
-                <div class="flex items-center gap-1 text-amber-600">
-                  <span class="h-2 w-2 rounded-full bg-amber-400"></span>
-                  Attention {{ mapSummary.warning }}
-                </div>
-                <div class="flex items-center gap-1 text-rose-600">
-                  <span class="h-2 w-2 rounded-full bg-rose-500"></span>
-                  Offline {{ mapSummary.offline }}
-                </div>
-              </div>
-            </div>
-            <div class="mt-4 h-64 rounded-xl border border-slate-100 relative overflow-hidden">
-              <div class="absolute inset-0 map-grid"></div>
-              <div class="absolute inset-0 p-4 flex flex-wrap gap-3">
-                <div
-                  v-for="marker in highlightedRows"
-                  :key="marker.id"
-                  class="bg-white/80 backdrop-blur rounded border border-slate-200 px-3 py-2 text-xs max-w-[180px]"
-                >
-                  <p class="font-semibold text-slate-700">
-                    {{ marker.name }}
-                  </p>
-                  <p class="text-[11px] text-slate-500">
-                    {{ marker.location || "Unknown site" }}
-                  </p>
-                  <p class="text-[11px] text-slate-400 mt-1">
-                    {{ marker.latitude || "Lat" }} / {{ marker.longitude || "Lon" }}
-                  </p>
-                  <p class="mt-1">
-                    <span
-                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border font-semibold"
-                      :class="statusChipClass(marker.status)"
-                    >
-                      {{ statusLabel(marker.status) }}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
+              <DataBoxCard
+                :class="[
+                  'lg:self-start',
+                  isFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
+                ]"
+                :is-loading="isMapLoading"
+                :columns="mapTableColumns.length"
+                :has-data="displayedMapRows.length > 0"
+                :pagination="mapPagination"
+                :loading-text="activeLoadingText"
+                @prev-page="prevMapPage"
+                @next-page="nextMapPage"
+                @change-per-page="changeMapPerPage"
+              >
+                <template #header>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-gray-700 text-xs">
+                      {{ activeTitle }}
+                    </h3>
+                    <button
+                      type="button"
+                      class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
+                      @click="toggleFilters"
+                    >
+                      {{ isFilterVisible ? "Hide Filters" : "Show Filters" }}
+                    </button>
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <div class="relative">
+                      <input
+                        v-model="searchKeyword"
+                        type="text"
+                        :placeholder="activeSearchPlaceholder"
+                        class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-52 text-xs cursor-text"
+                      />
+                      <BootstrapIcon
+                        name="search"
+                        class="absolute left-1 top-1.5 h-3 w-3 text-gray-400"
+                      />
+                    </div>
+                    <button
+                      @click="refreshRows"
+                      class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                      :disabled="isMapLoading"
+                    >
+                      <BootstrapIcon
+                        name="arrow-clockwise"
+                        class="w-3 h-3 mr-1"
+                        :class="{ 'animate-spin': isMapLoading }"
+                      />
+                      {{ isMapLoading ? "Refreshing..." : "Refresh" }}
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+                      @click="openAddModal"
+                    >
+                      <BootstrapIcon name="plus-lg" class="w-3 h-3 mr-1" />
+                      {{ activeAddLabel }}
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+                      :disabled="isMapLoading"
+                      @click="exportRows"
+                    >
+                      <BootstrapIcon name="file-earmark-arrow-down" class="w-3 h-3 mr-1" />
+                      Export
+                    </button>
+                  </div>
+                </template>
+
+                <template #head>
+                  <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600 text-center">
+                    <th
+                      v-for="column in mapTableColumns"
+                      :key="column"
+                      class="px-2 py-2 font-normal text-gray-600 text-center align-middle leading-4"
+                    >
+                      {{ column }}
+                    </th>
+                  </tr>
+                </template>
+
+                <template #default>
+                  <tr
+                    v-for="row in displayedMapRows"
+                    :key="row.id"
+                    class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100 py-1 text-center"
+                  >
+                    <td class="px-2 py-2 text-gray-800 text-center align-middle leading-4">
+                      <div>{{ row.id }}</div>
+                    </td>
+                    <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                      <div>
+                        {{ row.name || "-" }}
+                      </div>
+                    </td>
+                    <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                      <div>
+                        {{ row.area?.name || row.area_name || "Unknown" }}
+                      </div>
+                    </td>
+                    <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                      {{ row.description || "-" }}
+                    </td>
+                    <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                      {{ row.width_px ?? "-" }}
+                    </td>
+                    <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                      {{ row.height_px ?? "-" }}
+                    </td>
+                    <td class="px-2 py-2 text-center align-middle">
+                      <div class="inline-flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
+                          @click="openEditMap(row)"
+                          title="Edit"
+                          aria-label="Edit map"
+                        >
+                          <BootstrapIcon name="pencil-square" class="w-3.5 h-3.5" />
+                          <span class="sr-only">Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
+                          @click="confirmDeleteMap(row)"
+                          title="Delete"
+                          aria-label="Delete map"
+                        >
+                          <BootstrapIcon name="trash" class="w-3.5 h-3.5" />
+                          <span class="sr-only">Delete</span>
+                        </button>
+                      </div>
+                    </td>
+                    <td class="px-2 py-2 text-center align-middle">
+                      <button
+                        type="button"
+                        class="w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
+                        @click="openMapConfig(row)"
+                        aria-label="Open map config"
+                      >
+                        <BootstrapIcon name="info-circle" class="w-3.5 h-3.5" />
+                        <span class="sr-only">Config</span>
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+
+                <template #empty> {{ activeEmptyText }} </template>
+
+                <template #footer>
+                  <span>Showing {{ displayedMapRows.length }} entries on this page.</span>
+                  <span>
+                    Total filtered:
+                    <span class="text-gray-600 font-medium">{{ mapPagination.total }}</span>
+                  </span>
+                </template>
+              </DataBoxCard>
+            </div>
+          </Transition>
+        </div>
+      </a-tab-pane>
+      <a-tab-pane key="area" tab="Area">
+        <div v-if="activeTab === 'area'" class="pb-2">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
             <div
               :class="[
-                'bg-white rounded border border-slate-200 overflow-hidden transition-all duration-200 w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
+                'bg-white rounded border border-slate-200 overflow-hidden w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
                 { hidden: !isFilterVisible },
               ]"
             >
               <div class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
                 <div>
                   <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
-                  <p class="text-xs text-gray-500">Narrow the deployment list.</p>
+                  <p class="text-xs text-gray-500">
+                    Refine the {{ activeTitle.toLowerCase() }} list.
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -86,8 +236,8 @@
                 </button>
               </div>
               <AdvancedFilterPanel
-                :fields="mapFilterFields"
-                :model-value="filters"
+                :fields="activeFilterFields"
+                :model-value="activeFilters"
                 :is-loading="isLoading"
                 apply-label="Apply"
                 reset-label="Reset"
@@ -102,19 +252,19 @@
                 'lg:self-start',
                 isFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
               ]"
-              :is-loading="isLoading"
-              :columns="mapTableColumns.length"
-              :has-data="displayedRows.length > 0"
-              :pagination="pagination"
-              loading-text="Loading map Nodes..."
-              @prev-page="prevPage"
-              @next-page="nextPage"
-              @change-per-page="changePerPage"
+              :is-loading="isAreaLoading"
+              :columns="areaTableColumns.length"
+              :has-data="displayedAreaRows.length > 0"
+              :pagination="areaPagination"
+              :loading-text="activeLoadingText"
+              @prev-page="prevAreaPage"
+              @next-page="nextAreaPage"
+              @change-per-page="changeAreaPerPage"
             >
               <template #header>
                 <div class="flex items-center gap-2">
-                  <h3 class="font-semibold text-gray-700 text-xs">
-                    {{ currentMapTab.label }}
+                  <h3 class="text-gray-700 text-xs">
+                    {{ activeTitle }}
                   </h3>
                   <button
                     type="button"
@@ -125,36 +275,43 @@
                   </button>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center gap-2">
                   <div class="relative">
                     <input
                       v-model="searchKeyword"
                       type="text"
-                      placeholder="Search site, rack, note..."
-                      class="pl-5 pr-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-60 text-xs cursor-text"
+                      :placeholder="activeSearchPlaceholder"
+                      class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-52 text-xs cursor-text"
                     />
                     <BootstrapIcon
                       name="search"
                       class="absolute left-1 top-1.5 h-3 w-3 text-gray-400"
                     />
                   </div>
-
                   <button
                     @click="refreshRows"
-                    class="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded px-3 py-1 text-xs border border-gray-300"
-                    :disabled="isLoading"
+                    class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                    :disabled="isAreaLoading"
                   >
                     <BootstrapIcon
                       name="arrow-clockwise"
                       class="w-3 h-3 mr-1"
-                      :class="{ 'animate-spin': isLoading }"
+                      :class="{ 'animate-spin': isAreaLoading }"
                     />
-                    {{ isLoading ? "Refreshing..." : "Refresh" }}
+                    {{ isAreaLoading ? "Refreshing..." : "Refresh" }}
                   </button>
                   <button
                     type="button"
                     class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
-                    :disabled="isLoading || !filteredRows.length"
+                    @click="openAddModal"
+                  >
+                    <BootstrapIcon name="plus-lg" class="w-3 h-3 mr-1" />
+                    {{ activeAddLabel }}
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+                    :disabled="isAreaLoading"
                     @click="exportRows"
                   >
                     <BootstrapIcon name="file-earmark-arrow-down" class="w-3 h-3 mr-1" />
@@ -164,696 +321,1051 @@
               </template>
 
               <template #head>
-                <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600">
+                <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600 text-center">
                   <th
-                    v-for="column in mapTableColumns"
+                    v-for="column in areaTableColumns"
                     :key="column"
-                    class="px-2 py-2 text-left font-medium text-gray-600"
+                    class="px-2 py-2 font-normal text-gray-600 text-center align-middle leading-4"
                   >
                     {{ column }}
                   </th>
                 </tr>
               </template>
+
               <template #default>
                 <tr
-                  v-for="row in displayedRows"
+                  v-for="row in displayedAreaRows"
                   :key="row.id"
-                  class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100 py-1"
+                  class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100 py-1 text-center"
                 >
-                  <td class="px-2 py-1 text-gray-800 align-top">
-                    <p class="font-semibold text-xs">
-                      {{ row.location || "Unassigned site" }}
-                    </p>
-                    <p class="text-[11px] text-gray-500 mt-1" v-if="row.note">
-                      {{ row.note }}
-                    </p>
-                    <p class="text-[11px] text-gray-400 mt-1" v-else>
-                      No notes recorded.
-                    </p>
+                  <td class="px-2 py-2 text-gray-800 text-center align-middle leading-4">
+                    <div>{{ row.id }}</div>
                   </td>
-                  <td class="px-2 py-1 text-gray-700 align-top">
-                    <div class="text-xs">
-                      <span class="font-semibold">{{ row.latitude || "N/A" }}</span>
-                      /
-                      <span class="font-semibold">{{ row.longitude || "N/A" }}</span>
-                    </div>
-                    <p class="text-[11px] text-gray-500 mt-1">
-                      Lat / Lon
-                    </p>
+                  <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                    <div>{{ row.name }}</div>
                   </td>
-                  <td class="px-2 py-1 text-gray-700 align-top">
-                    <div class="font-semibold text-xs">{{ row.name }}</div>
-                    <div class="text-[11px] text-gray-500 mt-1">
-                      ID: {{ row.id }} - {{ row.serialNumber }}
-                    </div>
-                    <p class="text-[11px] text-gray-500 mt-1">
-                      {{ row.connectionKey }}
-                      <span v-if="row.connectionHint" class="text-gray-400">
-                        - {{ row.connectionHint }}
-                      </span>
-                    </p>
+                  <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                    {{ row.description || "-" }}
                   </td>
-                  <td class="px-2 py-1 text-gray-700 align-top">
-                    <span
-                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border font-semibold"
-                      :class="statusChipClass(row.status)"
-                    >
-                      {{ statusLabel(row.status) }}
-                    </span>
-                    <p v-if="row.lastHeartbeat" class="text-[11px] text-gray-500 mt-2">
-                      Last ping: {{ row.lastHeartbeat }}
-                    </p>
+                  <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                    {{ row.height_m ?? "-" }}
                   </td>
-                  <td class="px-2 py-1 text-gray-700 align-top">
-                    <div class="text-xs font-medium">
-                      {{ row.ipAddress || "N/A" }}
-                    </div>
-                    <p class="text-[11px] text-gray-500 mt-1">
-                      {{ row.connectionHint || "No connection hint" }}
-                    </p>
+                  <td class="px-2 py-2 text-gray-600 text-center align-middle leading-4">
+                    {{ formatDateTime(row.created_at) }}
                   </td>
-                  <td class="px-2 py-1 text-gray-700 align-top">
-                    <div>{{ row.updatedAt }}</div>
-                    <div v-if="row.updatedBy" class="text-[11px] text-gray-500 mt-2">
-                      By {{ row.updatedBy }}
-                    </div>
+                  <td class="px-2 py-2 text-gray-600 text-center align-middle leading-4">
+                    {{ formatDateTime(row.updated_at) }}
                   </td>
-                  <td class="px-2 py-1 text-gray-700 align-top">
-                    <div class="inline-flex items-center gap-1">
+                  <td class="px-2 py-2">
+                    <div class="inline-flex items-center justify-center gap-2">
                       <button
                         type="button"
-                        class="w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
-                        title="View details"
+                        class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
+                        @click="openEditArea(row)"
+                        title="Edit"
+                        aria-label="Edit area"
                       >
-                        <BootstrapIcon name="info-circle" class="w-3.5 h-3.5" />
-                        <span class="sr-only">Details</span>
+                        <BootstrapIcon name="pencil-square" class="w-3.5 h-3.5" />
+                        <span class="sr-only">Edit</span>
                       </button>
                       <button
                         type="button"
-                        class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
-                        title="Locate"
+                        class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50"
+                        @click="confirmDeleteArea(row)"
+                        title="Delete"
+                        aria-label="Delete area"
                       >
-                        <BootstrapIcon name="geo-alt" class="w-3.5 h-3.5" />
-                        <span class="sr-only">Locate</span>
+                        <BootstrapIcon name="trash" class="w-3.5 h-3.5" />
+                        <span class="sr-only">Delete</span>
                       </button>
                     </div>
                   </td>
                 </tr>
               </template>
-              <template #empty>
-                No deployments to display yet.
-              </template>
+
+              <template #empty> {{ activeEmptyText }} </template>
 
               <template #footer>
-                <span>Showing {{ displayedRows.length }} entries on this page.</span>
-                <span>Total filtered: <span class="text-gray-600 font-medium">{{ filteredRows.length }}</span></span>
+                <span>Showing {{ displayedAreaRows.length }} entries on this page.</span>
+                <span>
+                  Total filtered:
+                  <span class="text-gray-600 font-medium">{{ areaPagination.total }}</span>
+                </span>
               </template>
             </DataBoxCard>
           </div>
         </div>
       </a-tab-pane>
     </a-tabs>
+
+    <AddMapModal
+      v-if="isAddMapOpen"
+      @close="closeAddMapModal"
+      @save="handleMapSaved"
+    />
+    <MapDetailModal
+      v-if="isMapDetailOpen"
+      :map="editingMap"
+      @close="closeMapDetailModal"
+      @save="handleMapUpdated"
+    />
+    <AddAreaModal
+      v-if="isAddAreaOpen"
+      @close="closeAddAreaModal"
+      @save="handleAreaSaved"
+    />
+    <AreaDetailModal
+      v-if="isAreaDetailOpen"
+      :area="editingArea"
+      @close="closeAreaDetailModal"
+      @save="handleAreaUpdated"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
-import { message } from "ant-design-vue";
+import { computed, reactive, ref, watch, onMounted } from "vue";
+import { message, Modal } from "ant-design-vue";
 import AdvancedFilterPanel, {
   type FilterFieldRow,
 } from "@/components/common/AdvancedFilterPanel.vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
-import type { Section, DeviceFilterState } from "@/types/devices-control";
-
-type MapTabKey = "indoor" | "outdoor";
-type MarkerStatus = "online" | "warning" | "offline";
-
-type MapDeviceRow = {
-  id: string;
-  name: string;
-  serialNumber: string;
-  connectionKey: string;
-  connectionHint?: string | null;
-  location?: string | null;
-  ipAddress?: string | null;
-  updatedAt: string;
-  updatedBy?: string | null;
-  note?: string | null;
-  lastHeartbeat?: string | null;
-  status: MarkerStatus;
-  latitude?: string | null;
-  longitude?: string | null;
-};
-
-type MapTab = {
-  key: MapTabKey;
-  label: string;
-  rows: MapDeviceRow[];
-};
+import AddMapModal from "@/components/Modals/Maps/AddMapModal.vue";
+import AddAreaModal from "@/components/Modals/Maps/AddAreaModal.vue";
+import MapDetailModal from "@/components/Modals/Maps/MapDetailModal.vue";
+import AreaDetailModal from "@/components/Modals/Maps/AreaDetailModal.vue";
+import MapConfig from "@/components/devices-control/sections/map-section/MapConfig.vue";
+import type { Section } from "@/types/devices-control";
+import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
 
 defineProps<{ section: Section }>();
 
-const indoorRows: MapDeviceRow[] = [
-  {
-    id: "IN-4401",
-    name: "Enviro Sensor Pro",
-    serialNumber: "ESP-4421",
-    connectionKey: "esp-4421-0a8d",
-    connectionHint: "Last handshake 2 minutes ago",
-    location: "North Campus / Lab 4",
-    ipAddress: "10.21.4.12",
-    updatedAt: "Updated 5 minutes ago",
-    updatedBy: "QA Ops",
-    note: "Row B rack - humidity cluster",
-    lastHeartbeat: "5 min ago",
-    status: "online",
-    latitude: "40.7128 N",
-    longitude: "74.0060 W",
-  },
-  {
-    id: "IN-4302",
-    name: "Tracker Lite",
-    serialNumber: "TL-0082",
-    connectionKey: "tracker-lite-a4",
-    connectionHint: "Pending approval workflow",
-    location: "Pilot Fleet A4 / Indoor range",
-    ipAddress: "10.21.4.21",
-    updatedAt: "Updated 18 minutes ago",
-    updatedBy: "Factory QA",
-    note: "Checklist already returned by QA.",
-    lastHeartbeat: "18 min ago",
-    status: "warning",
-    latitude: "40.7134 N",
-    longitude: "74.0052 W",
-  },
-  {
-    id: "IN-4203",
-    name: "Gateway Core",
-    serialNumber: "GC-7710",
-    connectionKey: "gc-7710-main",
-    connectionHint: "Waiting on firmware manifest",
-    location: "Wave 7 / Factory mezzanine",
-    ipAddress: null,
-    updatedAt: "Updated 32 minutes ago",
-    updatedBy: "Design team",
-    note: "Missing the latest BOM file.",
-    lastHeartbeat: "45 min ago",
-    status: "warning",
-    latitude: "40.7111 N",
-    longitude: "74.0041 W",
-  },
-  {
-    id: "IN-4104",
-    name: "Edge Control Nano",
-    serialNumber: "ECN-3301",
-    connectionKey: "ecn-3301-lab",
-    connectionHint: "Auto escalated by telemetry",
-    location: "Lab Stage / Bay 6",
-    ipAddress: "10.30.0.44",
-    updatedAt: "Flagged 10 minutes ago",
-    updatedBy: "Telemetry Bot",
-    note: "Automated alert from rack vibration.",
-    lastHeartbeat: "2 min ago",
-    status: "online",
-    latitude: "40.7139 N",
-    longitude: "74.0078 W",
-  },
-  {
-    id: "IN-4005",
-    name: "Enviro Sensor Pro",
-    serialNumber: "ESP-4418",
-    connectionKey: "esp-4418-1b90",
-    connectionHint: "MQTT with TLS",
-    location: "Batch 11 / North Site",
-    ipAddress: "10.21.3.8",
-    updatedAt: "Approved 1 hour ago",
-    updatedBy: "Ops Bot",
-    note: "Synced with CMDB successfully.",
-    lastHeartbeat: "12 min ago",
-    status: "online",
-    latitude: "40.7142 N",
-    longitude: "74.0090 W",
-  },
-  {
-    id: "IN-3906",
-    name: "Tracker Lite",
-    serialNumber: "TL-0065",
-    connectionKey: "tracker-lite-a3",
-    connectionHint: "Bound to staging cluster",
-    location: "Pilot Fleet A3 / Basement",
-    ipAddress: "10.21.3.21",
-    updatedAt: "Approved 3 hours ago",
-    updatedBy: "Warehouse",
-    note: "Queued for warehouse release.",
-    lastHeartbeat: "29 min ago",
-    status: "online",
-    latitude: "40.7120 N",
-    longitude: "74.0085 W",
-  },
+const activeTab = ref<"map" | "area">("map");
+const mapTableColumns = [
+  "ID",
+  "Name",
+  "Area",
+  "Description",
+  "Width (px)",
+  "Height (px)",
+  "Actions",
+  "Config",
 ];
-
-const outdoorRows: MapDeviceRow[] = [
-  {
-    id: "OUT-5201",
-    name: "Gateway Core",
-    serialNumber: "GC-7800",
-    connectionKey: "gc-7800-rooftop",
-    connectionHint: "Stable LTE tunnel",
-    location: "HQ Rooftop / Antenna array",
-    ipAddress: "10.40.1.12",
-    updatedAt: "Updated 12 minutes ago",
-    updatedBy: "Field Ops",
-    note: "Oversees north parking coverage.",
-    lastHeartbeat: "12 min ago",
-    status: "online",
-    latitude: "41.8781 N",
-    longitude: "87.6298 W",
-  },
-  {
-    id: "OUT-5102",
-    name: "Tracker Lite",
-    serialNumber: "TL-0190",
-    connectionKey: "tracker-lite-yard",
-    connectionHint: "Waiting for paperwork review",
-    location: "Logistics Yard / Dock 8",
-    ipAddress: "10.42.0.18",
-    updatedAt: "Updated 25 minutes ago",
-    updatedBy: "QA Ops",
-    note: "Awaiting compliance sign-off.",
-    lastHeartbeat: "24 min ago",
-    status: "warning",
-    latitude: "41.8770 N",
-    longitude: "87.6310 W",
-  },
-  {
-    id: "OUT-5003",
-    name: "Enviro Sensor Pro",
-    serialNumber: "ESP-4500",
-    connectionKey: "esp-4500-mast",
-    connectionHint: "Signal degraded by weather",
-    location: "South Campus / Weather mast",
-    ipAddress: "10.44.2.2",
-    updatedAt: "Updated 1 hour ago",
-    updatedBy: "Maintenance",
-    note: "Wind gust warnings active.",
-    lastHeartbeat: "55 min ago",
-    status: "warning",
-    latitude: "41.8750 N",
-    longitude: "87.6285 W",
-  },
-  {
-    id: "OUT-4904",
-    name: "Remote Power Relay",
-    serialNumber: "RPR-2205",
-    connectionKey: "rpr-2205-yard",
-    connectionHint: "Bounced last ping",
-    location: "Utility easement / Sector 3",
-    ipAddress: null,
-    updatedAt: "Updated 2 hours ago",
-    updatedBy: "Energy Ops",
-    note: "Crew scheduled for inspection.",
-    lastHeartbeat: "2 hours ago",
-    status: "offline",
-    latitude: "41.8799 N",
-    longitude: "87.6272 W",
-  },
-  {
-    id: "OUT-4805",
-    name: "Enviro Sensor Pro",
-    serialNumber: "ESP-4405",
-    connectionKey: "esp-4405-greenhouse",
-    connectionHint: "Last handshake 8 minutes ago",
-    location: "Greenhouse perimeter",
-    ipAddress: "10.46.0.22",
-    updatedAt: "Updated 15 minutes ago",
-    updatedBy: "Agri Ops",
-    note: "Monitoring humidity along walkway.",
-    lastHeartbeat: "8 min ago",
-    status: "online",
-    latitude: "41.8808 N",
-    longitude: "87.6261 W",
-  },
+const areaTableColumns = [
+  "ID",
+  "Name",
+  "Description",
+  "Height (m)",
+  "Created At",
+  "Updated At",
+  "Actions",
 ];
+const isFilterVisible = ref(true);
+const searchKeyword = ref("");
+const isAddMapOpen = ref(false);
+const isAddAreaOpen = ref(false);
+const isMapDetailOpen = ref(false);
+const isAreaDetailOpen = ref(false);
+const isSavingMap = ref(false);
+const isSavingArea = ref(false);
+const isMapLoading = ref(false);
+const isAreaLoading = ref(false);
+const editingMap = ref<MapRow | null>(null);
+const editingArea = ref<AreaRow | null>(null);
+const isMapConfigOpen = ref(false);
+const selectedMap = ref<MapRow | null>(null);
 
-const mapTabs: MapTab[] = [
-  {
-    key: "indoor",
-    label: "Indoor Map",
-    rows: indoorRows,
-  },
-  {
-    key: "outdoor",
-    label: "Outdoor Map",
-    rows: outdoorRows,
-  },
-];
+const mapModuleBase = `${(apiConfig.controlModule || "").replace(/\/$/, "")}/map-module`;
+const authStore = useAuthStore();
 
-const defaultMapTab = mapTabs[0];
+type MapRow = {
+  id: number;
+  name?: string | null;
+  area_id?: number | null;
+  description?: string | null;
+  width_px?: number | null;
+  height_px?: number | null;
+  scale_m_per_px?: number | null;
+  image_url?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  area?: { id?: number | null; name?: string | null } | null;
+  area_name?: string | null;
+};
 
-if (!defaultMapTab) {
-  throw new Error("At least one map tab must be configured.");
-}
+type AreaRow = {
+  id: number;
+  name: string;
+  description?: string | null;
+  height_m?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+type MapFormPayload = {
+  area_id: string;
+  name: string;
+  image_url: string;
+  width_px: string;
+  height_px: string;
+  scale_m_per_px: string;
+  description: string;
+};
+
+type AreaFormPayload = {
+  name: string;
+  description: string;
+  height_m: string;
+};
+
+type MapUpdatePayload = MapFormPayload & { id?: number | null };
+type AreaUpdatePayload = AreaFormPayload & { id?: number | null };
+
+const mapDefaultFilters = {
+  id: "",
+  name: "",
+  area_id: "",
+  description: "",
+  width_px: "",
+  height_px: "",
+};
+
+const areaDefaultFilters = {
+  id: "",
+  name: "",
+  description: "",
+  height_m: "",
+};
+
+const mapFilters = reactive({ ...mapDefaultFilters });
+const areaFilters = reactive({ ...areaDefaultFilters });
+const appliedMapFilters = ref({ ...mapDefaultFilters });
+const appliedAreaFilters = ref({ ...areaDefaultFilters });
+
+const mapRows = ref<MapRow[]>([]);
+const areaRows = ref<AreaRow[]>([]);
+const mapPagination = ref({ page: 1, perPage: 5, lastPage: 1, total: 0 });
+const areaPagination = ref({ page: 1, perPage: 5, lastPage: 1, total: 0 });
+
+const activeFilters = computed(() =>
+  activeTab.value === "map" ? mapFilters : areaFilters
+);
 
 const mapFilterFields: FilterFieldRow[] = [
+  [
+    {
+      key: "id",
+      label: "ID",
+      type: "text",
+      placeholder: "e.g. 10",
+    },
+  ],
   [
     {
       key: "name",
       label: "Name",
       type: "text",
-      placeholder: "Enviro Sensor Pro",
+      placeholder: "e.g. Main floor",
     },
   ],
   [
     {
-      key: "serialNumber",
-      label: "Serial Number",
+      key: "area_id",
+      label: "Area ID",
       type: "text",
-      placeholder: "ESP-4421",
+      placeholder: "e.g. 1",
     },
   ],
   [
     {
-      key: "connectionKey",
-      label: "Connection Key",
+      key: "description",
+      label: "Description",
       type: "text",
-      placeholder: "esp-4421-0a8d",
+      placeholder: "e.g. Factory hall map",
     },
   ],
   [
     {
-      key: "location",
-      label: "Location",
+      key: "width_px",
+      label: "Width (px)",
       type: "text",
-      placeholder: "North Campus",
+      placeholder: "e.g. 1200",
     },
   ],
   [
     {
-      key: "ipAddress",
-      label: "IP Address",
+      key: "height_px",
+      label: "Height (px)",
       type: "text",
-      placeholder: "10.21.4.12",
+      placeholder: "e.g. 800",
     },
   ],
 ];
 
-const mapTableColumns = [
-  "Location",
-  "Coordinates",
-  "Node",
-  "Status",
-  "Network",
-  "Last Update",
-  "Action",
+const areaFilterFields: FilterFieldRow[] = [
+  [
+    {
+      key: "id",
+      label: "ID",
+      type: "text",
+      placeholder: "e.g. 1",
+    },
+  ],
+  [
+    {
+      key: "name",
+      label: "Name",
+      type: "text",
+      placeholder: "e.g. Production Zone",
+    },
+  ],
+  [
+    {
+      key: "description",
+      label: "Description",
+      type: "text",
+      placeholder: "e.g. Main assembly area",
+    },
+  ],
+  [
+    {
+      key: "height_m",
+      label: "Height (m)",
+      type: "text",
+      placeholder: "e.g. 3.5",
+    },
+  ],
+  [
+  ],
 ];
 
-const activeMapTab = ref<MapTabKey>(defaultMapTab.key);
-const isFilterVisible = ref(true);
-const searchKeyword = ref("");
-const isLoading = ref(false);
-const pagination = ref({
-  page: 1,
-  perPage: 5,
-  lastPage: 1,
-  total: 0,
-});
-
-const defaultFilters: DeviceFilterState = {
-  name: "",
-  serialNumber: "",
-  connectionKey: "",
-  location: "",
-  ipAddress: "",
-  status: "",
-};
-
-const filters = reactive<DeviceFilterState>({ ...defaultFilters });
-const appliedFilters = ref(snapshotFilters());
-
-const currentMapTab = computed<MapTab>(() => {
-  const tab = mapTabs.find((entry) => entry.key === activeMapTab.value);
-  return tab ?? defaultMapTab;
-});
-
-const filteredRows = computed<MapDeviceRow[]>(() => filterRows(currentMapTab.value.rows));
-const displayedRows = computed<MapDeviceRow[]>(() => {
-  const start = (pagination.value.page - 1) * pagination.value.perPage;
-  const end = start + pagination.value.perPage;
-  return filteredRows.value.slice(start, end);
-});
-
-const mapSummary = computed(() => {
-  const rows = filteredRows.value;
-  const counts = rows.reduce(
-    (acc, row) => {
-      if (row.status === "online") acc.online += 1;
-      else if (row.status === "warning") acc.warning += 1;
-      else acc.offline += 1;
-      return acc;
-    },
-    { online: 0, warning: 0, offline: 0 }
-  );
-
-  return {
-    total: rows.length,
-    online: counts.online,
-    warning: counts.warning,
-    offline: counts.offline,
-  };
-});
-
-const highlightedRows = computed<MapDeviceRow[]>(() => filteredRows.value.slice(0, 4));
-
-let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+const activeFilterFields = computed(() =>
+  activeTab.value === "map" ? mapFilterFields : areaFilterFields
+);
+const activeTitle = computed(() =>
+  activeTab.value === "map" ? "Maps" : "Areas"
+);
+const activeSearchPlaceholder = computed(() =>
+  activeTab.value === "map" ? "Search map..." : "Search area..."
+);
+const activeEmptyText = computed(() =>
+  activeTab.value === "map"
+    ? "No maps to display yet."
+    : "No areas to display yet."
+);
+const activeLoadingText = computed(() =>
+  activeTab.value === "map" ? "Loading maps..." : "Loading areas..."
+);
+const activeAddLabel = computed(() =>
+  activeTab.value === "map" ? "New Map" : "New Area"
+);
+const isLoading = computed(() =>
+  activeTab.value === "map" ? isMapLoading.value : isAreaLoading.value
+);
+const displayedMapRows = computed(() => mapRows.value);
+const displayedAreaRows = computed(() => areaRows.value);
 
 function toggleFilters() {
   isFilterVisible.value = !isFilterVisible.value;
 }
 
 function handleFilterModelUpdate(value: Record<string, string>) {
-  (Object.keys(defaultFilters) as (keyof DeviceFilterState)[]).forEach((key) => {
-    filters[key] = value[key] ?? "";
-  });
-}
-
-function snapshotFilters() {
-  return {
-    name: filters.name.trim(),
-    serialNumber: filters.serialNumber.trim(),
-    connectionKey: filters.connectionKey.trim(),
-    location: filters.location.trim(),
-    ipAddress: filters.ipAddress.trim(),
-  };
+  Object.assign(activeFilters.value, value);
 }
 
 function applyFilters(payload?: Record<string, string>) {
   if (payload) {
-    handleFilterModelUpdate(payload);
+    Object.assign(activeFilters.value, payload);
   }
-  appliedFilters.value = snapshotFilters();
-  pagination.value.page = 1;
+  if (activeTab.value === "map") {
+    appliedMapFilters.value = { ...mapFilters };
+    mapPagination.value.page = 1;
+    fetchMaps();
+    return;
+  }
+  appliedAreaFilters.value = { ...areaFilters };
+  areaPagination.value.page = 1;
+  fetchAreas();
 }
 
 function resetFilters() {
-  Object.assign(filters, defaultFilters);
-  applyFilters();
-}
-
-function filterRows(rows: MapDeviceRow[]) {
-  const keyword = searchKeyword.value.trim().toLowerCase();
-  const normalizedName = appliedFilters.value.name.toLowerCase();
-  const normalizedSerial = appliedFilters.value.serialNumber.toLowerCase();
-  const normalizedConnection = appliedFilters.value.connectionKey.toLowerCase();
-  const normalizedLocation = appliedFilters.value.location.toLowerCase();
-  const normalizedIp = appliedFilters.value.ipAddress.toLowerCase();
-
-  return rows.filter((row) => {
-    if (keyword) {
-      const haystack = [
-        row.name,
-        row.serialNumber,
-        row.connectionKey,
-        row.location,
-        row.ipAddress,
-        row.note,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      if (!haystack.includes(keyword)) {
-        return false;
-      }
-    }
-
-    if (normalizedName && !row.name.toLowerCase().includes(normalizedName)) {
-      return false;
-    }
-
-    if (normalizedSerial && !(row.serialNumber || "").toLowerCase().includes(normalizedSerial)) {
-      return false;
-    }
-
-    if (
-      normalizedConnection &&
-      !(row.connectionKey || "").toLowerCase().includes(normalizedConnection)
-    ) {
-      return false;
-    }
-
-    if (
-      normalizedLocation &&
-      !(row.location || "").toLowerCase().includes(normalizedLocation)
-    ) {
-      return false;
-    }
-
-    if (normalizedIp && !(row.ipAddress || "").toLowerCase().includes(normalizedIp)) {
-      return false;
-    }
-
-    return true;
-  });
+  if (activeTab.value === "map") {
+    Object.assign(mapFilters, mapDefaultFilters);
+    appliedMapFilters.value = { ...mapDefaultFilters };
+    mapPagination.value.page = 1;
+    fetchMaps();
+  } else {
+    Object.assign(areaFilters, areaDefaultFilters);
+    appliedAreaFilters.value = { ...areaDefaultFilters };
+    areaPagination.value.page = 1;
+    fetchAreas();
+  }
 }
 
 function refreshRows() {
   if (isLoading.value) return;
-  isLoading.value = true;
-  if (refreshTimeout) {
-    clearTimeout(refreshTimeout);
+  if (activeTab.value === "map") {
+    fetchMaps();
+    return;
   }
-  refreshTimeout = setTimeout(() => {
-    isLoading.value = false;
-  }, 800);
+  fetchAreas();
 }
 
 function exportRows() {
   if (!import.meta.client) return;
-  const rows = filteredRows.value;
-  if (!rows.length) {
-    message.warning("No map Nodes to export.");
+  if (activeTab.value === "map") {
+    exportMaps();
+    return;
+  }
+  exportAreas();
+}
+
+function openAddMapModal() {
+  isAddMapOpen.value = true;
+}
+
+function closeAddMapModal() {
+  isAddMapOpen.value = false;
+}
+
+function openEditMap(row: MapRow) {
+  editingMap.value = { ...row };
+  isMapDetailOpen.value = true;
+}
+
+function openMapConfig(row: MapRow) {
+  selectedMap.value = { ...row };
+  isMapConfigOpen.value = true;
+}
+
+function closeMapConfig() {
+  isMapConfigOpen.value = false;
+  selectedMap.value = null;
+}
+
+
+function closeMapDetailModal() {
+  isMapDetailOpen.value = false;
+  editingMap.value = null;
+}
+
+function normalizeOptionalNumber(value: string) {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeOptionalInt(value: string) {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildHeaders() {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  const authorization = authStore.authorizationHeader;
+  if (authorization) {
+    headers.Authorization = authorization;
+  }
+  return headers;
+}
+
+function normalizeText(value: string | null | undefined) {
+  return (value ?? "").toString().trim();
+}
+
+function mapQueryParams() {
+  const params = new URLSearchParams();
+  params.set("page", String(mapPagination.value.page));
+  params.set("per_page", String(mapPagination.value.perPage));
+  const filters = appliedMapFilters.value;
+  if (filters.id) params.set("id", normalizeText(filters.id));
+  if (filters.name) params.set("name", normalizeText(filters.name));
+  if (filters.area_id) params.set("area_id", normalizeText(filters.area_id));
+  if (filters.description) params.set("description", normalizeText(filters.description));
+  if (filters.width_px) params.set("width_px", normalizeText(filters.width_px));
+  if (filters.height_px) params.set("height_px", normalizeText(filters.height_px));
+  const keyword = normalizeText(searchKeyword.value);
+  if (keyword) params.set("keyword", keyword);
+  return params;
+}
+
+function areaQueryParams() {
+  const params = new URLSearchParams();
+  params.set("page", String(areaPagination.value.page));
+  params.set("per_page", String(areaPagination.value.perPage));
+  const filters = appliedAreaFilters.value;
+  if (filters.id) params.set("id", normalizeText(filters.id));
+  if (filters.name) params.set("name", normalizeText(filters.name));
+  if (filters.description) params.set("description", normalizeText(filters.description));
+  if (filters.height_m) params.set("height_m", normalizeText(filters.height_m));
+  const keyword = normalizeText(searchKeyword.value);
+  if (keyword) params.set("keyword", keyword);
+  return params;
+}
+
+function normalizeMapRow(raw: MapRow): MapRow {
+  return {
+    ...raw,
+    area_id: raw.area_id ?? raw.area?.id ?? null,
+    area_name: raw.area?.name ?? raw.area_name ?? null,
+  };
+}
+
+function applyPaginationFromResponse(
+  pagination: { page: number; perPage: number; lastPage: number; total: number },
+  payload: any
+) {
+  if (!payload) {
+    pagination.total = pagination.total || 0;
+    pagination.lastPage = Math.max(1, Math.ceil(pagination.total / pagination.perPage));
+    return;
+  }
+  if (Array.isArray(payload)) {
+    pagination.total = payload.length;
+    pagination.page = 1;
+    pagination.lastPage = 1;
+    pagination.perPage = payload.length || pagination.perPage;
+    return;
+  }
+  if (typeof payload !== "object") {
+    return;
+  }
+  const currentPage = Number(payload.current_page ?? payload.meta?.current_page);
+  const lastPage = Number(payload.last_page ?? payload.meta?.last_page);
+  const perPage = Number(payload.per_page ?? payload.meta?.per_page);
+  const total = Number(payload.total ?? payload.meta?.total);
+  if (Number.isFinite(currentPage) && currentPage > 0) {
+    pagination.page = currentPage;
+  }
+  if (Number.isFinite(perPage) && perPage > 0) {
+    pagination.perPage = perPage;
+  }
+  if (Number.isFinite(lastPage) && lastPage > 0) {
+    pagination.lastPage = lastPage;
+  }
+  if (Number.isFinite(total) && total >= 0) {
+    pagination.total = total;
+  }
+}
+
+async function fetchMaps() {
+  if (!import.meta.client) return;
+  if (!mapModuleBase || mapModuleBase.startsWith("/")) {
+    return;
+  }
+  isMapLoading.value = true;
+  try {
+    const params = mapQueryParams();
+    const response = await fetch(`${mapModuleBase}/maps?${params.toString()}`, {
+      headers: buildHeaders(),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data?.message ?? `Failed to load maps (${response.status}).`);
+    }
+    const rows = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    mapRows.value = rows.map((row: MapRow) => normalizeMapRow(row));
+    applyPaginationFromResponse(mapPagination.value, data);
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to load maps.");
+  } finally {
+    isMapLoading.value = false;
+  }
+}
+
+async function fetchAreas() {
+  if (!import.meta.client) return;
+  if (!mapModuleBase || mapModuleBase.startsWith("/")) {
+    return;
+  }
+  isAreaLoading.value = true;
+  try {
+    const params = areaQueryParams();
+    const response = await fetch(`${mapModuleBase}/areas?${params.toString()}`, {
+      headers: buildHeaders(),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data?.message ?? `Failed to load areas (${response.status}).`);
+    }
+    const rows = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    areaRows.value = rows;
+    applyPaginationFromResponse(areaPagination.value, data);
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to load areas.");
+  } finally {
+    isAreaLoading.value = false;
+  }
+}
+
+async function handleMapSaved(payload: MapFormPayload) {
+  if (!import.meta.client) return;
+  if (!mapModuleBase || mapModuleBase.startsWith("/")) {
+    message.error("API base URL is not configured.");
+    return;
+  }
+  if (isSavingMap.value) return;
+
+  const areaId = Number.parseInt(payload.area_id, 10);
+  if (!Number.isFinite(areaId) || areaId <= 0) {
+    message.error("Area ID must be a valid number.");
     return;
   }
 
-  const headers = [
-    "Name",
-    "Serial Number",
-    "Connection Key",
-    "Location",
-    "IP Address",
-    "Last Update",
-    "Updated By",
-    "Note",
-    "Last Heartbeat",
-    "Status",
-  ];
+  isSavingMap.value = true;
+  try {
+    const response = await fetch(`${mapModuleBase}/maps`, {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        area_id: areaId,
+        name: payload.name,
+        image_url: payload.image_url || null,
+        width_px: normalizeOptionalInt(payload.width_px),
+        height_px: normalizeOptionalInt(payload.height_px),
+        scale_m_per_px: normalizeOptionalNumber(payload.scale_m_per_px),
+        description: payload.description || null,
+      }),
+    });
 
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const validationErrors = data?.errors;
+      if (validationErrors) {
+        const firstError = Object.values(validationErrors)
+          .flat()
+          .at(0) as string | undefined;
+        throw new Error(firstError ?? "Validation error. Please check the form.");
+      }
+      throw new Error(data?.message ?? `Failed to create map (${response.status}).`);
+    }
+
+    message.success("Map created successfully.");
+    fetchMaps();
+  } catch (error: any) {
+    const errorMessage = error?.message ?? "Failed to create map.";
+    message.error(errorMessage);
+  } finally {
+    isSavingMap.value = false;
+  }
+}
+
+function openAddAreaModal() {
+  isAddAreaOpen.value = true;
+}
+
+function closeAddAreaModal() {
+  isAddAreaOpen.value = false;
+}
+
+function openEditArea(row: AreaRow) {
+  editingArea.value = { ...row };
+  isAreaDetailOpen.value = true;
+}
+
+function closeAreaDetailModal() {
+  isAreaDetailOpen.value = false;
+  editingArea.value = null;
+}
+
+async function handleAreaSaved(payload: AreaFormPayload) {
+  if (!import.meta.client) return;
+  if (!mapModuleBase || mapModuleBase.startsWith("/")) {
+    message.error("API base URL is not configured.");
+    return;
+  }
+  if (isSavingArea.value) return;
+
+  isSavingArea.value = true;
+  try {
+    const response = await fetch(`${mapModuleBase}/areas`, {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        name: payload.name,
+        description: payload.description || null,
+        height_m: normalizeOptionalNumber(payload.height_m),
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const validationErrors = data?.errors;
+      if (validationErrors) {
+        const firstError = Object.values(validationErrors)
+          .flat()
+          .at(0) as string | undefined;
+        throw new Error(firstError ?? "Validation error. Please check the form.");
+      }
+      throw new Error(data?.message ?? `Failed to create area (${response.status}).`);
+    }
+
+    message.success("Area created successfully.");
+    fetchAreas();
+  } catch (error: any) {
+    const errorMessage = error?.message ?? "Failed to create area.";
+    message.error(errorMessage);
+  } finally {
+    isSavingArea.value = false;
+  }
+}
+
+async function handleMapUpdated(payload: MapUpdatePayload) {
+  if (!import.meta.client) return;
+  if (!mapModuleBase || mapModuleBase.startsWith("/")) {
+    message.error("API base URL is not configured.");
+    return;
+  }
+  if (isSavingMap.value) return;
+
+  const mapId = payload.id;
+  if (!mapId) {
+    message.error("Map ID is missing.");
+    return;
+  }
+
+  const areaId = Number.parseInt(payload.area_id, 10);
+  if (!Number.isFinite(areaId) || areaId <= 0) {
+    message.error("Area ID must be a valid number.");
+    return;
+  }
+
+  isSavingMap.value = true;
+  try {
+    const response = await fetch(`${mapModuleBase}/maps/${mapId}`, {
+      method: "PUT",
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        name: payload.name || null,
+        area_id: areaId,
+        image_url: payload.image_url || null,
+        width_px: normalizeOptionalInt(payload.width_px),
+        height_px: normalizeOptionalInt(payload.height_px),
+        scale_m_per_px: normalizeOptionalNumber(payload.scale_m_per_px),
+        description: payload.description || null,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const validationErrors = data?.errors;
+      if (validationErrors) {
+        const firstError = Object.values(validationErrors)
+          .flat()
+          .at(0) as string | undefined;
+        throw new Error(firstError ?? "Validation error. Please check the form.");
+      }
+      throw new Error(data?.message ?? `Failed to update map (${response.status}).`);
+    }
+
+    message.success("Map updated successfully.");
+    fetchMaps();
+  } catch (error: any) {
+    const errorMessage = error?.message ?? "Failed to update map.";
+    message.error(errorMessage);
+  } finally {
+    isSavingMap.value = false;
+  }
+}
+
+async function handleAreaUpdated(payload: AreaUpdatePayload) {
+  if (!import.meta.client) return;
+  if (!mapModuleBase || mapModuleBase.startsWith("/")) {
+    message.error("API base URL is not configured.");
+    return;
+  }
+  if (isSavingArea.value) return;
+
+  const areaId = payload.id;
+  if (!areaId) {
+    message.error("Area ID is missing.");
+    return;
+  }
+
+  isSavingArea.value = true;
+  try {
+    const response = await fetch(`${mapModuleBase}/areas/${areaId}`, {
+      method: "PUT",
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        name: payload.name,
+        description: payload.description || null,
+        height_m: normalizeOptionalNumber(payload.height_m),
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const validationErrors = data?.errors;
+      if (validationErrors) {
+        const firstError = Object.values(validationErrors)
+          .flat()
+          .at(0) as string | undefined;
+        throw new Error(firstError ?? "Validation error. Please check the form.");
+      }
+      throw new Error(data?.message ?? `Failed to update area (${response.status}).`);
+    }
+
+    message.success("Area updated successfully.");
+    fetchAreas();
+  } catch (error: any) {
+    const errorMessage = error?.message ?? "Failed to update area.";
+    message.error(errorMessage);
+  } finally {
+    isSavingArea.value = false;
+  }
+}
+
+function prevMapPage() {
+  if (mapPagination.value.page > 1) {
+    mapPagination.value.page -= 1;
+    fetchMaps();
+  }
+}
+
+function nextMapPage() {
+  if (mapPagination.value.page < mapPagination.value.lastPage) {
+    mapPagination.value.page += 1;
+    fetchMaps();
+  }
+}
+
+function changeMapPerPage(value: number) {
+  if (value <= 0) return;
+  mapPagination.value.perPage = value;
+  mapPagination.value.page = 1;
+  fetchMaps();
+}
+
+function prevAreaPage() {
+  if (areaPagination.value.page > 1) {
+    areaPagination.value.page -= 1;
+    fetchAreas();
+  }
+}
+
+function nextAreaPage() {
+  if (areaPagination.value.page < areaPagination.value.lastPage) {
+    areaPagination.value.page += 1;
+    fetchAreas();
+  }
+}
+
+function changeAreaPerPage(value: number) {
+  if (value <= 0) return;
+  areaPagination.value.perPage = value;
+  areaPagination.value.page = 1;
+  fetchAreas();
+}
+
+function exportMaps() {
+  const rows = mapRows.value;
+  if (!rows.length) {
+    message.warning("No maps to export.");
+    return;
+  }
+  const headers = mapTableColumns.filter(
+    (column) => column !== "Actions" && column !== "Config",
+  );
   const escapeValue = (value: string | number | null | undefined) => {
     const str = (value ?? "").toString().replace(/"/g, '""');
     return `"${str}"`;
   };
-
   const csvRows = [
     headers.map(escapeValue).join(","),
     ...rows.map((row) =>
       [
+        row.id,
         row.name,
-        row.serialNumber,
-        row.connectionKey,
-        row.location,
-        row.ipAddress,
-        row.updatedAt,
-        row.updatedBy,
-        row.note,
-        row.lastHeartbeat,
-        row.status,
+        row.area?.name || row.area_name || row.area_id,
+        row.description,
+        row.width_px,
+        row.height_px,
       ]
         .map(escapeValue)
-        .join(",")
+        .join(","),
     ),
   ];
-
   const csvContent = "\uFEFF" + csvRows.join("\r\n");
-  const blob = new Blob([csvContent], {
-    type: "text/csv;charset=utf-8;",
-  });
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
-  const timestamp = new Date().toISOString().split("T")[0];
   link.href = url;
-  link.setAttribute(
-    "download",
-    `map-${currentMapTab.value.label.toLowerCase()}-${timestamp}.csv`
-  );
+  link.setAttribute("download", "maps.csv");
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
-  message.success("Map Nodes exported.");
 }
 
-function prevPage() {
-  if (pagination.value.page > 1) {
-    pagination.value.page -= 1;
+function exportAreas() {
+  const rows = areaRows.value;
+  if (!rows.length) {
+    message.warning("No areas to export.");
+    return;
+  }
+  const headers = areaTableColumns.filter((column) => column !== "Actions");
+  const escapeValue = (value: string | number | null | undefined) => {
+    const str = (value ?? "").toString().replace(/"/g, '""');
+    return `"${str}"`;
+  };
+  const csvRows = [
+    headers.map(escapeValue).join(","),
+    ...rows.map((row) =>
+      [
+        row.id,
+        row.name,
+        row.description,
+        row.height_m,
+        row.created_at,
+        row.updated_at,
+      ]
+        .map(escapeValue)
+        .join(","),
+    ),
+  ];
+  const csvContent = "\uFEFF" + csvRows.join("\r\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "areas.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "-";
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return value;
+  return dateTimeFormatter.format(new Date(timestamp));
+}
+
+function openAddModal() {
+  if (activeTab.value === "map") {
+    openAddMapModal();
+    return;
+  }
+  openAddAreaModal();
+}
+
+function confirmDeleteMap(row: MapRow) {
+  Modal.confirm({
+    title: "Delete Map",
+    content: `Are you sure you want to delete ${row.name ?? `map #${row.id}`}?`,
+    okText: "Delete",
+    okType: "danger",
+    cancelText: "Cancel",
+    centered: true,
+    onOk: () => deleteMap(row.id),
+  });
+}
+
+function confirmDeleteArea(row: AreaRow) {
+  Modal.confirm({
+    title: "Delete Area",
+    content: `Are you sure you want to delete ${row.name ?? `area #${row.id}`}?`,
+    okText: "Delete",
+    okType: "danger",
+    cancelText: "Cancel",
+    centered: true,
+    onOk: () => deleteArea(row.id),
+  });
+}
+
+async function deleteMap(id: number) {
+  if (!import.meta.client) return;
+  if (!mapModuleBase || mapModuleBase.startsWith("/")) {
+    message.error("API base URL is not configured.");
+    return;
+  }
+  try {
+    const response = await fetch(`${mapModuleBase}/maps/${id}`, {
+      method: "DELETE",
+      headers: buildHeaders(),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data?.message ?? `Failed to delete map (${response.status}).`);
+    }
+    message.success(data?.message ?? "Map deleted successfully.");
+    fetchMaps();
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to delete map.");
   }
 }
 
-function nextPage() {
-  if (pagination.value.page < pagination.value.lastPage) {
-    pagination.value.page += 1;
+async function deleteArea(id: number) {
+  if (!import.meta.client) return;
+  if (!mapModuleBase || mapModuleBase.startsWith("/")) {
+    message.error("API base URL is not configured.");
+    return;
+  }
+  try {
+    const response = await fetch(`${mapModuleBase}/areas/${id}`, {
+      method: "DELETE",
+      headers: buildHeaders(),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data?.message ?? `Failed to delete area (${response.status}).`);
+    }
+    message.success(data?.message ?? "Area deleted successfully.");
+    fetchAreas();
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to delete area.");
   }
 }
 
-function changePerPage(value: number) {
-  if (value <= 0) return;
-  pagination.value.perPage = value;
-}
-
-function statusChipClass(status: MarkerStatus) {
-  if (status === "online") return "bg-emerald-50 border-emerald-200 text-emerald-600";
-  if (status === "warning") return "bg-amber-50 border-amber-200 text-amber-600";
-  return "bg-rose-50 border-rose-200 text-rose-600";
-}
-
-function statusLabel(status: MarkerStatus) {
-  if (status === "online") return "Online";
-  if (status === "warning") return "Attention";
-  return "Offline";
-}
-
-watch(filteredRows, () => {
-  recalcPagination();
-}, { immediate: true });
-
-watch(
-  () => pagination.value.perPage,
-  () => {
-    pagination.value.page = 1;
-    recalcPagination();
-  }
-);
+onMounted(() => {
+  fetchMaps();
+  fetchAreas();
+});
 
 watch(searchKeyword, () => {
-  pagination.value.page = 1;
-});
-
-watch(activeMapTab, () => {
-  pagination.value.page = 1;
-  recalcPagination();
-});
-
-function recalcPagination() {
-  const total = filteredRows.value.length;
-  pagination.value.total = total;
-  const lastPage = Math.max(1, Math.ceil(total / pagination.value.perPage));
-  pagination.value.lastPage = lastPage;
-  if (pagination.value.page > lastPage) {
-    pagination.value.page = lastPage;
+  if (activeTab.value === "map") {
+    mapPagination.value.page = 1;
+    fetchMaps();
+  } else {
+    areaPagination.value.page = 1;
+    fetchAreas();
   }
-}
+});
 
-onBeforeUnmount(() => {
-  if (refreshTimeout) {
-    clearTimeout(refreshTimeout);
+watch(activeTab, () => {
+  if (activeTab.value === "map") {
+    fetchMaps();
+  } else {
+    fetchAreas();
   }
 });
 </script>
+
+<style scoped>
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: all 0.25s ease;
+}
+
+.slide-left-enter-from {
+  opacity: 0;
+  transform: translateX(24px);
+}
+
+.slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(-24px);
+}
+</style>

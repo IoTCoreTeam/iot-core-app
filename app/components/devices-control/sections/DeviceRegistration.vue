@@ -1,6 +1,6 @@
 <template>
   <section class="min-h-screen">
-    <a-tabs v-model:activeKey="activeDeviceTab" class="px-6 pt-4 custom-tabs">
+    <a-tabs v-model:activeKey="activeDeviceTab" class="px-4 custom-tabs text-xs">
       <a-tab-pane v-for="tab in deviceTabs" :key="tab.key" :tab="tab.label">
         <div v-if="tab.key === activeDeviceTab" class="pb-2">
           <div v-if="tab.key === 'sensor'">
@@ -53,14 +53,15 @@
 
             <DataBoxCard
               :class="[
-                'lg:self-start',
+                'lg:self-start device-table',
                 isDeviceFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
               ]"
+              :key="deviceTableKey"
               :is-loading="isDeviceLoading"
-              :columns="7"
+              :columns="8"
               :has-data="displayedDeviceRows.length > 0"
               :pagination="devicePagination"
-              loading-text="Loading devices..."
+              :loading-text="deviceLoadingText"
               @prev-page="prevDevicePage"
               @next-page="nextDevicePage"
               @change-per-page="changeDevicePerPage"
@@ -129,7 +130,7 @@
                   <th
                     v-for="column in deviceTableColumnDefinitions"
                     :key="column.label"
-                    class="px-1 py-2 font-normal text-gray-600 text-xs tracking-wide text-left"
+                    class="px-2 py-2 font-normal text-gray-600 text-xs tracking-wide text-left"
                     :style="{ width: column.width }"
                   >
                     {{ column.label }}
@@ -141,7 +142,7 @@
                   v-for="row in displayedDeviceRows"
                   :key="row.id"
                   :class="[
-                    'transition-colors text-xs align-middle border-b border-gray-100 py-1',
+                    'transition-colors text-xs align-middle border-b border-gray-100 h-12',
                     activeDeviceTab === 'sensor'
                       ? 'hover:bg-blue-50 cursor-pointer'
                       : 'hover:bg-gray-50',
@@ -153,23 +154,38 @@
                     activeDeviceTab === 'sensor' && handleSensorRowClick(row.id)
                   "
                 >
-                  <td class="px-2 py-4 whitespace-nowrap align-top">
+                  <td
+                    class="px-2 py-2 whitespace-nowrap align-middle"
+                    :style="{ width: getColumnWidth(0) }"
+                  >
                     <div class="text-xs">{{ row.id }}</div>
                   </td>
-                  <td class="px-2 py-4 text-gray-700 align-top">
+                  <td
+                    class="px-2 py-2 text-gray-700 align-middle"
+                    :style="{ width: getColumnWidth(1) }"
+                  >
                     <p class="text-xs">{{ row.name }}</p>
                   </td>
-                  <td class="px-2 py-4 align-top">
+                  <td
+                    class="px-2 py-2 align-middle"
+                    :style="{ width: getColumnWidth(2) }"
+                  >
                     <p class="text-xs">
                       {{ row.ip || "N/A" }}
                     </p>
                   </td>
-                  <td class="px-2 py-4 align-top">
+                  <td
+                    class="px-2 py-2 align-middle"
+                    :style="{ width: getColumnWidth(3) }"
+                  >
                     <p class="text-xs">
                       {{ row.mac || "N/A" }}
                     </p>
                   </td>
-                  <td class="px-2 py-4 align-top">
+                  <td
+                    class="px-2 py-2 align-middle"
+                    :style="{ width: getColumnWidth(4) }"
+                  >
                     <div
                       class="text-xs font-semibold uppercase"
                       :class="statusTextColorClass(row.status)"
@@ -177,7 +193,10 @@
                       {{ formatDeviceStatus(row.status) }}
                     </div>
                   </td>
-                  <td class="px-2 py-4 align-top">
+                  <td
+                    class="px-2 py-2 align-middle"
+                    :style="{ width: getColumnWidth(5) }"
+                  >
                     <div
                       class="text-xs font-semibold uppercase"
                       :class="registrationTextColorClass(row.registered)"
@@ -185,12 +204,18 @@
                       {{ formatRegistrationStatus(row.registered) }}
                     </div>
                   </td>
-                  <td class="px-2 py-4 align-top">
+                  <td
+                    class="px-2 py-2 align-middle"
+                    :style="{ width: getColumnWidth(6) }"
+                  >
                     <div class="text-xs">
                       {{ formatLastSeen(row.lastSeen) }}
                     </div>
                   </td>
-                  <td class="px-2 py-1 align-top">
+                  <td
+                    class="px-2 py-2 align-middle"
+                    :style="{ width: getColumnWidth(7) }"
+                  >
                     <div class="inline-flex items-center gap-1">
                       <button
                         v-if="!isUnactiveStatus(row.status)"
@@ -261,16 +286,13 @@
 <script setup lang="ts">
 import {
   computed,
-  reactive,
   ref,
   watch,
   onMounted,
   onBeforeUnmount,
 } from "vue";
 import { message } from "ant-design-vue";
-import AdvancedFilterPanel, {
-  type FilterFieldRow,
-} from "@/components/common/AdvancedFilterPanel.vue";
+import AdvancedFilterPanel from "@/components/common/AdvancedFilterPanel.vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
 import type {
@@ -283,18 +305,15 @@ import type { DashboardMetric, TimeframeKey } from "@/types/dashboard";
 import { apiConfig } from "~~/config/api";
 import { useRegisterDevice } from "@/composables/DeviceRegistration/RegisterDevice";
 import { useDeviceDeactivation } from "@/composables/DeviceRegistration/DeactiveDevice";
+import {
+  defaultDeviceFilters,
+  type GatewayFilterState,
+  useDeviceFilter,
+} from "@/composables/DeviceRegistration/DeviceFilter";
 
 defineProps<{
   section: Section;
 }>();
-
-type GatewayFilterState = {
-  id: string;
-  name: string;
-  ip: string;
-  mac: string;
-  status: string;
-};
 
 type GatewayEventPayload = {
   id: string;
@@ -306,19 +325,52 @@ type GatewayEventPayload = {
   lastSeen?: string | null;
 };
 
+type DeviceCacheSnapshot = {
+  version: number;
+  savedAt: string;
+  activeTab: DeviceTabKey;
+  searchKeyword: string;
+  filters: GatewayFilterState;
+  selectedSensorId: DeviceRow["id"] | null;
+  gateways: DeviceRow[];
+  nodes: DeviceRow[];
+  controllers: DeviceRow[];
+  sensors: DeviceRow[];
+};
+
 const KNOWN_DEVICE_STATUSES = new Set<DeviceRow["status"]>([
   "online",
   "offline",
 ]);
+
+const DEVICE_CACHE_KEY = "device-control-center-cache-v1";
 
 const gatewayRows = ref<DeviceRow[]>([]);
 const nodeRows = ref<DeviceRow[]>([]);
 const controllerRows = ref<DeviceRow[]>([]);
 const sensorRows = ref<DeviceRow[]>([]);
 const selectedSensorId = ref<DeviceRow["id"] | null>(null);
+const deviceTableKey = ref(0);
 
 const { isDeactivatingDevice, deactivateDevice } = useDeviceDeactivation();
 const { registerDevice } = useRegisterDevice();
+
+function triggerDeviceTableReload(reason: "activate" | "deactivate") {
+  if (isDeviceLoading.value) return;
+  isDeviceLoading.value = true;
+  deviceLoadingText.value =
+    reason === "activate"
+      ? "Activating device... This may take up to 5 seconds."
+      : "Deactivating device... This may take up to 5 seconds.";
+  deviceTableKey.value += 1;
+  if (deviceRefreshTimeout) {
+    clearTimeout(deviceRefreshTimeout);
+  }
+  deviceRefreshTimeout = setTimeout(() => {
+    isDeviceLoading.value = false;
+    deviceLoadingText.value = "Loading devices...";
+  }, 5000);
+}
 
 async function handleDeactivateSensor(row: DeviceRow) {
   if (isDeactivatingDevice(row.id)) {
@@ -328,11 +380,15 @@ async function handleDeactivateSensor(row: DeviceRow) {
   const success = await deactivateDevice(row, activeDeviceTab.value);
   if (success) {
     row.status = "offline";
+    triggerDeviceTableReload("deactivate");
   }
 }
 
 async function handleEnroll(row: DeviceRow) {
-  await registerDevice(row);
+  const success = await registerDevice(row);
+  if (success) {
+    triggerDeviceTableReload("activate");
+  }
 }
 
 function handleReapprove(row: DeviceRow) {
@@ -343,6 +399,7 @@ function handleReapprove(row: DeviceRow) {
 
 const gatewayCache = new Map<string, DeviceRow>();
 let gatewayEventSource: EventSource | null = null;
+let deviceStatusPoller: ReturnType<typeof setInterval> | null = null;
 
 const ONLINE_DEVICE_STATUSES = new Set<DeviceRow["status"]>(["online"]);
 
@@ -435,37 +492,36 @@ const deviceTabs = computed<DeviceTab[]>(() => [
 
 const defaultDeviceTab = computed(() => deviceTabs.value[0]!);
 const activeDeviceTab = ref<DeviceTabKey>("gateways");
-const isDeviceFilterVisible = ref(true);
-const deviceSearchKeyword = ref("");
 const isDeviceLoading = ref(false);
 const selectedMetricKey = ref<string>("");
 const selectedTimeframe = ref<TimeframeKey>("hour");
 const devicePagination = ref({ page: 1, perPage: 5, lastPage: 1, total: 0 });
-const deviceTableColumnDefinitions = [
-  { label: "ID", width: "5%" },
-  { label: "Name", width: "13%" },
-  { label: "IP Address", width: "12%" },
-  { label: "MAC Address", width: "12%" },
+const deviceLoadingText = ref("Loading devices...");
+const deviceTableColumnDefinitions: Array<{ label: string; width: string }> = [
+  { label: "ID", width: "10%" },
+  { label: "Name", width: "18%" },
+  { label: "IP", width: "12%" },
+  { label: "MAC", width: "16%" },
   { label: "Status", width: "10%" },
   { label: "Registered", width: "10%" },
-  { label: "Last Seen", width: "18%" },
-  { label: "Action", width: "10%" },
-] as const;
+  { label: "Last Seen", width: "16%" },
+  { label: "Actions", width: "8%" },
+];
 const deviceTableColumns = deviceTableColumnDefinitions.map(
   (column) => column.label,
 );
-
-const defaultDeviceFilters: GatewayFilterState = {
-  id: "",
-  name: "",
-  ip: "",
-  mac: "",
-  status: "",
-};
-const deviceFilters = reactive<GatewayFilterState>({ ...defaultDeviceFilters });
-const appliedDeviceFilters = ref<GatewayFilterState>({
-  ...defaultDeviceFilters,
-});
+const {
+  deviceSearchKeyword,
+  isDeviceFilterVisible,
+  deviceFilters,
+  appliedDeviceFilters,
+  deviceFilterFields,
+  filterDeviceRows,
+  handleDeviceFilterModelUpdate,
+  applyDeviceFilters: applyDeviceFiltersBase,
+  resetDeviceFilters: resetDeviceFiltersBase,
+  toggleDeviceFilters,
+} = useDeviceFilter();
 
 const currentDeviceTab = computed(
   () =>
@@ -476,7 +532,11 @@ const currentDeviceRows = computed<DeviceRow[]>(
   () => currentDeviceTab.value.rows,
 );
 const filteredDeviceRows = computed<DeviceRow[]>(() =>
-  filterDeviceRows(currentDeviceRows.value),
+  filterDeviceRows(currentDeviceRows.value)
+    .slice()
+    .sort((a, b) =>
+      a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: "base" }),
+    ),
 );
 const displayedDeviceRows = computed<DeviceRow[]>(() => {
   const start =
@@ -484,53 +544,6 @@ const displayedDeviceRows = computed<DeviceRow[]>(() => {
   const end = start + devicePagination.value.perPage;
   return filteredDeviceRows.value.slice(start, end);
 });
-
-const deviceFilterFields: FilterFieldRow[] = [
-  [
-      {
-        key: "status",
-        label: "Status",
-        type: "select",
-        options: [
-          { label: "All", value: "" },
-          { label: "Online", value: "online" },
-          { label: "Offline", value: "offline" },
-        ],
-      },
-  ],
-  [
-    {
-      key: "name",
-      label: "Name",
-      type: "text",
-      placeholder: "e.g. Gateway 001",
-    },
-  ],
-  [
-    {
-      key: "id",
-      label: "Gateway ID",
-      type: "text",
-      placeholder: "e.g. GW_001",
-    },
-  ],
-  [
-    {
-      key: "ip",
-      label: "IP Address",
-      type: "text",
-      placeholder: "e.g. 192.168.1.1",
-    },
-  ],
-  [
-    {
-      key: "mac",
-      label: "MAC Address",
-      type: "text",
-      placeholder: "e.g. 00:1A:2B:3C:4D:5E",
-    },
-  ],
-];
 
 // Watchers
 watch(
@@ -543,63 +556,14 @@ watch(
   { immediate: true },
 );
 
-function filterDeviceRows(rows: DeviceRow[]) {
-  const keyword = deviceSearchKeyword.value.trim().toLowerCase();
-  const filters = appliedDeviceFilters.value;
-
-  return rows.filter((row) => {
-    if (keyword) {
-      const haystack = [row.id, row.name, row.ip, row.mac, row.status]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      if (!haystack.includes(keyword)) return false;
-    }
-
-    if (
-      filters.name &&
-      !row.name.toLowerCase().includes(filters.name.toLowerCase())
-    )
-      return false;
-    if (filters.id && !row.id.toLowerCase().includes(filters.id.toLowerCase()))
-      return false;
-    if (
-      filters.ip &&
-      !(row.ip || "").toLowerCase().includes(filters.ip.toLowerCase())
-    )
-      return false;
-    if (
-      filters.mac &&
-      !(row.mac || "").toLowerCase().includes(filters.mac.toLowerCase())
-    )
-      return false;
-    if (filters.status && row.status !== filters.status) return false;
-
-    return true;
-  });
-}
-
-function snapshotDeviceFilters() {
-  return { ...deviceFilters };
-}
-
-function handleDeviceFilterModelUpdate(value: Record<string, string>) {
-  Object.assign(deviceFilters, value);
-}
-
 function applyDeviceFilters(payload?: Record<string, string>) {
-  if (payload) Object.assign(deviceFilters, payload);
-  appliedDeviceFilters.value = snapshotDeviceFilters();
+  applyDeviceFiltersBase(payload);
   devicePagination.value.page = 1;
 }
 
 function resetDeviceFilters() {
-  Object.assign(deviceFilters, defaultDeviceFilters);
-  applyDeviceFilters();
-}
-
-function toggleDeviceFilters() {
-  isDeviceFilterVisible.value = !isDeviceFilterVisible.value;
+  resetDeviceFiltersBase();
+  devicePagination.value.page = 1;
 }
 
 function handleSensorRowClick(rowId: DeviceRow["id"]) {
@@ -699,7 +663,7 @@ function formatRegistrationStatus(registered?: boolean) {
 }
 
 function registrationTextColorClass(registered?: boolean) {
-  return registered ? "text-emerald-600" : "text-red-600";
+  return registered ? "text-blue-600" : "text-red-500";
 }
 
 function statusTextColorClass(status?: DeviceRow["status"]) {
@@ -716,6 +680,10 @@ function isOnlineExactStatus(status?: DeviceRow["status"]) {
 function isUnactiveStatus(status?: DeviceRow["status"]) {
   const normalized = (status ?? "").toLowerCase();
   return normalized === "offline";
+}
+
+function getColumnWidth(index: number) {
+  return deviceTableColumnDefinitions[index]?.width ?? "auto";
 }
 
 function prevDevicePage() {
@@ -771,11 +739,12 @@ function updateGatewayFromPayload(payload: GatewayEventPayload) {
     return;
   }
 
+  const existing = gatewayCache.get(payload.id);
   const row: DeviceRow = {
     id: payload.id,
-    name: payload.name || `Gateway ${payload.id}`,
-    ip: payload.ip ?? null,
-    mac: payload.mac ?? null,
+    name: payload.name ?? existing?.name ?? `Gateway ${payload.id}`,
+    ip: payload.ip ?? existing?.ip ?? null,
+    mac: payload.mac ?? existing?.mac ?? null,
     status: normalizeStatus(payload.status),
     registered: payload.registered ?? false,
     lastSeen: payload.lastSeen ?? null,
@@ -786,9 +755,40 @@ function updateGatewayFromPayload(payload: GatewayEventPayload) {
 }
 
 function syncGatewayRows() {
-  gatewayRows.value = Array.from(gatewayCache.values()).sort(
-    (a, b) => parseTimestamp(b.lastSeen) - parseTimestamp(a.lastSeen),
+  gatewayRows.value = Array.from(gatewayCache.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
   );
+}
+
+function markRowsOfflineByLastSeen(rows: DeviceRow[]) {
+  const now = Date.now();
+  const thresholdMs = 30_000;
+
+  rows.forEach((row) => {
+    const lastSeenTimestamp = parseTimestamp(row.lastSeen);
+    if (!lastSeenTimestamp || now - lastSeenTimestamp > thresholdMs) {
+      row.status = "offline";
+    }
+  });
+}
+
+function pollDeviceStatuses() {
+  markRowsOfflineByLastSeen(gatewayRows.value);
+  markRowsOfflineByLastSeen(nodeRows.value);
+  markRowsOfflineByLastSeen(controllerRows.value);
+  markRowsOfflineByLastSeen(sensorRows.value);
+}
+
+function startDeviceStatusPolling() {
+  if (!import.meta.client || deviceStatusPoller) return;
+  deviceStatusPoller = setInterval(pollDeviceStatuses, 30_000);
+  pollDeviceStatuses();
+}
+
+function stopDeviceStatusPolling() {
+  if (!deviceStatusPoller) return;
+  clearInterval(deviceStatusPoller);
+  deviceStatusPoller = null;
 }
 
 function handleGatewayUpdate(event: MessageEvent) {
@@ -833,13 +833,62 @@ function disconnectGatewaySse() {
   }
 }
 
+function loadDeviceCache() {
+  if (!import.meta.client) return;
+  try {
+    const raw = sessionStorage.getItem(DEVICE_CACHE_KEY);
+    if (!raw) return;
+    const payload = JSON.parse(raw) as DeviceCacheSnapshot;
+    if (!payload || payload.version !== 1) return;
+
+    activeDeviceTab.value = payload.activeTab ?? activeDeviceTab.value;
+    deviceSearchKeyword.value = payload.searchKeyword ?? "";
+    Object.assign(deviceFilters, payload.filters ?? {});
+    appliedDeviceFilters.value = payload.filters ?? { ...defaultDeviceFilters };
+    selectedSensorId.value = payload.selectedSensorId ?? null;
+
+    gatewayCache.clear();
+    (payload.gateways ?? []).forEach((row) => gatewayCache.set(row.id, row));
+    syncGatewayRows();
+    nodeRows.value = payload.nodes ?? [];
+    controllerRows.value = payload.controllers ?? [];
+    sensorRows.value = payload.sensors ?? [];
+  } catch (error) {
+    console.error("Failed to load device cache:", error);
+  }
+}
+
+function saveDeviceCache() {
+  if (!import.meta.client) return;
+  try {
+    const snapshot: DeviceCacheSnapshot = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      activeTab: activeDeviceTab.value,
+      searchKeyword: deviceSearchKeyword.value,
+      filters: { ...appliedDeviceFilters.value },
+      selectedSensorId: selectedSensorId.value,
+      gateways: gatewayRows.value,
+      nodes: nodeRows.value,
+      controllers: controllerRows.value,
+      sensors: sensorRows.value,
+    };
+    sessionStorage.setItem(DEVICE_CACHE_KEY, JSON.stringify(snapshot));
+  } catch (error) {
+    console.error("Failed to save device cache:", error);
+  }
+}
+
 onMounted(() => {
   if (!import.meta.client) return;
+  loadDeviceCache();
   connectGatewaySse();
+  startDeviceStatusPolling();
 });
 
 onBeforeUnmount(() => {
   disconnectGatewaySse();
+  stopDeviceStatusPolling();
 });
 
 watch(
@@ -861,11 +910,32 @@ watch(
 watch(deviceSearchKeyword, () => {
   devicePagination.value.page = 1;
 });
+
+watch(
+  [
+    gatewayRows,
+    nodeRows,
+    controllerRows,
+    sensorRows,
+    activeDeviceTab,
+    deviceSearchKeyword,
+    () => appliedDeviceFilters.value,
+    selectedSensorId,
+  ],
+  () => {
+    saveDeviceCache();
+  },
+  { deep: true },
+);
 </script>
 
 <style scoped>
 .wrap-break-words {
   word-wrap: break-word;
   overflow-wrap: break-word;
+}
+
+:deep(.device-table table) {
+  table-layout: fixed;
 }
 </style>

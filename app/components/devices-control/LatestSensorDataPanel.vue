@@ -12,11 +12,12 @@
         :columns="6"
         :elevated="false"
         :padded="false"
-        class="h-full border-0 rounded-none shadow-none"
+        class="h-full border-0 rounded-none shadow-none transition-opacity duration-300"
+        :class="{ 'opacity-70': isRefreshing }"
       >
         <template #head>
           <tr
-            class="bg-gray-50 border-b border-gray-200 text-[11px] text-gray-500 uppercase"
+            class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500"
           >
             <th class="px-3 py-2 text-left font-semibold">Metric</th>
             <th class="px-3 py-2 text-left font-semibold">Sensor</th>
@@ -31,7 +32,8 @@
           <tr
             v-for="sensor in latestSensors"
             :key="sensor.id"
-            class="hover:bg-slate-50 text-xs"
+            class="hover:bg-slate-50 text-xs transition-opacity duration-300"
+            :class="{ 'opacity-70': isRefreshing }"
           >
             <td class="px-3 py-3">
               <div class="font-semibold text-slate-800">
@@ -39,7 +41,7 @@
               </div>
             </td>
             <td class="px-3 py-3">
-              <div class="text-xs font-semibold text-slate-800">
+              <div class="text-xs text-slate-800">
                 {{ sensor.sensorId }}
               </div>
             </td>
@@ -54,7 +56,7 @@
               </div>
             </td>
             <td class="px-3 py-3 text-right">
-              <span class="text-[16px] font-mono font-bold text-blue-800">
+              <span class="text-[14px] font-mono font-bold text-blue-800">
                 {{ sensor.value }}
               </span>
               <span class="ml-1 text-[10px] font-medium text-slate-400">
@@ -68,19 +70,14 @@
             </td>
           </tr>
         </template>
-
-        <template #empty>
-          <span class="text-slate-400 italic text-xs"
-            >No sensor data available</span
-          >
-        </template>
+        <template #empty> No sensor data available. </template>
       </DataBoxCard>
     </div>
   </article>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import { apiConfig } from "~~/config/api";
 
@@ -97,6 +94,8 @@ interface SensorDataItem {
 
 const latestSensors = ref<SensorDataItem[]>([]);
 const isLoading = ref(false);
+const isRefreshing = ref(false);
+const hasLoadedOnce = ref(false);
 
 const METRICS: { key: string; label: string }[] = [
   { key: "temperature", label: "Temperature" },
@@ -148,7 +147,11 @@ const fetchLatestByMetric = async (metricKey: string) => {
 
 const loadLatestSensors = async () => {
   if (!BASE_URL) return;
-  isLoading.value = true;
+  if (!hasLoadedOnce.value) {
+    isLoading.value = true;
+  } else {
+    isRefreshing.value = true;
+  }
   try {
     const results = await Promise.all(
       METRICS.map(async (metric) => {
@@ -178,15 +181,27 @@ const loadLatestSensors = async () => {
     latestSensors.value = results.filter(
       (item): item is SensorDataItem => Boolean(item)
     );
+    hasLoadedOnce.value = true;
   } catch (error) {
     console.error("Failed to load latest sensor data:", error);
     latestSensors.value = [];
   } finally {
     isLoading.value = false;
+    isRefreshing.value = false;
   }
 };
 
 onMounted(() => {
   loadLatestSensors();
+  pollingTimer = setInterval(loadLatestSensors, 10000);
+});
+
+let pollingTimer: ReturnType<typeof setInterval> | null = null;
+
+onBeforeUnmount(() => {
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
 });
 </script>

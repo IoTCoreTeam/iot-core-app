@@ -23,6 +23,7 @@ interface UseMetricQueryProps {
   selectedMetricKey: string;
   selectedTimeframe: TimeframeKey;
   sensorIds?: string[];
+  nodeIds?: string[];
   sensorType?: string;
   deviceId?: string;
 }
@@ -49,6 +50,7 @@ export function useMetricQuery(props: UseMetricQueryProps) {
   const buildParams = () => {
     const params = new URLSearchParams();
     const ids = props.sensorIds ?? (props.deviceId ? [props.deviceId] : []);
+    const nodeIds = props.nodeIds ?? [];
 
     params.set("time_field", timeFieldMap[props.selectedTimeframe]);
     params.set("limit", String(MAX_POINTS));
@@ -57,6 +59,7 @@ export function useMetricQuery(props: UseMetricQueryProps) {
     const mappedType = sensorTypeMapping[typeKey] ?? typeKey;
     if (mappedType) params.set("sensor_type", mappedType);
 
+    nodeIds.forEach(id => params.append("node_id", id));
     ids.forEach(id => params.append("sensor_id", id));
     return params.toString();
   };
@@ -70,6 +73,8 @@ export function useMetricQuery(props: UseMetricQueryProps) {
       if (value == null || !time) continue;
 
       const name =
+        r.node_id ??
+        r._id?.node_id ??
         r.sensorName ??
         r._id?.sensorName ??
         r.sensorId ??
@@ -90,6 +95,7 @@ export function useMetricQuery(props: UseMetricQueryProps) {
 
   const fetchOnce = async () => {
     if (!BASE_URL) return;
+    if (isFetching.value) return;
 
     isFetching.value = true;
     fetchError.value = null;
@@ -124,6 +130,7 @@ export function useMetricQuery(props: UseMetricQueryProps) {
     fetchedSeries,
     isFetching,
     fetchError,
+    fetchOnce,
     MAX_POINTS,
   };
 }

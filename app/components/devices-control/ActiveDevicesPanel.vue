@@ -12,7 +12,7 @@
     </div>
 
     <!-- Tabs -->
-    <div class="px-4 pt-2 border-b border-slate-100">
+    <div class="px-4 border-b border-slate-100">
       <a-tabs v-model:activeKey="activeTab">
         <a-tab-pane key="gateway" tab="Gateways" />
         <a-tab-pane key="node" tab="Nodes" />
@@ -32,7 +32,7 @@
       >
         <template #head>
           <tr
-            class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase"
+            class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500"
           >
             <th class="px-3 py-2 text-left font-semibold">Name</th>
             <th class="px-3 py-2 text-center font-semibold">Status</th>
@@ -216,7 +216,7 @@ function formatStatus(status: ActiveDeviceStatus) {
 }
 
 function statusColorClass(status: ActiveDeviceStatus) {
-  if (status === "online") return "text-emerald-600";
+  if (status === "online") return "text-blue-600";
   return "text-rose-600";
 }
 
@@ -258,16 +258,3 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-:deep(.ant-tabs-nav) {
-  margin-bottom: 0 !important;
-}
-:deep(.ant-tabs-tab) {
-  padding: 8px 0 !important;
-  margin: 0 16px 0 0 !important;
-  font-size: 12px !important;
-}
-:deep(.ant-tabs-tab + .ant-tabs-tab) {
-  margin: 0 16px !important;
-}
-</style>

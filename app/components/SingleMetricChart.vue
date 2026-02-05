@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref } from "vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 import type { ApexOptions } from "apexcharts";
 import type {
@@ -80,6 +80,7 @@ const props = withDefaults(
     selectedMetricKey: string;
     selectedTimeframe: TimeframeKey;
     sensorIds?: string[]; // Updated prop
+    nodeIds?: string[];
     sensorType?: string; // Updated prop
     deviceId?: string; // Legacy
     deviceType?: string; // Legacy
@@ -98,6 +99,7 @@ const {
   fetchedSeries,
   isFetching,
   fetchError,
+  fetchOnce,
 } = metricQuery;
 
 const selectedMetric = computed(() =>
@@ -159,6 +161,21 @@ const seriesExtent = computed(() => {
 });
 
 const chartSeries = computed(() => displaySeries.value);
+const seriesColors = computed(() => {
+  const palette = [
+    "#2563eb",
+    "#0ea5e9",
+    "#06b6d4",
+    "#14b8a6",
+    "#22c55e",
+    "#38bdf8",
+    "#60a5fa",
+    "#7dd3fc",
+    "#5eead4",
+    "#34d399",
+  ];
+  return displaySeries.value.map((_, index) => palette[index % palette.length]);
+});
 
 const chartOptions = computed<ApexOptions>(() => {
   return {
@@ -180,11 +197,24 @@ const chartOptions = computed<ApexOptions>(() => {
     dataLabels: { enabled: false },
     stroke: { curve: "smooth" as const, width: 3 },
     fill: { opacity: 1 },
-    markers: { size: 0 },
+    markers: {
+      size: 4,
+      strokeWidth: 2,
+      strokeColors: "#ffffff",
+      hover: { size: 6 },
+    },
     xaxis: {
       type: "datetime",
       labels: {
         datetimeUTC: false,
+        datetimeFormatter: {
+          year: "yyyy",
+          month: "dd MMM",
+          day: "dd MMM",
+          hour: "HH:mm:ss",
+          minute: "HH:mm:ss",
+          second: "HH:mm:ss",
+        },
         style: { fontSize: "11px", colors: "#6b7280" },
       },
       axisBorder: { color: "#e5e7eb" },
@@ -202,7 +232,7 @@ const chartOptions = computed<ApexOptions>(() => {
       strokeDashArray: 3,
       borderColor: "#e5e7eb",
     },
-    colors: ["#3b82f6"],
+    colors: seriesColors.value,
     tooltip: {
       x: { format: "dd MMM yyyy HH:mm" },
       y: {
@@ -231,6 +261,21 @@ onMounted(() => {
   setTimeout(() => {
     initialLoading.value = false;
   }, 5000);
+});
+
+let pollingTimer: ReturnType<typeof setInterval> | null = null;
+
+onMounted(() => {
+  pollingTimer = setInterval(() => {
+    fetchOnce();
+  }, 5000);
+});
+
+onBeforeUnmount(() => {
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
 });
 
 </script>
