@@ -5,7 +5,6 @@ import { useAuthStore } from "~~/stores/auth";
 import type { DeviceRow, DeviceTabKey } from "@/types/devices-control";
 
 const CONTROL_MODULE_BASE = (apiConfig.controlModule || "").replace(/\/$/, "");
-
 function resolveDeactivateEndpoint(deviceId: string, tab: DeviceTabKey) {
   if (!CONTROL_MODULE_BASE) {
     return null;
@@ -17,7 +16,7 @@ function resolveDeactivateEndpoint(deviceId: string, tab: DeviceTabKey) {
     return `${CONTROL_MODULE_BASE}/gateways/${encodedId}/deactivate`;
   }
 
-  return `${CONTROL_MODULE_BASE}/node-sensors/${encodedId}/deactivate`;
+  return `${CONTROL_MODULE_BASE}/nodes/${encodedId}/deactivate`;
 }
 
 export function useDeviceDeactivation() {

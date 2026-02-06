@@ -198,7 +198,7 @@
         @click="openMobileMenu"
         aria-label="Open navigation"
       >
-        <BootstrapIcon name="list" class="h-4 w-4" />
+        <BootstrapIcon name="list" class="w-3 h-3" />
       </button>
     </div>
 
@@ -216,7 +216,7 @@
               class="rounded-md border p-1 text-gray-600 hover:bg-gray-50"
               @click="closeMobileMenu"
             >
-              <BootstrapIcon name="x" class="h-4 w-4" />
+              <BootstrapIcon name="x" class="w-3 h-3" />
             </button>
           </div>
 

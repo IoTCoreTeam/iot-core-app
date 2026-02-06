@@ -84,7 +84,7 @@
                       />
                       <BootstrapIcon
                         name="search"
-                        class="absolute left-1 top-1.5 h-3 w-3 text-gray-400"
+                        class="absolute left-1 top-1.5 w-3 h-3 text-gray-400"
                       />
                     </div>
                     <button
@@ -168,7 +168,7 @@
                           title="Edit"
                           aria-label="Edit map"
                         >
-                          <BootstrapIcon name="pencil-square" class="w-3.5 h-3.5" />
+                          <BootstrapIcon name="pencil-square" class="w-3 h-3" />
                           <span class="sr-only">Edit</span>
                         </button>
                         <button
@@ -178,7 +178,7 @@
                           title="Delete"
                           aria-label="Delete map"
                         >
-                          <BootstrapIcon name="trash" class="w-3.5 h-3.5" />
+                          <BootstrapIcon name="trash" class="w-3 h-3" />
                           <span class="sr-only">Delete</span>
                         </button>
                       </div>
@@ -190,7 +190,7 @@
                         @click="openMapConfig(row)"
                         aria-label="Open map config"
                       >
-                        <BootstrapIcon name="info-circle" class="w-3.5 h-3.5" />
+                        <BootstrapIcon name="info-circle" class="w-3 h-3" />
                         <span class="sr-only">Config</span>
                       </button>
                     </td>
@@ -283,10 +283,10 @@
                       :placeholder="activeSearchPlaceholder"
                       class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-52 text-xs cursor-text"
                     />
-                    <BootstrapIcon
-                      name="search"
-                      class="absolute left-1 top-1.5 h-3 w-3 text-gray-400"
-                    />
+                      <BootstrapIcon
+                        name="search"
+                        class="absolute left-1 top-1.5 w-3 h-3 text-gray-400"
+                      />
                   </div>
                   <button
                     @click="refreshRows"
@@ -365,7 +365,7 @@
                         title="Edit"
                         aria-label="Edit area"
                       >
-                        <BootstrapIcon name="pencil-square" class="w-3.5 h-3.5" />
+                        <BootstrapIcon name="pencil-square" class="w-3 h-3" />
                         <span class="sr-only">Edit</span>
                       </button>
                       <button
@@ -375,7 +375,7 @@
                         title="Delete"
                         aria-label="Delete area"
                       >
-                        <BootstrapIcon name="trash" class="w-3.5 h-3.5" />
+                        <BootstrapIcon name="trash" class="w-3 h-3" />
                         <span class="sr-only">Delete</span>
                       </button>
                     </div>
@@ -545,8 +545,8 @@ const appliedAreaFilters = ref({ ...areaDefaultFilters });
 
 const mapRows = ref<MapRow[]>([]);
 const areaRows = ref<AreaRow[]>([]);
-const mapPagination = ref({ page: 1, perPage: 5, lastPage: 1, total: 0 });
-const areaPagination = ref({ page: 1, perPage: 5, lastPage: 1, total: 0 });
+const mapPagination = ref({ page: 1, perPage: 10, lastPage: 1, total: 0 });
+const areaPagination = ref({ page: 1, perPage: 10, lastPage: 1, total: 0 });
 
 const activeFilters = computed(() =>
   activeTab.value === "map" ? mapFilters : areaFilters

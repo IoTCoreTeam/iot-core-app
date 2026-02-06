@@ -63,7 +63,7 @@
                 />
                 <BootstrapIcon
                   name="search"
-                  class="absolute left-1 top-1.5 h-3 w-3 text-gray-400"
+                  class="absolute left-1 top-1.5 w-3 h-3 text-gray-400"
                 />
               </div>
 

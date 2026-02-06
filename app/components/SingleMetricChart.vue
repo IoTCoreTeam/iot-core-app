@@ -22,6 +22,25 @@
             </option>
           </select>
         </div>
+        <div class="flex items-center gap-2 text-[11px] text-gray-600">
+          <label class="text-[11px] text-gray-600">Select node</label>
+          <select
+            :value="activeNodeId"
+            @change="
+              updateNodeId(($event.target as HTMLSelectElement).value)
+            "
+            class="rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-800"
+          >
+            <option :value="ALL_NODES_VALUE">All nodes</option>
+            <option
+              v-for="nodeId in nodeSelectOptions"
+              :key="nodeId"
+              :value="nodeId"
+            >
+              {{ nodeId }}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -61,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 import type { ApexOptions } from "apexcharts";
 import type {
@@ -84,12 +103,16 @@ const props = withDefaults(
     sensorType?: string; // Updated prop
     deviceId?: string; // Legacy
     deviceType?: string; // Legacy
+    selectedNodeId?: string;
   }>(),
-  { selectedTimeframe: "second" as TimeframeKey }
+  {
+    selectedTimeframe: "second" as TimeframeKey,
+  }
 );
 
 const emit = defineEmits<{
   (e: "update:selectedMetricKey", value: string): void;
+  (e: "update:selectedNodeId", value: string): void;
 }>();
 
 const ApexChart = defineAsyncComponent(() => import("vue3-apexcharts"));
@@ -106,8 +129,16 @@ const selectedMetric = computed(() =>
   props.metrics.find((metric) => metric.key === props.selectedMetricKey)
 );
 
+const ALL_NODES_VALUE = "__all__";
+const internalSelectedNodeId = ref("");
+
 function updateMetricKey(value: string) {
   emit("update:selectedMetricKey", value);
+}
+
+function updateNodeId(value: string) {
+  internalSelectedNodeId.value = value;
+  emit("update:selectedNodeId", value);
 }
 
 function formatValue(value: number) {
@@ -145,8 +176,51 @@ const displaySeries = computed(() => {
   ];
 });
 
+const MAX_DISPLAY_POINTS = 20;
+const GAP_THRESHOLD_MS = 12 * 60 * 60 * 1000;
+
+const trimSeriesData = (data: { x: number; y: number }[]) => {
+  if (!data.length) return data;
+  const sorted = [...data].sort((a, b) => a.x - b.x);
+  let startIndex = 0;
+  for (let i = sorted.length - 1; i > 0; i -= 1) {
+    if (sorted[i].x - sorted[i - 1].x > GAP_THRESHOLD_MS) {
+      startIndex = i;
+      break;
+    }
+  }
+  const sliced = sorted.slice(startIndex);
+  if (sliced.length <= MAX_DISPLAY_POINTS) return sliced;
+  return sliced.slice(-MAX_DISPLAY_POINTS);
+};
+
+const limitedSeries = computed(() =>
+  displaySeries.value.map((series) => ({
+    ...series,
+    data: trimSeriesData(series.data),
+  }))
+);
+
+const nodeSelectOptions = computed(() => {
+  const source = props.nodeIds && props.nodeIds.length > 0
+    ? props.nodeIds
+    : limitedSeries.value.map((series) => series.name);
+  return Array.from(new Set(source.filter((value) => value && value.trim())));
+});
+
+const activeNodeId = computed(() => {
+  return props.selectedNodeId ?? internalSelectedNodeId.value;
+});
+
+const activeSeries = computed(() => {
+  if (!activeNodeId.value || activeNodeId.value === ALL_NODES_VALUE) {
+    return limitedSeries.value;
+  }
+  return limitedSeries.value.filter((series) => series.name === activeNodeId.value);
+});
+
 const allValues = computed(() => {
-  return displaySeries.value.flatMap((s) => s.data.map((p: any) => p.y));
+  return activeSeries.value.flatMap((s) => s.data.map((p: any) => p.y));
 });
 
 const seriesExtent = computed(() => {
@@ -160,7 +234,7 @@ const seriesExtent = computed(() => {
   return { min, max };
 });
 
-const chartSeries = computed(() => displaySeries.value);
+const chartSeries = computed(() => activeSeries.value);
 const seriesColors = computed(() => {
   const palette = [
     "#2563eb",
@@ -174,7 +248,7 @@ const seriesColors = computed(() => {
     "#5eead4",
     "#34d399",
   ];
-  return displaySeries.value.map((_, index) => palette[index % palette.length]);
+  return activeSeries.value.map((_, index) => palette[index % palette.length]);
 });
 
 const chartOptions = computed<ApexOptions>(() => {
@@ -262,6 +336,25 @@ onMounted(() => {
     initialLoading.value = false;
   }, 5000);
 });
+
+watch(
+  [nodeSelectOptions, activeNodeId],
+  ([options, current]) => {
+    if (!current) {
+      updateNodeId(ALL_NODES_VALUE);
+      return;
+    }
+    if (current === ALL_NODES_VALUE) return;
+    if (!options.length) {
+      updateNodeId(ALL_NODES_VALUE);
+      return;
+    }
+    if (!options.includes(current)) {
+      updateNodeId(ALL_NODES_VALUE);
+    }
+  },
+  { immediate: true }
+);
 
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
 

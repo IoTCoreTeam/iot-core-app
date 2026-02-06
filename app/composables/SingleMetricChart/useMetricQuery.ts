@@ -119,6 +119,7 @@ export function useMetricQuery(props: UseMetricQueryProps) {
       props.selectedMetricKey,
       props.selectedTimeframe,
       props.sensorIds,
+      props.nodeIds,
       props.sensorType,
       props.deviceId,
     ],

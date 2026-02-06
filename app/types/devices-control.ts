@@ -7,6 +7,7 @@ export type DeviceRowStatus = "online" | "offline";
 export type DeviceRow = {
   id: string;
   name: string;
+  gatewayId?: string | null;
   ip?: string | null;
   mac?: string | null;
   status: DeviceRowStatus;
@@ -38,9 +39,9 @@ export type SectionCard = {
 export type Section = {
   id: string;
   label: string;
-  description: string;
+  description?: string;
   icon?: Component;
-  headline: string;
-  body: string;
-  cards: SectionCard[];
+  headline?: string;
+  body?: string;
+  cards?: SectionCard[];
 };

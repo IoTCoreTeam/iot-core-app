@@ -27,14 +27,14 @@ import {
   CpuChipIcon,
   MapIcon,
   Squares2X2Icon,
-  DocumentTextIcon,
+  RectangleStackIcon,
 } from "@heroicons/vue/24/outline";
 
 import DevicesControlSidebar from "@/components/devices-control/layouts/DevicesControlSidebar.vue";
 import DeviceRegistration from "@/components/devices-control/sections/DeviceRegistration.vue";
 import MapSection from "@/components/devices-control/sections/MapSection.vue";
 import ScenarioSection from "@/components/devices-control/sections/ScenarioSection.vue";
-import DevicesLogSection from "@/components/devices-control/sections/DevicesLogSection.vue";
+import DeviceControlSection from "@/components/devices-control/sections/DeviceControlSection.vue";
 import type { Section } from "@/types/devices-control";
 
 const controlModuleBase = (apiConfig.controlModule || "").replace(/\/$/, "");
@@ -46,98 +46,30 @@ const sections: Section[] = [
   {
     id: "device-registration",
     label: "Devices Registration",
-    description: "Approval pipeline at a glance",
     icon: CpuChipIcon,
-    headline: "Monitor the devices approval backlog.",
-    body: "Use the tabs to quickly pivot between Gateways, Nodes, or Controller/Sensor hardware.",
-    cards: [
-      {
-        kicker: "Idea",
-        title: "Pre-provision firmware",
-        description:
-          "Trigger the firmware flashing queue from here when batches arrive.",
-      },
-      {
-        kicker: "Idea",
-        title: "Create exception ticket",
-        description:
-          "Open a compliance or quality ticket for any failed hardware while staying on this page.",
-      },
-    ],
   },
   {
     id: "map",
     label: "Map Configuration",
-    description: "Deployment geography",
     icon: MapIcon,
-    headline: "Track Nodes across physical locations.",
-    body: "Associate every registered Node with its warehouse, customer region, or manufacturing batch to spot gaps instantly.",
-    cards: [
-      {
-        kicker: "Coverage",
-        title: "Regional inventory",
-        description:
-          "Highlight which regions are saturated or lacking Nodes to rebalance capacity.",
-      },
-      {
-        kicker: "Escalation",
-        title: "Location risks",
-        description:
-          "Call out locations that exceed SLA or environmental thresholds for faster field response.",
-      },
-    ],
+  },
+  {
+    id: "device-control",
+    label: "Device Control",
+    icon: RectangleStackIcon,
   },
   {
     id: "scenario",
     label: "Scenario",
-    description: "Playbooks & automation",
     icon: Squares2X2Icon,
-    headline: "Model operational scenarios.",
-    body: "Capture the workflows and automation you need for provisioning, remote recovery, and compliance.",
-    cards: [
-      {
-        kicker: "Playbook",
-        title: "Provisioning blueprint",
-        description:
-          "Define the steps and owners for onboarding new hardware batches safely.",
-      },
-      {
-        kicker: "Automation",
-        title: "Recovery actions",
-        description:
-          "Document scripts and flows to self-heal Nodes when alerts trigger.",
-      },
-    ],
-  },
-  {
-    id: "devices-log",
-    label: "Devices Log",
-    description: "Forensics & traceability",
-    icon: DocumentTextIcon,
-    headline: "Review historical device activities.",
-    body: "Filter by device, event type, or severity to export the exact log view you need.",
-    cards: [
-      {
-        kicker: "Audit",
-        title: "Regulatory ready",
-        description:
-          "Capture critical overrides and alerts for compliance teams instantly.",
-      },
-      {
-        kicker: "Ops",
-        title: "Daily digest",
-        description:
-          "Use this log to share top issues with field teams each shift.",
-      },
-    ],
   },
 ];
 
 const sectionComponentMap: Record<string, Component> = {
   "device-registration": DeviceRegistration,
   map: MapSection,
+  "device-control": DeviceControlSection,
   scenario: ScenarioSection,
-  "devices-log": DevicesLogSection,
 };
 const defaultSection =
   sections.find((section) => section.id === "device-registration") ??

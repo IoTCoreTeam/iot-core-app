@@ -7,7 +7,7 @@
   >
     <header
       v-if="$slots.header"
-      class="bg-gray-50 px-2 py-2 border-b border-gray-200 flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
+      class="bg-slate-50 px-2 py-2 border-b border-gray-200 flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
     >
       <slot name="header" />
     </header>
@@ -39,7 +39,7 @@
 
       <div
         v-if="props.pagination"
-        class="px-2 py-1 border-t border-gray-200 bg-gray-50 flex items-center justify-between"
+        class="px-2 py-1 border-t border-gray-200 bg-slate-50 flex items-center justify-between"
       >
         <div class="text-gray-500 text-xs">
           {{ props.pagination.page }}/{{ props.pagination.lastPage }} of

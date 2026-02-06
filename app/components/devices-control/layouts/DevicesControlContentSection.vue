@@ -1,5 +1,5 @@
-﻿<template>
-  <div class="bg-white p-4">
+<template>
+  <div v-if="hasContent" class="bg-white p-4">
     <h2 class="text-2xl font-bold text-gray-900">
       {{ section.headline }}
     </h2>
@@ -19,9 +19,9 @@
           </tr>
         </thead>
         <tbody>
-          <template v-if="section.cards.length > 0">
+          <template v-if="cardItems.length > 0">
             <tr
-              v-for="card in section.cards"
+              v-for="card in cardItems"
               :key="card.title"
               class="border-b border-slate-100 last:border-b-0"
             >
@@ -50,9 +50,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import type { Section } from "@/types/devices-control";
 
-defineProps<{
+const props = defineProps<{
   section: Section;
 }>();
+
+const cardItems = computed(() => props.section.cards ?? []);
+
+const hasContent = computed(() => {
+  const headline = props.section.headline?.trim();
+  const body = props.section.body?.trim();
+  return Boolean(headline || body || cardItems.value.length > 0);
+});
 </script>
