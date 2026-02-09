@@ -205,7 +205,7 @@
                               activeDeviceTab === 'gateways'
                                 ? 'border-blue-200 text-blue-600 hover:bg-blue-50'
                                 : isGatewayRegisteredForRow(row)
-                                  ? 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                                  ? 'border-blue-200 text-blue-600 hover:bg-blue-50'
                                   : 'border-gray-200 text-gray-400 bg-gray-50',
                             ]"
                             title="Register Device"

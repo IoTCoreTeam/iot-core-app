@@ -184,7 +184,10 @@ const trimSeriesData = (data: { x: number; y: number }[]) => {
   const sorted = [...data].sort((a, b) => a.x - b.x);
   let startIndex = 0;
   for (let i = sorted.length - 1; i > 0; i -= 1) {
-    if (sorted[i].x - sorted[i - 1].x > GAP_THRESHOLD_MS) {
+    const current = sorted[i];
+    const previous = sorted[i - 1];
+    if (!current || !previous) continue;
+    if (current.x - previous.x > GAP_THRESHOLD_MS) {
       startIndex = i;
       break;
     }

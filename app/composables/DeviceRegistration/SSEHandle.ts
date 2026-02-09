@@ -41,8 +41,6 @@ type NodeCollectionsRefs = {
   sensorRows: Ref<DeviceRow[]>;
 };
 
-type NodeType = "node" | "node-sensor" | "node-control";
-
 function normalizeStatus(value?: string | null): DeviceRow["status"] {
   return (value ?? "").toLowerCase() === "online" ? "online" : "offline";
 }
@@ -54,45 +52,6 @@ function resolveNodeId(payload: NodeEventPayload): string | null {
     payload.nodeId ??
     null
   );
-}
-
-function resolveNodeType(payload: NodeEventPayload): NodeType {
-  const candidates = [
-    payload.node_type,
-    payload.type,
-    payload.role,
-    payload.category,
-    payload.id,
-    payload.node_id,
-    payload.nodeId,
-    payload.name,
-  ]
-    .filter((value) => value !== null && value !== undefined)
-    .map((value) => String(value).toLowerCase());
-
-  if (candidates.some((value) => value.includes("sensor"))) {
-    return "node-sensor";
-  }
-  if (
-    candidates.some(
-      (value) => value.includes("control") || value.includes("controller"),
-    )
-  ) {
-    return "node-control";
-  }
-  return "node";
-}
-
-function resolveNodeTypeFromRow(row?: DeviceRow | null): NodeType {
-  if (!row) return "node";
-  const raw = `${row.id ?? ""} ${row.name ?? ""}`.toLowerCase();
-  if (raw.includes("sensor")) {
-    return "node-sensor";
-  }
-  if (raw.includes("control") || raw.includes("controller")) {
-    return "node-control";
-  }
-  return "node";
 }
 
 function normalizeLastSeen(payload: NodeEventPayload, existing?: DeviceRow) {
@@ -137,42 +96,21 @@ function sortRows(rows: DeviceRow[]) {
 
 export function createNodeCollectionsStore() {
   const nodeCache = new Map<string, DeviceRow>();
-  const controllerCache = new Map<string, DeviceRow>();
-  const sensorCache = new Map<string, DeviceRow>();
 
   function syncToRefs(refs: NodeCollectionsRefs) {
     refs.nodeRows.value = sortRows(Array.from(nodeCache.values()));
-    refs.controllerRows.value = sortRows(Array.from(controllerCache.values()));
-    refs.sensorRows.value = sortRows(Array.from(sensorCache.values()));
+    refs.controllerRows.value = [];
+    refs.sensorRows.value = [];
   }
 
   function hydrateFromRows(refs: NodeCollectionsRefs) {
     nodeCache.clear();
-    controllerCache.clear();
-    sensorCache.clear();
-
     refs.nodeRows.value.forEach((row) => {
       if (!row?.id) return;
       nodeCache.set(row.id, row);
-      const nodeType = resolveNodeTypeFromRow(row);
-      if (nodeType === "node-control") {
-        controllerCache.set(row.id, row);
-      } else if (nodeType === "node-sensor") {
-        sensorCache.set(row.id, row);
-      }
     });
-    refs.controllerRows.value.forEach((row) => {
-      if (row?.id) {
-        controllerCache.set(row.id, row);
-        nodeCache.set(row.id, row);
-      }
-    });
-    refs.sensorRows.value.forEach((row) => {
-      if (row?.id) {
-        sensorCache.set(row.id, row);
-        nodeCache.set(row.id, row);
-      }
-    });
+    refs.controllerRows.value = [];
+    refs.sensorRows.value = [];
   }
 
   function updateFromGatewayPayload(
@@ -188,23 +126,11 @@ export function createNodeCollectionsStore() {
       const id = resolveNodeId(node);
       if (!id) return;
 
-      const nodeType = resolveNodeType(node);
-      const existing =
-        nodeCache.get(id) ||
-        controllerCache.get(id) ||
-        sensorCache.get(id);
+      const existing = nodeCache.get(id);
 
       const row = buildNodeRow(node, existing, payload.id ?? null);
 
       nodeCache.set(id, row);
-      controllerCache.delete(id);
-      sensorCache.delete(id);
-
-      if (nodeType === "node-control") {
-        controllerCache.set(id, row);
-      } else if (nodeType === "node-sensor") {
-        sensorCache.set(id, row);
-      }
     });
 
     syncToRefs(refs);
