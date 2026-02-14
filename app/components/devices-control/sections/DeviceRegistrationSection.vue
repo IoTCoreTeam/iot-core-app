@@ -3,20 +3,6 @@
     <a-tabs v-model:activeKey="activeDeviceTab" class="px-4 custom-tabs text-xs">
       <a-tab-pane v-for="tab in deviceTabs" :key="tab.key" :tab="tab.label">
         <div v-if="tab.key === activeDeviceTab" class="pb-2">
-          <div v-if="tab.key === 'sensor'">
-            <div class="mb-4">
-              <SingleMetricChart
-                class="rounded-lg border border-gray-200 bg-white"
-                :metrics="availableMetrics"
-                :selected-metric-key="selectedMetricKey"
-                :selected-timeframe="selectedTimeframe"
-                :sensor-ids="selectedSensorId ? [selectedSensorId] : []"
-                @update:selected-metric-key="handleMetricChange"
-                @update:selected-timeframe="handleTimeframeChange"
-              />
-            </div>
-          </div>
-
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
             <div
               :class="[
@@ -51,211 +37,240 @@
               />
             </div>
 
-            <DataBoxCard
+            <div
               :class="[
-                'lg:self-start device-table',
+                'flex flex-col gap-4',
                 isDeviceFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
               ]"
-              :key="deviceTableKey"
-              :is-loading="isDeviceLoading"
-              :columns="deviceTableColumnDefinitions.length"
-              :has-data="displayedDeviceRows.length > 0"
-              :pagination="devicePagination"
-              :loading-text="deviceLoadingText"
-              @prev-page="prevDevicePage"
-              @next-page="nextDevicePage"
-              @change-per-page="changeDevicePerPage"
             >
-              <template #header>
-                <div class="flex items-center gap-2">
-                  <h3 class="font-semibold text-gray-700 text-xs">
-                    {{ currentDeviceTab.label }}
-                  </h3>
-                  <button
-                    type="button"
-                    class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
-                    @click="toggleDeviceFilters"
-                  >
-                    {{
-                      isDeviceFilterVisible ? "Hide Filters" : "Show Filters"
-                    }}
-                  </button>
-                </div>
+              <SingleMetricChart
+                v-if="activeDeviceTab === 'nodes'"
+                class="w-full"
+                :metrics="nodeMetrics"
+                :selected-metric-key="selectedNodeMetricKey"
+                :selected-timeframe="selectedNodeTimeframe"
+                :node-ids="nodeChartNodeIds"
+                :selected-node-id="selectedNodeId"
+                @update:selected-metric-key="handleNodeMetricChange"
+                @update:selected-node-id="handleNodeIdChange"
+              />
 
-                <div class="flex flex-wrap items-center gap-2">
-                  <div class="relative">
-                    <input
-                      v-model="deviceSearchKeyword"
-                      type="text"
-                      placeholder="Search device, batch, note..."
-                      class="pl-5 pr-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-60 text-xs cursor-text"
-                    />
-                    <BootstrapIcon
-                      name="search"
-                      class="absolute left-1 top-1.5 w-3 h-3 text-gray-400"
-                    />
+              <DataBoxCard
+                class="lg:self-start device-table"
+                :key="deviceTableKey"
+                :is-loading="isDeviceLoading"
+                :columns="deviceTableColumnDefinitions.length"
+                :has-data="displayedDeviceRows.length > 0"
+                :pagination="devicePagination"
+                :loading-text="deviceLoadingText"
+                @prev-page="prevDevicePage"
+                @next-page="nextDevicePage"
+                @change-per-page="changeDevicePerPage"
+              >
+                <template #header>
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-semibold text-gray-700 text-xs">
+                      {{ currentDeviceTab.label }}
+                    </h3>
+                    <button
+                      type="button"
+                      class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
+                      @click="toggleDeviceFilters"
+                    >
+                      {{
+                        isDeviceFilterVisible ? "Hide Filters" : "Show Filters"
+                      }}
+                    </button>
                   </div>
 
-                  <button
-                    @click="refreshDevices"
-                    class="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded px-3 py-1 text-xs border border-gray-300"
-                    :disabled="isDeviceLoading"
-                  >
-                    <BootstrapIcon
-                      name="arrow-clockwise"
-                      class="w-3 h-3 mr-1"
-                      :class="{ 'animate-spin': isDeviceLoading }"
-                    />
-                    {{ isDeviceLoading ? "Refreshing..." : "Refresh" }}
-                  </button>
-                  <button
-                    type="button"
-                    class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
-                    :disabled="isDeviceLoading || !filteredDeviceRows.length"
-                    @click="exportDevices"
-                  >
-                    <BootstrapIcon
-                      name="file-earmark-arrow-down"
-                      class="w-3 h-3 mr-1"
-                    />
-                    Export
-                  </button>
-                </div>
-              </template>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative">
+                      <input
+                        v-model="deviceSearchKeyword"
+                        type="text"
+                        placeholder="Search device, batch, note..."
+                        class="pl-5 pr-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-60 text-xs cursor-text"
+                      />
+                      <BootstrapIcon
+                        name="search"
+                        class="absolute left-1 top-1.5 w-3 h-3 text-gray-400"
+                      />
+                    </div>
 
-              <template #head>
-                <tr
-                  class="bg-slate-50 border-b border-gray-200 text-xs text-gray-600"
-                >
-                  <th
-                    v-for="column in deviceTableColumnDefinitions"
-                    :key="column.key"
-                    class="px-2 py-2 font-normal text-gray-600 text-xs tracking-wide text-left"
-                    :style="{ width: column.width }"
+                    <button
+                      @click="refreshDevices"
+                      class="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded px-3 py-1 text-xs border border-gray-300"
+                      :disabled="isDeviceLoading"
+                    >
+                      <BootstrapIcon
+                        name="arrow-clockwise"
+                        class="w-3 h-3 mr-1"
+                        :class="{ 'animate-spin': isDeviceLoading }"
+                      />
+                      {{ isDeviceLoading ? "Refreshing..." : "Refresh" }}
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+                      :disabled="isDeviceLoading || !filteredDeviceRows.length"
+                      @click="exportDevices"
+                    >
+                      <BootstrapIcon
+                        name="file-earmark-arrow-down"
+                        class="w-3 h-3 mr-1"
+                      />
+                      Export
+                    </button>
+                  </div>
+                </template>
+
+                <template #head>
+                  <tr
+                    class="bg-slate-50 border-b border-gray-200 text-xs text-gray-600"
                   >
-                    {{ column.label }}
-                  </th>
-                </tr>
-              </template>
-              <template #default>
-                <tr
-                  v-for="row in displayedDeviceRows"
-                  :key="row.id"
-                  :class="[
-                    'transition-colors text-xs align-middle border-b border-gray-100 h-12',
-                    'hover:bg-slate-50',
-                  ]"
-                >
-                  <td
-                    v-for="(column, columnIndex) in deviceTableColumnDefinitions"
-                    :key="column.key"
-                    class="px-2 py-2 align-middle"
-                    :style="{ width: getColumnWidth(columnIndex) }"
+                    <th
+                      v-for="column in deviceTableColumnDefinitions"
+                      :key="column.key"
+                      class="px-2 py-2 font-normal text-gray-600 text-xs tracking-wide text-left"
+                      :style="{ width: column.width }"
+                    >
+                      {{ column.label }}
+                    </th>
+                  </tr>
+                </template>
+                <template #default>
+                  <tr
+                    v-for="row in displayedDeviceRows"
+                    :key="row.id"
+                    :class="[
+                      'transition-colors text-xs align-middle border-b border-gray-100 h-12',
+                      'hover:bg-slate-50',
+                    ]"
                   >
-                    <template v-if="column.key === 'id'">
-                      <div class="text-xs whitespace-nowrap">{{ row.id }}</div>
-                    </template>
-                    <template v-else-if="column.key === 'name'">
-                      <p class="text-xs text-gray-700 truncate">{{ row.name }}</p>
-                    </template>
-                    <template v-else-if="column.key === 'gatewayId'">
-                      <p class="text-xs truncate">{{ row.gatewayId || "N/A" }}</p>
-                    </template>
-                    <template v-else-if="column.key === 'ip'">
-                      <p class="text-xs">{{ row.ip || "N/A" }}</p>
-                    </template>
-                    <template v-else-if="column.key === 'mac'">
-                      <p class="text-xs truncate">{{ row.mac || "N/A" }}</p>
-                    </template>
-                    <template v-else-if="column.key === 'status'">
-                      <div
-                        class="text-xs font-semibold uppercase"
-                        :class="statusTextColorClass(row.status)"
-                      >
-                        {{ formatDeviceStatus(row.status) }}
-                      </div>
-                    </template>
-                    <template v-else-if="column.key === 'registered'">
-                      <div
-                        class="text-xs font-semibold uppercase"
-                        :class="registrationTextColorClass(row.registered)"
-                      >
-                        {{ formatRegistrationStatus(row.registered) }}
-                      </div>
-                    </template>
-                    <template v-else-if="column.key === 'lastSeen'">
-                      <div class="text-xs">{{ formatLastSeen(row.lastSeen) }}</div>
-                    </template>
-                    <template v-else-if="column.key === 'actions'">
-                      <div class="inline-flex items-center gap-1">
-                        <button
-                          v-if="!isUnactiveStatus(row.status)"
-                          type="button"
-                          class="w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
-                          title="View details"
+                    <td
+                      v-for="(column, columnIndex) in deviceTableColumnDefinitions"
+                      :key="column.key"
+                      class="px-2 py-2 align-middle"
+                      :style="{ width: getColumnWidth(columnIndex) }"
+                    >
+                      <template v-if="column.key === 'id'">
+                        <div class="text-xs whitespace-nowrap">{{ row.id }}</div>
+                      </template>
+                      <template v-else-if="column.key === 'name'">
+                        <p class="text-xs text-gray-700 truncate">{{ row.name }}</p>
+                      </template>
+                      <template v-else-if="column.key === 'gatewayId'">
+                        <p class="text-xs truncate">{{ row.gatewayId || "N/A" }}</p>
+                      </template>
+                      <template v-else-if="column.key === 'type'">
+                        <p class="text-xs capitalize">{{ row.type || "N/A" }}</p>
+                      </template>
+                      <template v-else-if="column.key === 'ip'">
+                        <p class="text-xs">{{ row.ip || "N/A" }}</p>
+                      </template>
+                      <template v-else-if="column.key === 'mac'">
+                        <p class="text-xs truncate">{{ row.mac || "N/A" }}</p>
+                      </template>
+                      <template v-else-if="column.key === 'status'">
+                        <div
+                          class="text-xs font-semibold uppercase"
+                          :class="statusTextColorClass(row.status)"
                         >
-                          <BootstrapIcon name="info-circle" class="w-3 h-3" />
-                          <span class="sr-only">Details</span>
-                        </button>
-                        <template v-if="row.registered === false">
+                          {{ formatDeviceStatus(row.status) }}
+                        </div>
+                      </template>
+                      <template v-else-if="column.key === 'registered'">
+                        <div
+                          class="text-xs font-semibold uppercase"
+                          :class="registrationTextColorClass(row.registered)"
+                        >
+                          {{ formatRegistrationStatus(row.registered) }}
+                        </div>
+                      </template>
+                      <template v-else-if="column.key === 'lastSeen'">
+                        <div class="text-xs">{{ formatLastSeen(row.lastSeen) }}</div>
+                      </template>
+                      <template v-else-if="column.key === 'actions'">
+                        <div class="inline-flex items-center gap-1">
                           <button
+                            v-if="
+                              activeDeviceTab === 'gateways' &&
+                              !isUnactiveStatus(row.status)
+                            "
                             type="button"
-                            class="w-8 h-8 inline-flex items-center justify-center rounded border cursor-pointer"
-                            :class="[
-                              activeDeviceTab === 'gateways'
-                                ? 'border-blue-200 text-blue-600 hover:bg-blue-50'
-                                : isGatewayRegisteredForRow(row)
+                            class="w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
+                            title="View details"
+                            @click.stop="openGatewayDetail(row)"
+                          >
+                            <BootstrapIcon name="info-circle" class="w-3 h-3" />
+                            <span class="sr-only">Details</span>
+                          </button>
+                          <template v-if="row.registered === false">
+                            <button
+                              type="button"
+                              class="w-8 h-8 inline-flex items-center justify-center rounded border cursor-pointer"
+                              :class="[
+                                activeDeviceTab === 'gateways'
                                   ? 'border-blue-200 text-blue-600 hover:bg-blue-50'
-                                  : 'border-gray-200 text-gray-400 bg-gray-50',
-                            ]"
-                            title="Register Device"
-                            @click.stop="handleNodeEnrollClick(row)"
-                          >
-                            <BootstrapIcon name="plus-lg" class="w-3 h-3" />
-                            <span class="sr-only">Register</span>
-                          </button>
-                        </template>
-                        <template v-else>
-                          <button
-                            type="button"
-                            class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
-                            :class="{
-                              'opacity-50 cursor-not-allowed':
-                                isDeactivatingDevice(row.id),
-                            }"
-                            :disabled="isDeactivatingDevice(row.id)"
-                            :aria-busy="isDeactivatingDevice(row.id)"
-                            title="Deactivate Device"
-                            @click.stop="handleDeactivateSensor(row)"
-                          >
-                            <BootstrapIcon name="slash-circle" class="w-3 h-3" />
-                            <span class="sr-only">Deactivate</span>
-                          </button>
-                        </template>
-                      </div>
-                    </template>
-                  </td>
-                </tr>
-              </template>
-              <template #empty> No devices to display yet. </template>
+                                  : isGatewayRegisteredForRow(row)
+                                    ? 'border-blue-200 text-blue-600 hover:bg-blue-50'
+                                    : 'border-gray-200 text-gray-400 bg-gray-50',
+                              ]"
+                              title="Register Device"
+                              @click.stop="handleNodeEnrollClick(row)"
+                            >
+                              <BootstrapIcon name="plus-lg" class="w-3 h-3" />
+                              <span class="sr-only">Register</span>
+                            </button>
+                          </template>
+                          <template v-else>
+                            <button
+                              type="button"
+                              class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
+                              :class="{
+                                'opacity-50 cursor-not-allowed':
+                                  isDeactivatingDevice(row.id),
+                              }"
+                              :disabled="isDeactivatingDevice(row.id)"
+                              :aria-busy="isDeactivatingDevice(row.id)"
+                              title="Deactivate Device"
+                              @click.stop="handleDeactivateSensor(row)"
+                            >
+                              <BootstrapIcon name="slash-circle" class="w-3 h-3" />
+                              <span class="sr-only">Deactivate</span>
+                            </button>
+                          </template>
+                        </div>
+                      </template>
+                    </td>
+                  </tr>
+                </template>
+                <template #empty> No devices to display yet. </template>
 
-              <template #footer>
-                <span
-                  >Showing {{ displayedDeviceRows.length }} entries on this
-                  page.</span
-                >
-                <span
-                  >Total filtered:
-                  <span class="text-gray-600 font-medium">{{
-                    filteredDeviceRows.length
-                  }}</span></span
-                >
-              </template>
-            </DataBoxCard>
+                <template #footer>
+                  <span
+                    >Showing {{ displayedDeviceRows.length }} entries on this
+                    page.</span
+                  >
+                  <span
+                    >Total filtered:
+                    <span class="text-gray-600 font-medium">{{
+                      filteredDeviceRows.length
+                    }}</span></span
+                  >
+                </template>
+              </DataBoxCard>
+            </div>
           </div>
         </div>
       </a-tab-pane>
     </a-tabs>
+    <GatewayDetailModal
+      v-if="isGatewayDetailOpen"
+      :gateway="selectedGateway"
+      :nodes="connectedGatewayNodes"
+      @close="closeGatewayDetail"
+    />
   </section>
 </template>
 
@@ -286,27 +301,92 @@ import {
   createNodeCollectionsStore,
   type GatewayEventPayload,
 } from "@/composables/DeviceRegistration/SSEHandle";
+import { useLoadDataRow } from "@/composables/DeviceRegistration/loadDataRow";
 import {
   defaultDeviceFilters,
   type GatewayFilterState,
   useDeviceFilter,
 } from "@/composables/DeviceRegistration/DeviceFilter";
+import GatewayDetailModal from "@/components/Modals/Devices/GatewayDetailModal.vue";
 
 defineProps<{
   section: Section;
 }>();
 
-const KNOWN_DEVICE_STATUSES = new Set<DeviceRow["status"]>([
-  "online",
-  "offline",
-]);
-
 const gatewayRows = ref<DeviceRow[]>([]);
 const nodeRows = ref<DeviceRow[]>([]);
 const controllerRows = ref<DeviceRow[]>([]);
 const sensorRows = ref<DeviceRow[]>([]);
-const selectedSensorId = ref<DeviceRow["id"] | null>(null);
 const deviceTableKey = ref(0);
+const isGatewayDetailOpen = ref(false);
+const selectedGateway = ref<DeviceRow | null>(null);
+
+const nodeMetrics = ref<DashboardMetric[]>([
+  {
+    key: "soilMoisture",
+    title: "Soil moisture",
+    subtitle: "Soil moisture",
+    value: 0,
+    unit: "%",
+    icon: "droplet-half",
+    change: 0,
+    status: "good",
+    statusText: "Stable",
+    description: "Keep between 40-60% for healthy roots.",
+    min: 0,
+    max: 100,
+    trend: [44, 45, 46, 47, 48, 49, 48],
+    rules: { warnLow: 35, warnHigh: 70, dangerLow: 25, dangerHigh: 80 },
+  },
+  {
+    key: "airHumidity",
+    title: "Air humidity",
+    subtitle: "Air humidity",
+    value: 0,
+    unit: "%",
+    icon: "droplet",
+    change: 0,
+    status: "good",
+    statusText: "Comfortable",
+    description: "Ideal range 55-70% for most plants.",
+    min: 0,
+    max: 100,
+    trend: [58, 60, 61, 62, 63, 64, 63],
+    rules: { warnLow: 40, warnHigh: 80, dangerLow: 30, dangerHigh: 90 },
+  },
+  {
+    key: "temperature",
+    title: "Temperature",
+    subtitle: "Temperature",
+    value: 0,
+    unit: "C",
+    icon: "thermometer-half",
+    change: 0,
+    status: "good",
+    statusText: "Cool",
+    description: "Ambient temperature in the greenhouse.",
+    min: 0,
+    max: 45,
+    trend: [26.5, 27.1, 27.8, 28.2, 28.5, 28.0, 28.4],
+    rules: { warnLow: 15, warnHigh: 32, dangerLow: 10, dangerHigh: 36 },
+  },
+]);
+
+const selectedNodeMetricKey = ref<string>(nodeMetrics.value[0]?.key ?? "");
+const selectedNodeTimeframe = ref<TimeframeKey>("second");
+const selectedNodeId = ref<string | undefined>(undefined);
+
+const nodeChartNodeIds = computed(() =>
+  nodeRows.value.map((row) => row.id).filter((id) => id)
+);
+
+function handleNodeMetricChange(value: string) {
+  selectedNodeMetricKey.value = value;
+}
+
+function handleNodeIdChange(value: string) {
+  selectedNodeId.value = value;
+}
 
 const { isDeactivatingDevice, deactivateDevice } = useDeviceDeactivation();
 const { registerDevice } = useRegisterDevice();
@@ -458,8 +538,8 @@ function handleNodeEnrollClick(row: DeviceRow) {
         ? `Please register gateway ${gatewayId} first.`
         : "Please register the node's gateway first.",
     );
-    return;
-  }
+      return;
+    }
   return handleEnroll(row);
 }
 
@@ -467,107 +547,42 @@ function handleReapprove(row: DeviceRow) {
   message.info("Reapproval logic will be added later.");
 }
 
-// Map để track active devices - KEY LÀ external_id hoặc ID
+function openGatewayDetail(row: DeviceRow) {
+  if (activeDeviceTab.value !== "gateways") return;
+  selectedGateway.value = row;
+  isGatewayDetailOpen.value = true;
+}
 
-const gatewayCache = new Map<string, DeviceRow>();
+function closeGatewayDetail() {
+  isGatewayDetailOpen.value = false;
+  selectedGateway.value = null;
+}
+
 const nodeCollectionsStore = createNodeCollectionsStore();
 let gatewayEventSource: EventSource | null = null;
-let deviceStatusPoller: ReturnType<typeof setInterval> | null = null;
 
 const ONLINE_DEVICE_STATUSES = new Set<DeviceRow["status"]>(["online"]);
-
-const availableMetrics: DashboardMetric[] = [
-  {
-    key: "temperature",
-    title: "Temperature",
-    subtitle: "Ambient",
-    value: 0,
-    unit: "°C",
-    icon: "thermometer",
-    status: "good",
-    min: 0,
-    max: 100,
-    change: 0,
-    statusText: "Normal",
-    description: "Temperature sensor",
-    trend: [],
-  },
-  {
-    key: "humidity",
-    title: "Humidity",
-    subtitle: "Relative",
-    value: 0,
-    unit: "%",
-    icon: "droplet",
-    status: "good",
-    min: 0,
-    max: 100,
-    change: 0,
-    statusText: "Normal",
-    description: "Humidity sensor",
-    trend: [],
-  },
-  {
-    key: "light",
-    title: "Light Level",
-    subtitle: "Ambient",
-    value: 0,
-    unit: "%",
-    icon: "brightness-high",
-    status: "good",
-    min: 0,
-    max: 100,
-    change: 0,
-    statusText: "Normal",
-    description: "Light sensor",
-    trend: [],
-  },
-  {
-    key: "soil_moisture",
-    title: "Soil Moisture",
-    subtitle: "Content",
-    value: 0,
-    unit: "%",
-    icon: "moisture",
-    status: "good",
-    min: 0,
-    max: 100,
-    change: 0,
-    statusText: "Normal",
-    description: "Soil moisture sensor",
-    trend: [],
-  },
-  {
-    key: "rain",
-    title: "Rain Sensor",
-    subtitle: "Status",
-    value: 0,
-    unit: "%",
-    icon: "cloud-rain",
-    status: "good",
-    min: 0,
-    max: 100,
-    change: 0,
-    statusText: "Normal",
-    description: "Rain sensor status",
-    trend: [],
-  },
-];
+const {
+  updateGatewayFromPayload,
+  startDeviceStatusPolling,
+  stopDeviceStatusPolling,
+} = useLoadDataRow({
+  gatewayRows,
+  nodeRows,
+  controllerRows,
+  sensorRows,
+});
 
 let deviceRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const deviceTabs = computed<DeviceTab[]>(() => [
   { key: "gateways", label: "Gateways", rows: gatewayRows.value },
   { key: "nodes", label: "Nodes", rows: nodeRows.value },
-  { key: "controller", label: "Controller", rows: controllerRows.value },
-  { key: "sensor", label: "Sensor", rows: sensorRows.value },
 ]);
 
 const defaultDeviceTab = computed(() => deviceTabs.value[0]!);
 const activeDeviceTab = ref<DeviceTabKey>("gateways");
 const isDeviceLoading = ref(false);
-const selectedMetricKey = ref<string>("");
-const selectedTimeframe = ref<TimeframeKey>("hour");
 const devicePagination = ref({ page: 1, perPage: 5, lastPage: 1, total: 0 });
 const deviceLoadingText = ref("Loading devices...");
 const gatewayTableColumns: Array<{ key: string; label: string; width: string }> = [
@@ -583,6 +598,7 @@ const gatewayTableColumns: Array<{ key: string; label: string; width: string }> 
 const nodeTableColumns: Array<{ key: string; label: string; width: string }> = [
   { key: "id", label: "ID", width: "auto" },
   { key: "name", label: "Name", width: "auto" },
+  { key: "type", label: "Type", width: "auto" },
   { key: "gatewayId", label: "Gateway ID", width: "auto" },
   { key: "mac", label: "MAC", width: "auto" },
   { key: "status", label: "Status", width: "auto" },
@@ -630,17 +646,12 @@ const displayedDeviceRows = computed<DeviceRow[]>(() => {
   const end = start + devicePagination.value.perPage;
   return filteredDeviceRows.value.slice(start, end);
 });
-
-// Watchers
-watch(
-  () => availableMetrics,
-  (metrics) => {
-    if (metrics.length > 0 && !selectedMetricKey.value) {
-      selectedMetricKey.value = metrics[0]!.key;
-    }
-  },
-  { immediate: true },
-);
+const connectedGatewayNodes = computed<DeviceRow[]>(() => {
+  if (!selectedGateway.value) return [];
+  return nodeRows.value.filter(
+    (node) => node.gatewayId === selectedGateway.value?.id,
+  );
+});
 
 function applyDeviceFilters(payload?: Record<string, string>) {
   applyDeviceFiltersBase(payload);
@@ -662,14 +673,6 @@ function refreshDevices() {
   deviceRefreshTimeout = setTimeout(() => {
     isDeviceLoading.value = false;
   }, 800);
-}
-
-function handleMetricChange(key: string) {
-  selectedMetricKey.value = key;
-}
-
-function handleTimeframeChange(timeframe: TimeframeKey) {
-  selectedTimeframe.value = timeframe;
 }
 
 function exportDevices() {
@@ -698,6 +701,8 @@ function exportDevices() {
         return row.name;
       case "gatewayId":
         return row.gatewayId ?? "";
+      case "type":
+        return row.type ?? "";
       case "ip":
         return row.ip ?? "";
       case "mac":
@@ -824,81 +829,6 @@ function recalculateDevicePagination() {
   if (devicePagination.value.page > lastPage) {
     devicePagination.value.page = lastPage;
   }
-}
-
-function parseTimestamp(value?: string | null) {
-  if (!value) return 0;
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
-
-function normalizeStatus(value?: string | null): DeviceRow["status"] {
-  if (!value) {
-    return "offline";
-  }
-
-  const normalized = value.toLowerCase();
-  if (KNOWN_DEVICE_STATUSES.has(normalized as DeviceRow["status"])) {
-    return normalized as DeviceRow["status"];
-  }
-  return "offline";
-}
-
-function updateGatewayFromPayload(payload: GatewayEventPayload) {
-  if (!payload?.id) {
-    return;
-  }
-
-  const existing = gatewayCache.get(payload.id);
-  const row: DeviceRow = {
-    id: payload.id,
-    name: payload.name ?? existing?.name ?? `Gateway ${payload.id}`,
-    ip: payload.ip ?? existing?.ip ?? null,
-    mac: payload.mac ?? existing?.mac ?? null,
-    status: normalizeStatus(payload.status),
-    registered: payload.registered ?? false,
-    lastSeen: payload.lastSeen ?? null,
-  };
-
-  gatewayCache.set(row.id, row);
-  syncGatewayRows();
-}
-
-function syncGatewayRows() {
-  gatewayRows.value = Array.from(gatewayCache.values()).sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
-  );
-}
-
-function markRowsOfflineByLastSeen(rows: DeviceRow[]) {
-  const now = Date.now();
-  const thresholdMs = 30_000;
-
-  rows.forEach((row) => {
-    const lastSeenTimestamp = parseTimestamp(row.lastSeen);
-    if (!lastSeenTimestamp || now - lastSeenTimestamp > thresholdMs) {
-      row.status = "offline";
-    }
-  });
-}
-
-function pollDeviceStatuses() {
-  markRowsOfflineByLastSeen(gatewayRows.value);
-  markRowsOfflineByLastSeen(nodeRows.value);
-  markRowsOfflineByLastSeen(controllerRows.value);
-  markRowsOfflineByLastSeen(sensorRows.value);
-}
-
-function startDeviceStatusPolling() {
-  if (!import.meta.client || deviceStatusPoller) return;
-  deviceStatusPoller = setInterval(pollDeviceStatuses, 30_000);
-  pollDeviceStatuses();
-}
-
-function stopDeviceStatusPolling() {
-  if (!deviceStatusPoller) return;
-  clearInterval(deviceStatusPoller);
-  deviceStatusPoller = null;
 }
 
 function handleGatewayUpdate(event: MessageEvent) {

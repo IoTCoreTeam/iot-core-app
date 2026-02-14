@@ -45,6 +45,15 @@ function normalizeStatus(value?: string | null): DeviceRow["status"] {
   return (value ?? "").toLowerCase() === "online" ? "online" : "offline";
 }
 
+function normalizeDeviceType(value?: string | null) {
+  if (!value) return null;
+  const normalized = value.toLowerCase().trim();
+  if (normalized.startsWith("node-")) {
+    return normalized.slice("node-".length);
+  }
+  return normalized;
+}
+
 function resolveNodeId(payload: NodeEventPayload): string | null {
   return (
     payload.id ??
@@ -82,6 +91,12 @@ function buildNodeRow(
       null,
     ip: payload.ip ?? payload.ip_address ?? existing?.ip ?? null,
     mac: payload.mac ?? payload.mac_address ?? existing?.mac ?? null,
+    type: normalizeDeviceType(
+      payload.type ??
+        payload.node_type ??
+        existing?.type ??
+        null,
+    ),
     status: normalizeStatus(payload.status ?? existing?.status ?? null),
     registered: payload.registered ?? existing?.registered ?? false,
     lastSeen: normalizeLastSeen(payload, existing),

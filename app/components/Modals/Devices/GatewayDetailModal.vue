@@ -1,0 +1,179 @@
+<template>
+  <BaseModal
+    :model-value="isOpen"
+    title="Gateway Details"
+    max-width="max-w-5xl"
+    panel-class="p-6 shadow-xl"
+    @request-close="closeModal"
+  >
+    <div class="space-y-6 text-xs text-gray-700">
+      <!-- No data state -->
+      <div
+        v-if="!gateway"
+        class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-500 text-center"
+      >
+        Gateway information is unavailable.
+      </div>
+
+      <template v-else>
+        <!-- Gateway Information Section -->
+        <section class="space-y-4">
+          <div class="flex items-center gap-3 pb-3 border-b border-gray-200"></div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- ID -->
+            <div class="rounded bg-gray-50 p-3 border border-gray-200">
+              <p class="text-xs uppercase tracking-wider text-gray-500 font-medium mb-1">ID</p>
+              <p class="text-gray-900 font-mono text-xs break-all">{{ gateway.id }}</p>
+            </div>
+
+            <!-- Name -->
+            <div class="rounded bg-gray-50 p-3 border border-gray-200">
+              <p class="text-xs tracking-wider text-gray-500 font-medium mb-1">Name</p>
+              <p class="text-gray-900 font-mono text-xs">{{ gateway.name }}</p>
+            </div>
+
+            <!-- IP Address -->
+            <div class="rounded bg-gray-50 p-3 border border-gray-200">
+              <p class="text-xs tracking-wider text-gray-500 font-medium mb-1">IP Address</p>
+              <p class="text-gray-900 font-mono text-xs">{{ gateway.ip || "N/A" }}</p>
+            </div>
+
+            <!-- MAC Address -->
+            <div class="rounded bg-gray-50 p-3 border border-gray-200">
+              <p class="text-xs tracking-wider text-gray-500 font-medium mb-1">MAC Address</p>
+              <p class="text-gray-900 font-mono text-xs">{{ gateway.mac || "N/A" }}</p>
+            </div>
+
+            <!-- Last Seen -->
+            <div class="rounded bg-gray-50 p-3 border border-gray-200 md:col-span-2">
+              <p class="text-xs tracking-wider text-gray-500 font-medium mb-1">Last Seen</p>
+              <p class="text-gray-900 font-mono text-xs">{{ formatLastSeen(gateway.lastSeen) }}</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Connected Nodes Section -->
+        <section class="space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-gray-200">
+            <div></div>
+            <span class="text-xs text-gray-500">{{ nodes.length }} connected nodes</span>
+          </div>
+
+          <!-- Table -->
+          <div class="rounded-lg border border-gray-200 overflow-hidden bg-white">
+            <div v-if="nodes.length === 0" class="p-6 text-center text-gray-500">
+              <p class="text-xs mt-1">No nodes connected to this gateway.</p>
+            </div>
+
+            <table v-else class="w-full text-xs">
+              <thead class="bg-slate-50 border-b border-gray-200">
+                <tr>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-600">ID</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-600">Name</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-600">MAC</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-600">Registered</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-600">Last Seen</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr
+                  v-for="node in nodes"
+                  :key="node.id"
+                  class="border-b border-gray-100 hover:bg-slate-50 transition-colors duration-150"
+                >
+                  <td class="px-4 py-3 text-gray-700 font-mono text-xs">{{ node.id }}</td>
+                  <td class="px-4 py-3 text-gray-900 font-mono text-xs">{{ node.name }}</td>
+                  <td class="px-4 py-3 text-gray-700 font-mono text-xs">{{ node.mac || "N/A" }}</td>
+
+                  <!-- Status -->
+                  <td class="px-4 py-3 text-left font-semibold  text-xs">
+                    <span :class="statusTextClass(node.status)">{{ node.status }}</span>
+                  </td>
+
+                  <!-- Registered -->
+                  <td class="px-4 py-3 text-left font-semibold  text-xs">
+                    <span :class="registeredTextClass(node.registered)">
+                      {{ String(node.registered) }}
+                    </span>
+                  </td>
+
+                  <td class="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
+                    {{ formatLastSeen(node.lastSeen) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </template>
+    </div>
+  </BaseModal>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from "vue";
+import BaseModal from "../BaseModal.vue";
+import type { DeviceRow } from "@/types/devices-control";
+
+const props = defineProps<{
+  gateway: DeviceRow | null;
+  nodes: DeviceRow[];
+}>();
+
+const emit = defineEmits<{
+  (e: "close"): void;
+}>();
+
+const isOpen = ref(true);
+
+const lastSeenFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatLastSeen(value?: string | null) {
+  if (!value) return "N/A";
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return value;
+  return lastSeenFormatter.format(timestamp);
+}
+
+function closeModal() {
+  isOpen.value = false;
+  emit("close");
+}
+
+watch(
+  () => props.gateway,
+  () => {
+    isOpen.value = true;
+  }
+);
+
+const gateway = computed(() => props.gateway);
+const nodes = computed(() => props.nodes);
+
+const statusTextClass = (status?: string | null) => {
+  if (!status) return "text-gray-500 uppercase";
+  const normalized = status.toLowerCase();
+  if (normalized === "online") return "text-blue-600 uppercase";
+  if (normalized === "offline") return "text-red-500 uppercase";
+  return "text-gray-500 uppercase";
+};
+
+const registeredTextClass = (registered?: boolean | null) => {
+  if (registered === true) return "text-blue-600 uppercase";
+  if (registered === false) return "text-red-500 uppercase";
+  return "text-gray-500 uppercase";
+};
+</script>
+
+<style scoped>
+/* Smooth table transitions */
+table tbody tr {
+  transition: background-color 150ms ease-in-out;
+}
+</style>

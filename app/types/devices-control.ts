@@ -10,6 +10,7 @@ export type DeviceRow = {
   gatewayId?: string | null;
   ip?: string | null;
   mac?: string | null;
+  type?: string | null;
   status: DeviceRowStatus;
   registered?: boolean;
   lastSeen?: string | null;

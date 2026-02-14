@@ -99,7 +99,14 @@ export function useDeviceFilter() {
 
     return rows.filter((row) => {
       if (keyword) {
-        const haystack = [row.id, row.name, row.ip, row.mac, row.status]
+        const haystack = [
+          row.id,
+          row.name,
+          row.ip,
+          row.mac,
+          row.status,
+          row.type,
+        ]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();

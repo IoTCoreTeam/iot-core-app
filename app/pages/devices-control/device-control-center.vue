@@ -31,7 +31,7 @@ import {
 } from "@heroicons/vue/24/outline";
 
 import DevicesControlSidebar from "@/components/devices-control/layouts/DevicesControlSidebar.vue";
-import DeviceRegistration from "@/components/devices-control/sections/DeviceRegistration.vue";
+import DeviceRegistration from "@/components/devices-control/sections/DeviceRegistrationSection.vue";
 import MapSection from "@/components/devices-control/sections/MapSection.vue";
 import ScenarioSection from "@/components/devices-control/sections/ScenarioSection.vue";
 import DeviceControlSection from "@/components/devices-control/sections/DeviceControlSection.vue";

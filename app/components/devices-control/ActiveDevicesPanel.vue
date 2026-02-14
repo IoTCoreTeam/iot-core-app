@@ -16,12 +16,22 @@
       <a-tabs v-model:activeKey="activeTab">
         <a-tab-pane key="gateway" tab="Gateways" />
         <a-tab-pane key="node" tab="Nodes" />
-        <a-tab-pane key="controller" tab="Controller" />
-        <a-tab-pane key="sensor" tab="Sensor" />
       </a-tabs>
     </div>
 
     <div class="flex-1 overflow-auto">
+      <div v-if="activeTab === 'node'" class="p-4 border-b border-slate-100">
+        <SingleMetricChart
+          :metrics="nodeMetrics"
+          :selected-metric-key="selectedNodeMetricKey"
+          :selected-timeframe="selectedNodeTimeframe"
+          :node-ids="nodeChartNodeIds"
+          :selected-node-id="selectedNodeId"
+          @update:selected-metric-key="handleNodeMetricChange"
+          @update:selected-node-id="handleNodeIdChange"
+        />
+      </div>
+
       <DataBoxCard
         :is-loading="false"
         :has-data="filteredDevices.length > 0"
@@ -49,9 +59,7 @@
           >
             <td class="px-3 py-3">
               <div class="font-medium">{{ device.name }}</div>
-              <div class="text-[10px] text-gray-500">
-                {{ device.short || device.id }}
-              </div>
+              <div class="text-[10px] text-gray-500">{{ device.id }}</div>
             </td>
 
             <td class="px-3 text-center">
@@ -70,7 +78,7 @@
             </td>
 
             <td class="px-3 text-right text-gray-600">
-              {{ formatLastSeen(device.lastPing) }}
+              {{ formatLastSeen(device.lastSeen ?? null) }}
             </td>
           </tr>
         </template>
@@ -84,31 +92,31 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
+import SingleMetricChart from "@/components/SingleMetricChart.vue";
+import type { DashboardMetric, TimeframeKey } from "@/types/dashboard";
+import type { DeviceRow, DeviceRowStatus } from "@/types/devices-control";
+import { useLoadDataRow } from "@/composables/DeviceRegistration/loadDataRow";
 import { apiConfig } from "~~/config/api";
 
-type ActiveDeviceStatus = "online" | "offline";
-
-export interface ActiveDevice {
-  id: string;
-  short: string; // usually same as ID or a short code
-  name: string;
-  status: ActiveDeviceStatus;
-  lastPing: string | null; // Timestamp string
-  registered?: boolean;
-  type: "gateway" | "node" | "controller" | "sensor";
-}
-
 // Internal State
-const activeTab = ref<"gateway" | "node" | "controller" | "sensor">("gateway");
+const activeTab = ref<"gateway" | "node">("gateway");
 const isConnected = ref(false);
 
-const gatewayRows = ref<ActiveDevice[]>([]);
-const nodeRows = ref<ActiveDevice[]>([]); // To be implemented similarly
-const controllerRows = ref<ActiveDevice[]>([]); // To be implemented similarly
-const sensorRows = ref<ActiveDevice[]>([]); // To be implemented similarly
+const gatewayRows = ref<DeviceRow[]>([]);
+const nodeRows = ref<DeviceRow[]>([]); // To be implemented similarly
+const controllerRows = ref<DeviceRow[]>([]); // To be implemented similarly
+const sensorRows = ref<DeviceRow[]>([]); // To be implemented similarly
 
-// Cache maps for efficient updates
-const gatewayCache = new Map<string, ActiveDevice>();
+const {
+  updateGatewayFromPayload,
+  startDeviceStatusPolling,
+  stopDeviceStatusPolling,
+} = useLoadDataRow({
+  gatewayRows,
+  nodeRows,
+  controllerRows,
+  sensorRows,
+});
 let gatewayEventSource: EventSource | null = null;
 
 // Derived State
@@ -118,14 +126,77 @@ const filteredDevices = computed(() => {
       return gatewayRows.value;
     case "node":
       return nodeRows.value;
-    case "controller":
-      return controllerRows.value;
-    case "sensor":
-      return sensorRows.value;
     default:
       return [];
   }
 });
+
+const nodeMetrics = ref<DashboardMetric[]>([
+  {
+    key: "soilMoisture",
+    title: "Soil moisture",
+    subtitle: "Soil moisture",
+    value: 0,
+    unit: "%",
+    icon: "droplet-half",
+    change: 0,
+    status: "good",
+    statusText: "Stable",
+    description: "Keep between 40-60% for healthy roots.",
+    min: 0,
+    max: 100,
+    trend: [44, 45, 46, 47, 48, 49, 48],
+    rules: { warnLow: 35, warnHigh: 70, dangerLow: 25, dangerHigh: 80 },
+  },
+  {
+    key: "airHumidity",
+    title: "Air humidity",
+    subtitle: "Air humidity",
+    value: 0,
+    unit: "%",
+    icon: "droplet",
+    change: 0,
+    status: "good",
+    statusText: "Comfortable",
+    description: "Ideal range 55-70% for most plants.",
+    min: 0,
+    max: 100,
+    trend: [58, 60, 61, 62, 63, 64, 63],
+    rules: { warnLow: 40, warnHigh: 80, dangerLow: 30, dangerHigh: 90 },
+  },
+  {
+    key: "temperature",
+    title: "Temperature",
+    subtitle: "Temperature",
+    value: 0,
+    unit: "C",
+    icon: "thermometer-half",
+    change: 0,
+    status: "good",
+    statusText: "Cool",
+    description: "Ambient temperature in the greenhouse.",
+    min: 0,
+    max: 45,
+    trend: [26.5, 27.1, 27.8, 28.2, 28.5, 28.0, 28.4],
+    rules: { warnLow: 15, warnHigh: 32, dangerLow: 10, dangerHigh: 36 },
+  },
+]);
+
+const selectedNodeMetricKey = ref<string>(nodeMetrics.value[0]?.key ?? "");
+const selectedNodeTimeframe = ref<TimeframeKey>("second");
+const selectedNodeId = ref<string | undefined>(undefined);
+
+const nodeChartNodeIds = computed(() =>
+  nodeRows.value.map((row) => row.id).filter((id) => id)
+);
+
+function handleNodeMetricChange(value: string) {
+  selectedNodeMetricKey.value = value;
+}
+
+function handleNodeIdChange(value: string) {
+  selectedNodeId.value = value;
+}
 
 const displayedDevices = computed(() => {
   return filteredDevices.value;
@@ -179,43 +250,12 @@ function handleGatewayError(event: Event) {
   // Optional: Implement reconnection logic here if needed
 }
 
-function updateGatewayFromPayload(payload: any) {
-  if (!payload?.id) return;
-
-  // Only consider 'online' or specifically active devices if that's the intention of "ActiveDevicesPanel"
-  // But usually we show all and filter by status or just show current state.
-  // Assuming we show all known states for now, but sort by activity.
-
-  const device: ActiveDevice = {
-    id: payload.id,
-    short: payload.id,
-    name: payload.name || `Gateway ${payload.id}`,
-    status: normalizeActiveDeviceStatus(payload.status),
-    registered: payload.registered === true,
-    lastPing: payload.lastSeen || null,
-    type: "gateway",
-  };
-
-  gatewayCache.set(device.id, device);
-
-  // Sync to reactive array and sort by lastPing descending
-  gatewayRows.value = Array.from(gatewayCache.values()).sort((a, b) => {
-    const timeA = a.lastPing ? new Date(a.lastPing).getTime() : 0;
-    const timeB = b.lastPing ? new Date(b.lastPing).getTime() : 0;
-    return timeB - timeA;
-  });
-}
-
-function normalizeActiveDeviceStatus(value?: string | null): ActiveDeviceStatus {
-  return (value ?? "").toLowerCase() === "online" ? "online" : "offline";
-}
-
 // UI Helpers
-function formatStatus(status: ActiveDeviceStatus) {
+function formatStatus(status: DeviceRowStatus) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-function statusColorClass(status: ActiveDeviceStatus) {
+function statusColorClass(status: DeviceRowStatus) {
   if (status === "online") return "text-blue-600";
   return "text-rose-600";
 }
@@ -251,10 +291,12 @@ function registeredClass(value?: boolean) {
 // Lifecycle
 onMounted(() => {
   connectGatewaySse();
+  startDeviceStatusPolling();
 });
 
 onBeforeUnmount(() => {
   disconnectGatewaySse();
+  stopDeviceStatusPolling();
 });
 </script>
 

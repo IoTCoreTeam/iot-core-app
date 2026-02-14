@@ -48,11 +48,6 @@ export function useRegisterDevice() {
     };
 
     try {
-      message.info({
-        content: `Payload: ${JSON.stringify(payload)}`,
-        duration: 5,
-      });
-
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -120,12 +115,8 @@ export function useRegisterDevice() {
               mac_address: row.mac,
               external_id: row.id,
               gateway_id: options?.gatewayId ?? row.gatewayId ?? null,
+              type: row.type ?? null,
             };
-
-      message.info({
-        content: `Payload: ${JSON.stringify(registrationPayload)}`,
-        duration: 5,
-      });
 
       const response = await fetch(endpoint, {
         method: "POST",
