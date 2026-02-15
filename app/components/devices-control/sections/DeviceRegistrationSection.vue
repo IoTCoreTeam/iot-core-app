@@ -46,7 +46,6 @@
               <SingleMetricChart
                 v-if="activeDeviceTab === 'nodes'"
                 class="w-full"
-                :metrics="nodeMetrics"
                 :selected-metric-key="selectedNodeMetricKey"
                 :selected-timeframe="selectedNodeTimeframe"
                 :node-ids="nodeChartNodeIds"
@@ -286,13 +285,14 @@ import { message } from "ant-design-vue";
 import AdvancedFilterPanel from "@/components/common/AdvancedFilterPanel.vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
+import { METRICS } from "~~/config/metric";
 import type {
   DeviceRow,
   DeviceTab,
   DeviceTabKey,
   Section,
 } from "@/types/devices-control";
-import type { DashboardMetric, TimeframeKey } from "@/types/dashboard";
+import type { TimeframeKey } from "@/types/dashboard";
 import { apiConfig } from "~~/config/api";
 import { useRegisterDevice } from "@/composables/DeviceRegistration/RegisterDevice";
 import { useDeviceDeactivation } from "@/composables/DeviceRegistration/DeactiveDevice";
@@ -321,58 +321,7 @@ const deviceTableKey = ref(0);
 const isGatewayDetailOpen = ref(false);
 const selectedGateway = ref<DeviceRow | null>(null);
 
-const nodeMetrics = ref<DashboardMetric[]>([
-  {
-    key: "soilMoisture",
-    title: "Soil moisture",
-    subtitle: "Soil moisture",
-    value: 0,
-    unit: "%",
-    icon: "droplet-half",
-    change: 0,
-    status: "good",
-    statusText: "Stable",
-    description: "Keep between 40-60% for healthy roots.",
-    min: 0,
-    max: 100,
-    trend: [44, 45, 46, 47, 48, 49, 48],
-    rules: { warnLow: 35, warnHigh: 70, dangerLow: 25, dangerHigh: 80 },
-  },
-  {
-    key: "airHumidity",
-    title: "Air humidity",
-    subtitle: "Air humidity",
-    value: 0,
-    unit: "%",
-    icon: "droplet",
-    change: 0,
-    status: "good",
-    statusText: "Comfortable",
-    description: "Ideal range 55-70% for most plants.",
-    min: 0,
-    max: 100,
-    trend: [58, 60, 61, 62, 63, 64, 63],
-    rules: { warnLow: 40, warnHigh: 80, dangerLow: 30, dangerHigh: 90 },
-  },
-  {
-    key: "temperature",
-    title: "Temperature",
-    subtitle: "Temperature",
-    value: 0,
-    unit: "C",
-    icon: "thermometer-half",
-    change: 0,
-    status: "good",
-    statusText: "Cool",
-    description: "Ambient temperature in the greenhouse.",
-    min: 0,
-    max: 45,
-    trend: [26.5, 27.1, 27.8, 28.2, 28.5, 28.0, 28.4],
-    rules: { warnLow: 15, warnHigh: 32, dangerLow: 10, dangerHigh: 36 },
-  },
-]);
-
-const selectedNodeMetricKey = ref<string>(nodeMetrics.value[0]?.key ?? "");
+const selectedNodeMetricKey = ref<string>(METRICS[0]?.key ?? "");
 const selectedNodeTimeframe = ref<TimeframeKey>("second");
 const selectedNodeId = ref<string | undefined>(undefined);
 

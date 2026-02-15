@@ -20,18 +20,6 @@
     </div>
 
     <div class="flex-1 overflow-auto">
-      <div v-if="activeTab === 'node'" class="p-4 border-b border-slate-100">
-        <SingleMetricChart
-          :metrics="nodeMetrics"
-          :selected-metric-key="selectedNodeMetricKey"
-          :selected-timeframe="selectedNodeTimeframe"
-          :node-ids="nodeChartNodeIds"
-          :selected-node-id="selectedNodeId"
-          @update:selected-metric-key="handleNodeMetricChange"
-          @update:selected-node-id="handleNodeIdChange"
-        />
-      </div>
-
       <DataBoxCard
         :is-loading="false"
         :has-data="filteredDevices.length > 0"
@@ -92,15 +80,12 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
-import SingleMetricChart from "@/components/SingleMetricChart.vue";
-import type { DashboardMetric, TimeframeKey } from "@/types/dashboard";
 import type { DeviceRow, DeviceRowStatus } from "@/types/devices-control";
 import { useLoadDataRow } from "@/composables/DeviceRegistration/loadDataRow";
 import { apiConfig } from "~~/config/api";
 
 // Internal State
 const activeTab = ref<"gateway" | "node">("gateway");
-const isConnected = ref(false);
 
 const gatewayRows = ref<DeviceRow[]>([]);
 const nodeRows = ref<DeviceRow[]>([]); // To be implemented similarly
@@ -131,73 +116,6 @@ const filteredDevices = computed(() => {
   }
 });
 
-const nodeMetrics = ref<DashboardMetric[]>([
-  {
-    key: "soilMoisture",
-    title: "Soil moisture",
-    subtitle: "Soil moisture",
-    value: 0,
-    unit: "%",
-    icon: "droplet-half",
-    change: 0,
-    status: "good",
-    statusText: "Stable",
-    description: "Keep between 40-60% for healthy roots.",
-    min: 0,
-    max: 100,
-    trend: [44, 45, 46, 47, 48, 49, 48],
-    rules: { warnLow: 35, warnHigh: 70, dangerLow: 25, dangerHigh: 80 },
-  },
-  {
-    key: "airHumidity",
-    title: "Air humidity",
-    subtitle: "Air humidity",
-    value: 0,
-    unit: "%",
-    icon: "droplet",
-    change: 0,
-    status: "good",
-    statusText: "Comfortable",
-    description: "Ideal range 55-70% for most plants.",
-    min: 0,
-    max: 100,
-    trend: [58, 60, 61, 62, 63, 64, 63],
-    rules: { warnLow: 40, warnHigh: 80, dangerLow: 30, dangerHigh: 90 },
-  },
-  {
-    key: "temperature",
-    title: "Temperature",
-    subtitle: "Temperature",
-    value: 0,
-    unit: "C",
-    icon: "thermometer-half",
-    change: 0,
-    status: "good",
-    statusText: "Cool",
-    description: "Ambient temperature in the greenhouse.",
-    min: 0,
-    max: 45,
-    trend: [26.5, 27.1, 27.8, 28.2, 28.5, 28.0, 28.4],
-    rules: { warnLow: 15, warnHigh: 32, dangerLow: 10, dangerHigh: 36 },
-  },
-]);
-
-const selectedNodeMetricKey = ref<string>(nodeMetrics.value[0]?.key ?? "");
-const selectedNodeTimeframe = ref<TimeframeKey>("second");
-const selectedNodeId = ref<string | undefined>(undefined);
-
-const nodeChartNodeIds = computed(() =>
-  nodeRows.value.map((row) => row.id).filter((id) => id)
-);
-
-function handleNodeMetricChange(value: string) {
-  selectedNodeMetricKey.value = value;
-}
-
-function handleNodeIdChange(value: string) {
-  selectedNodeId.value = value;
-}
-
 const displayedDevices = computed(() => {
   return filteredDevices.value;
 });
@@ -212,17 +130,12 @@ function connectGatewaySse() {
     const endpoint = `${apiConfig.server.replace(/\/$/, "")}/events/gateways`;
     const source = new EventSource(endpoint);
 
-    source.addEventListener("open", () => {
-      isConnected.value = true;
-    });
-
     source.addEventListener("gateway-update", handleGatewayUpdate);
     source.addEventListener("error", handleGatewayError);
 
     gatewayEventSource = source;
   } catch (error) {
     console.error("Failed to connect to gateway SSE:", error);
-    isConnected.value = false;
   }
 }
 
@@ -230,7 +143,6 @@ function disconnectGatewaySse() {
   if (gatewayEventSource) {
     gatewayEventSource.close();
     gatewayEventSource = null;
-    isConnected.value = false;
   }
 }
 
@@ -246,7 +158,6 @@ function handleGatewayUpdate(event: MessageEvent) {
 
 function handleGatewayError(event: Event) {
   console.error("Gateway SSE error:", event);
-  isConnected.value = false;
   // Optional: Implement reconnection logic here if needed
 }
 

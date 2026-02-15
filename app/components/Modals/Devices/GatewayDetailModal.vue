@@ -24,31 +24,31 @@
             <!-- ID -->
             <div class="rounded bg-gray-50 p-3 border border-gray-200">
               <p class="text-xs uppercase tracking-wider text-gray-500 font-medium mb-1">ID</p>
-              <p class="text-gray-900 font-mono text-xs break-all">{{ gateway.id }}</p>
+              <p class="text-gray-900 text-xs break-all">{{ gateway.id }}</p>
             </div>
 
             <!-- Name -->
             <div class="rounded bg-gray-50 p-3 border border-gray-200">
               <p class="text-xs tracking-wider text-gray-500 font-medium mb-1">Name</p>
-              <p class="text-gray-900 font-mono text-xs">{{ gateway.name }}</p>
+              <p class="text-gray-900 text-xs">{{ gateway.name }}</p>
             </div>
 
             <!-- IP Address -->
             <div class="rounded bg-gray-50 p-3 border border-gray-200">
               <p class="text-xs tracking-wider text-gray-500 font-medium mb-1">IP Address</p>
-              <p class="text-gray-900 font-mono text-xs">{{ gateway.ip || "N/A" }}</p>
+              <p class="text-gray-900 text-xs">{{ gateway.ip || "N/A" }}</p>
             </div>
 
             <!-- MAC Address -->
             <div class="rounded bg-gray-50 p-3 border border-gray-200">
               <p class="text-xs tracking-wider text-gray-500 font-medium mb-1">MAC Address</p>
-              <p class="text-gray-900 font-mono text-xs">{{ gateway.mac || "N/A" }}</p>
+              <p class="text-gray-900 text-xs">{{ gateway.mac || "N/A" }}</p>
             </div>
 
             <!-- Last Seen -->
             <div class="rounded bg-gray-50 p-3 border border-gray-200 md:col-span-2">
               <p class="text-xs tracking-wider text-gray-500 font-medium mb-1">Last Seen</p>
-              <p class="text-gray-900 font-mono text-xs">{{ formatLastSeen(gateway.lastSeen) }}</p>
+              <p class="text-gray-900 text-xs">{{ formatLastSeen(gateway.lastSeen) }}</p>
             </div>
           </div>
         </section>
@@ -84,9 +84,9 @@
                   :key="node.id"
                   class="border-b border-gray-100 hover:bg-slate-50 transition-colors duration-150"
                 >
-                  <td class="px-4 py-3 text-gray-700 font-mono text-xs">{{ node.id }}</td>
-                  <td class="px-4 py-3 text-gray-900 font-mono text-xs">{{ node.name }}</td>
-                  <td class="px-4 py-3 text-gray-700 font-mono text-xs">{{ node.mac || "N/A" }}</td>
+                  <td class="px-4 py-3 text-gray-700 text-xs">{{ node.id }}</td>
+                  <td class="px-4 py-3 text-gray-900 text-xs">{{ node.name }}</td>
+                  <td class="px-4 py-3 text-gray-700 text-xs">{{ node.mac || "N/A" }}</td>
 
                   <!-- Status -->
                   <td class="px-4 py-3 text-left font-semibold  text-xs">

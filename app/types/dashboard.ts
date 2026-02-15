@@ -18,12 +18,12 @@ export interface DashboardMetric {
   unit: string;
   icon: BootstrapIconName;
   change: number | null;
-  status: Status;
-  statusText: string;
+  status?: Status;
+  statusText?: string;
   description: string;
-  min: number;
-  max: number;
-  trend: number[];
+  min?: number;
+  max?: number;
+  trend?: number[];
   rules?: StatusRule;
 }
 

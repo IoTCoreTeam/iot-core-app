@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white border border-slate-200 rounded h-full p-4">
+  <div class="bg-white border border-slate-200 rounded p-4">
     <div
       class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
     >
@@ -14,7 +14,7 @@
             class="rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-800"
           >
             <option
-              v-for="metric in props.metrics"
+              v-for="metric in availableMetrics"
               :key="metric.key"
               :value="metric.key"
             >
@@ -83,16 +83,13 @@
 import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 import type { ApexOptions } from "apexcharts";
-import type {
-  DashboardMetric,
-  SeriesPoint,
-  TimeframeKey,
-} from "@/types/dashboard";
+import type { DashboardMetric, SeriesPoint, TimeframeKey } from "@/types/dashboard";
 import { useMetricQuery } from "@/composables/SingleMetricChart/useMetricQuery";
+import { METRICS } from "~~/config/metric";
 
 const props = withDefaults(
   defineProps<{
-    metrics: DashboardMetric[];
+    metrics?: DashboardMetric[];
     series?: SeriesPoint[];
     isLoading?: boolean;
     error?: string | null;
@@ -125,8 +122,14 @@ const {
   fetchOnce,
 } = metricQuery;
 
+const availableMetrics = computed(() =>
+  props.metrics && props.metrics.length > 0 ? props.metrics : METRICS
+);
+
 const selectedMetric = computed(() =>
-  props.metrics.find((metric) => metric.key === props.selectedMetricKey)
+  availableMetrics.value.find(
+    (metric) => metric.key === props.selectedMetricKey
+  )
 );
 
 const ALL_NODES_VALUE = "__all__";
