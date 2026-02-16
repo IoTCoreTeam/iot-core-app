@@ -48,7 +48,6 @@
                 class="w-full"
                 :selected-metric-key="selectedNodeMetricKey"
                 :selected-timeframe="selectedNodeTimeframe"
-                :node-ids="nodeChartNodeIds"
                 :selected-node-id="selectedNodeId"
                 @update:selected-metric-key="handleNodeMetricChange"
                 @update:selected-node-id="handleNodeIdChange"
@@ -138,121 +137,281 @@
                   </tr>
                 </template>
                 <template #default>
-                  <tr
-                    v-for="row in displayedDeviceRows"
-                    :key="row.id"
-                    :class="[
-                      'transition-colors text-xs align-middle border-b border-gray-100 h-12',
-                      'hover:bg-slate-50',
-                    ]"
-                  >
-                    <td
-                      v-for="(column, columnIndex) in deviceTableColumnDefinitions"
-                      :key="column.key"
-                      class="px-2 py-2 align-middle"
-                      :style="{ width: getColumnWidth(columnIndex) }"
+                  <template v-for="row in displayedDeviceRows" :key="row.id">
+                    <tr
+                      :class="[
+                        'transition-colors text-xs align-middle border-b border-gray-100 h-12',
+                        'hover:bg-slate-50',
+                      ]"
                     >
-                      <template v-if="column.key === 'id'">
-                        <div class="text-xs whitespace-nowrap">{{ row.id }}</div>
-                      </template>
-                      <template v-else-if="column.key === 'name'">
-                        <p class="text-xs text-gray-700 truncate">{{ row.name }}</p>
-                      </template>
-                      <template v-else-if="column.key === 'gatewayId'">
-                        <p class="text-xs truncate">{{ row.gatewayId || "N/A" }}</p>
-                      </template>
-                      <template v-else-if="column.key === 'type'">
-                        <p class="text-xs capitalize">{{ row.type || "N/A" }}</p>
-                      </template>
-                      <template v-else-if="column.key === 'ip'">
-                        <p class="text-xs">{{ row.ip || "N/A" }}</p>
-                      </template>
-                      <template v-else-if="column.key === 'mac'">
-                        <p class="text-xs truncate">{{ row.mac || "N/A" }}</p>
-                      </template>
-                      <template v-else-if="column.key === 'status'">
-                        <div
-                          class="text-xs font-semibold uppercase"
-                          :class="statusTextColorClass(row.status)"
-                        >
-                          {{ formatDeviceStatus(row.status) }}
-                        </div>
-                      </template>
-                      <template v-else-if="column.key === 'registered'">
-                        <div
-                          class="text-xs font-semibold uppercase"
-                          :class="registrationTextColorClass(row.registered)"
-                        >
-                          {{ formatRegistrationStatus(row.registered) }}
-                        </div>
-                      </template>
-                      <template v-else-if="column.key === 'lastSeen'">
-                        <div class="text-xs">{{ formatLastSeen(row.lastSeen) }}</div>
-                      </template>
-                      <template v-else-if="column.key === 'actions'">
-                        <div class="inline-flex items-center gap-1">
-                          <button
-                            v-if="
-                              activeDeviceTab === 'gateways' &&
-                              !isUnactiveStatus(row.status)
-                            "
-                            type="button"
-                            :class="infoButtonClass"
-                            title="View details"
-                            @click.stop="openGatewayDetail(row)"
+                      <td
+                        v-for="(column, columnIndex) in deviceTableColumnDefinitions"
+                        :key="column.key"
+                        class="px-2 py-2 align-middle"
+                        :style="{ width: getColumnWidth(columnIndex) }"
+                      >
+                        <template v-if="column.key === 'id'">
+                          <div class="text-xs whitespace-nowrap">{{ row.id }}</div>
+                        </template>
+                        <template v-else-if="column.key === 'name'">
+                          <p class="text-xs text-gray-700 truncate">{{ row.name }}</p>
+                        </template>
+                        <template v-else-if="column.key === 'gatewayId'">
+                          <p class="text-xs truncate">{{ row.gatewayId || "N/A" }}</p>
+                        </template>
+                        <template v-else-if="column.key === 'type'">
+                          <p class="text-xs capitalize">{{ row.type || "N/A" }}</p>
+                        </template>
+                        <template v-else-if="column.key === 'ip'">
+                          <p class="text-xs">{{ row.ip || "N/A" }}</p>
+                        </template>
+                        <template v-else-if="column.key === 'mac'">
+                          <p class="text-xs truncate">{{ row.mac || "N/A" }}</p>
+                        </template>
+                        <template v-else-if="column.key === 'status'">
+                          <div
+                            class="text-xs font-semibold uppercase"
+                            :class="statusTextColorClass(row.status)"
                           >
-                            <BootstrapIcon name="info-circle" class="w-3 h-3" />
-                            <span class="sr-only">Details</span>
-                          </button>
-                          <button
-                            v-if="activeDeviceTab === 'nodes'"
-                            type="button"
-                            :class="infoButtonClass"
-                            title="View node details"
-                            @click.stop="openNodeDetail(row)"
+                            {{ formatDeviceStatus(row.status) }}
+                          </div>
+                        </template>
+                        <template v-else-if="column.key === 'registered'">
+                          <div
+                            class="text-xs font-semibold uppercase"
+                            :class="registrationTextColorClass(row.registered)"
                           >
-                            <BootstrapIcon name="info-circle" class="w-3 h-3" />
-                            <span class="sr-only">Node Details</span>
-                          </button>
-                          <template v-if="row.registered === false">
+                            {{ formatRegistrationStatus(row.registered) }}
+                          </div>
+                        </template>
+                        <template v-else-if="column.key === 'lastSeen'">
+                          <div class="text-xs">{{ formatLastSeen(row.lastSeen) }}</div>
+                        </template>
+                        <template v-else-if="column.key === 'actions'">
+                          <div class="inline-flex items-center gap-1">
                             <button
+                              v-if="
+                                activeDeviceTab === 'gateways' &&
+                                !isUnactiveStatus(row.status)
+                              "
                               type="button"
-                              class="w-8 h-8 inline-flex items-center justify-center rounded border cursor-pointer"
-                              :class="[
-                                activeDeviceTab === 'gateways'
-                                  ? 'border-blue-200 text-blue-600 hover:bg-blue-50'
-                                  : isGatewayRegisteredForRow(row)
-                                    ? 'border-blue-200 text-blue-600 hover:bg-blue-50'
-                                    : 'border-gray-200 text-gray-400 bg-gray-50',
-                              ]"
-                              title="Register Device"
-                              @click.stop="handleNodeEnrollClick(row)"
+                              :class="infoButtonClass"
+                              title="View details"
+                              @click.stop="openGatewayDetail(row)"
+                            >
+                              <BootstrapIcon name="info-circle" class="w-3 h-3" />
+                              <span class="sr-only">Details</span>
+                            </button>
+                            <button
+                              v-if="activeDeviceTab === 'nodes'"
+                              type="button"
+                              :class="infoButtonClass"
+                              title="View node details"
+                              @click.stop="openNodeDetail(row)"
+                            >
+                              <BootstrapIcon name="info-circle" class="w-3 h-3" />
+                              <span class="sr-only">Node Details</span>
+                            </button>
+                            <button
+                              v-if="
+                                activeDeviceTab === 'nodes' &&
+                                isControlNode(row)
+                              "
+                              type="button"
+                              class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
+                              title="Add control url"
+                              @click.stop="toggleControlUrlInline(row)"
                             >
                               <BootstrapIcon name="plus-lg" class="w-3 h-3" />
-                              <span class="sr-only">Register</span>
+                              <span class="sr-only">Add Control URL</span>
                             </button>
-                          </template>
-                          <template v-else>
+                            <template v-if="row.registered === false">
+                              <button
+                                type="button"
+                                class="w-8 h-8 inline-flex items-center justify-center rounded border cursor-pointer"
+                                :class="[
+                                  activeDeviceTab === 'gateways'
+                                    ? 'border-blue-200 text-blue-600 hover:bg-blue-50'
+                                    : isGatewayRegisteredForRow(row)
+                                      ? 'border-blue-200 text-blue-600 hover:bg-blue-50'
+                                      : 'border-gray-200 text-gray-400 bg-gray-50',
+                                ]"
+                                title="Register Device"
+                                @click.stop="handleNodeEnrollClick(row)"
+                              >
+                                <BootstrapIcon name="plus-lg" class="w-3 h-3" />
+                                <span class="sr-only">Register</span>
+                              </button>
+                            </template>
+                            <template v-else>
+                              <button
+                                type="button"
+                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
+                                :class="{
+                                  'opacity-50 cursor-not-allowed':
+                                    isDeactivatingDevice(row.id),
+                                }"
+                                :disabled="isDeactivatingDevice(row.id)"
+                                :aria-busy="isDeactivatingDevice(row.id)"
+                                title="Deactivate Device"
+                                @click.stop="handleDeactivateSensor(row)"
+                              >
+                                <BootstrapIcon name="slash-circle" class="w-3 h-3" />
+                                <span class="sr-only">Deactivate</span>
+                              </button>
+                            </template>
+                          </div>
+                        </template>
+                      </td>
+                    </tr>
+                    <transition name="inline-slide">
+                      <tr
+                        v-if="showControlUrlInline(row)"
+                        class="bg-white border-b border-blue-100"
+                      >
+                        <td
+                          :colspan="deviceTableColumnDefinitions.length"
+                          class="p-3"
+                        >
+                          <div class="flex flex-wrap items-end gap-3 text-xs">
+                          <div class="w-full">
+                            <p class="text-[11px] text-blue-600 font-semibold">
+                              Saved control URLs
+                            </p>
+                            <p
+                              v-if="controlUrlLoadError"
+                              class="text-[11px] text-red-500"
+                            >
+                              {{ controlUrlLoadError }}
+                            </p>
+                          </div>
+                          <div
+                            v-if="isLoadingControlUrls"
+                            class="w-full text-[11px] text-gray-500"
+                          >
+                            Loading control urls...
+                          </div>
+                          <div
+                            v-else-if="!controlUrlItems.length"
+                            class="w-full text-[11px] text-gray-500"
+                          >
+                            No control urls yet.
+                          </div>
+                          <div
+                            v-for="item in controlUrlItems"
+                            :key="item.id"
+                            class="flex flex-wrap items-end gap-3 w-full rounded border border-blue-100 bg-white p-2"
+                          >
+                            <div class="flex flex-col gap-1">
+                              <label class="text-[10px] text-gray-500">Name</label>
+                              <input
+                                v-model="item.name"
+                                type="text"
+                                class="border border-gray-300 rounded px-2 py-1 text-xs w-40 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                              <label class="text-[10px] text-gray-500">URL</label>
+                              <input
+                                v-model="item.url"
+                                type="text"
+                                class="border border-gray-300 rounded px-2 py-1 text-xs w-80 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                              <label class="text-[10px] text-gray-500">Input type</label>
+                              <input
+                                v-model="item.input_type"
+                                type="text"
+                                class="border border-gray-300 rounded px-2 py-1 text-xs w-28 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                              <label class="text-[10px] text-gray-500">Status</label>
+                              <select
+                                v-model="item.status"
+                                class="border border-gray-300 rounded px-2 py-1 text-xs w-24 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              >
+                                <option value="on">on</option>
+                                <option value="off">off</option>
+                              </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                              <button
+                                type="button"
+                                class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+                                @click="handleUpdateControlUrl(item)"
+                              >
+                                Update
+                              </button>
+                              <button
+                                type="button"
+                                class="inline-flex items-center bg-white hover:bg-blue-50 text-blue-600 rounded px-3 py-1 text-xs border border-blue-200"
+                                @click="handleDeleteControlUrl(item)"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                          <div class="flex flex-col gap-1">
+                            <label class="text-[10px] text-gray-500">Name</label>
+                            <input
+                              v-model="controlUrlForm.name"
+                              type="text"
+                              class="border border-gray-300 rounded px-2 py-1 text-xs w-48 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              placeholder="e.g. Pump On"
+                            />
+                          </div>
+                          <div class="flex flex-col gap-1">
+                            <label class="text-[10px] text-gray-500">URL</label>
+                            <input
+                              v-model="controlUrlForm.url"
+                              type="text"
+                              class="border border-gray-300 rounded px-2 py-1 text-xs w-80 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              placeholder="http://..."
+                            />
+                          </div>
+                          <div class="flex flex-col gap-1">
+                            <label class="text-[10px] text-gray-500">Input type</label>
+                            <input
+                              v-model="controlUrlForm.inputType"
+                              type="text"
+                              class="border border-gray-300 rounded px-2 py-1 text-xs w-32 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              placeholder="switch"
+                            />
+                          </div>
+                          <div class="flex flex-col gap-1">
+                            <label class="text-[10px] text-gray-500">Status</label>
+                            <select
+                              v-model="controlUrlForm.status"
+                              class="border border-gray-300 rounded px-2 py-1 text-xs w-24 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                            >
+                              <option value="on">on</option>
+                              <option value="off">off</option>
+                            </select>
+                          </div>
+                          <div class="flex items-center gap-2">
                             <button
                               type="button"
-                              class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
-                              :class="{
-                                'opacity-50 cursor-not-allowed':
-                                  isDeactivatingDevice(row.id),
-                              }"
-                              :disabled="isDeactivatingDevice(row.id)"
-                              :aria-busy="isDeactivatingDevice(row.id)"
-                              title="Deactivate Device"
-                              @click.stop="handleDeactivateSensor(row)"
+                              class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+                              :disabled="isSavingControlUrl"
+                              @click="submitControlUrl(row)"
                             >
-                              <BootstrapIcon name="slash-circle" class="w-3 h-3" />
-                              <span class="sr-only">Deactivate</span>
+                              {{ isSavingControlUrl ? "Saving..." : "Save" }}
                             </button>
-                          </template>
-                        </div>
-                      </template>
-                    </td>
-                  </tr>
+                            <button
+                              type="button"
+                              class="inline-flex items-center bg-white hover:bg-blue-50 text-blue-600 rounded px-3 py-1 text-xs border border-blue-200"
+                              @click="closeControlUrlInline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </transition>
+                  </template>
                 </template>
                 <template #empty> No devices to display yet. </template>
 
@@ -315,6 +474,7 @@ import { apiConfig } from "~~/config/api";
 import { useRegisterDevice } from "@/composables/DeviceRegistration/RegisterDevice";
 import { useDeviceDeactivation } from "@/composables/DeviceRegistration/DeactiveDevice";
 import { useAuthStore } from "~~/stores/auth";
+import { useControlUrlActions } from "@/composables/DeviceRegistration/useControlUrlActions";
 import {
   createNodeCollectionsStore,
   type GatewayEventPayload,
@@ -340,10 +500,6 @@ const selectedNodeMetricKey = ref<string>(METRICS[0]?.key ?? "");
 const selectedNodeTimeframe = ref<TimeframeKey>("second");
 const selectedNodeId = ref<string | undefined>(undefined);
 
-const nodeChartNodeIds = computed(() =>
-  nodeRows.value.map((row) => row.id).filter((id) => id)
-);
-
 const infoButtonClass =
   "w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 cursor-pointer transition-colors duration-150 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300";
 
@@ -355,11 +511,179 @@ function handleNodeIdChange(value: string) {
   selectedNodeId.value = value;
 }
 
+function isControlNode(row: DeviceRow) {
+  return (row.type ?? "").toLowerCase() === "control";
+}
+
+async function resolveControlNodeId(row: DeviceRow) {
+  const externalNodeId = row.externalId ?? row.id;
+  if (!nodeIdMap.value[externalNodeId]) {
+    await loadNodeIdMap();
+  }
+  return nodeIdMap.value[externalNodeId] ?? null;
+}
+
+async function fetchControlUrls(nodeUuid: string) {
+  if (!apiConfig.controlModule) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) return;
+
+  isLoadingControlUrls.value = true;
+  controlUrlLoadError.value = null;
+  try {
+    const endpoint = `${apiConfig.controlModule.replace(/\/$/, "")}/control-urls?node_id=${encodeURIComponent(nodeUuid)}&per_page=100`;
+    const response = await fetch(endpoint, {
+      headers: {
+        Authorization: authorization,
+        Accept: "application/json",
+      },
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message ?? "Failed to load control urls.");
+    }
+    const rows = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload)
+        ? payload
+        : [];
+    controlUrlItems.value = rows.map((row: any) => ({
+      id: row.id,
+      name: row.name ?? "",
+      url: row.url ?? "",
+      input_type: row.input_type ?? "",
+      status: row.status === "on" ? "on" : "off",
+    }));
+  } catch (error: any) {
+    controlUrlLoadError.value = error?.message ?? "Failed to load control urls.";
+    controlUrlItems.value = [];
+  } finally {
+    isLoadingControlUrls.value = false;
+  }
+}
+
+async function toggleControlUrlInline(row: DeviceRow) {
+  if (activeDeviceTab.value !== "nodes" || !isControlNode(row)) return;
+  if (activeControlUrlNodeId.value === row.id) {
+    activeControlUrlNodeId.value = null;
+    activeControlNodeUuid.value = null;
+    return;
+  }
+  const controlNodeId = await resolveControlNodeId(row);
+  if (!controlNodeId) {
+    message.warning(`Node ${row.externalId ?? row.id} not found in Control Module.`);
+    return;
+  }
+  activeControlUrlNodeId.value = row.id;
+  activeControlNodeUuid.value = controlNodeId;
+  controlUrlForm.value = {
+    name: "",
+    url: "",
+    inputType: "",
+    status: "off",
+  };
+  await fetchControlUrls(controlNodeId);
+}
+
+function showControlUrlInline(row: DeviceRow) {
+  return (
+    activeDeviceTab.value === "nodes" &&
+    isControlNode(row) &&
+    activeControlUrlNodeId.value === row.id
+  );
+}
+
+function closeControlUrlInline() {
+  activeControlUrlNodeId.value = null;
+  activeControlNodeUuid.value = null;
+}
+
+async function submitControlUrl(row: DeviceRow) {
+  if (isSavingControlUrl.value) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+  if (!controlUrlForm.value.name || !controlUrlForm.value.url || !controlUrlForm.value.inputType) {
+    message.warning("Please fill in name, url, and input type.");
+    return;
+  }
+
+  const controlNodeId = activeControlNodeUuid.value ?? (await resolveControlNodeId(row));
+  if (!controlNodeId) {
+    message.warning(`Node ${row.externalId ?? row.id} not found in Control Module.`);
+    return;
+  }
+
+  isSavingControlUrl.value = true;
+  try {
+    await createControlUrl(authorization, {
+      node_id: controlNodeId,
+      name: controlUrlForm.value.name,
+      url: controlUrlForm.value.url,
+      input_type: controlUrlForm.value.inputType,
+      status: controlUrlForm.value.status,
+    });
+    message.success("Control URL created.");
+    await fetchControlUrls(controlNodeId);
+    closeControlUrlInline();
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to create control url.");
+  } finally {
+    isSavingControlUrl.value = false;
+  }
+}
+
+async function handleUpdateControlUrl(item: ControlUrlItem) {
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+  const nodeId = activeControlNodeUuid.value;
+  if (!nodeId) {
+    message.warning("Missing node id.");
+    return;
+  }
+
+  try {
+    await updateControlUrl(authorization, item.id, {
+      node_id: nodeId,
+      name: item.name,
+      url: item.url,
+      input_type: item.input_type,
+      status: item.status,
+    });
+    message.success("Control URL updated.");
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to update control url.");
+  }
+}
+
+async function handleDeleteControlUrl(item: ControlUrlItem) {
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+  try {
+    await deleteControlUrl(authorization, item.id);
+    controlUrlItems.value = controlUrlItems.value.filter((row) => row.id !== item.id);
+    message.success("Control URL deleted.");
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to delete control url.");
+  }
+}
+
 const { isDeactivatingDevice, deactivateDevice } = useDeviceDeactivation();
 const { registerDevice } = useRegisterDevice();
+const { createControlUrl, updateControlUrl, deleteControlUrl } = useControlUrlActions();
 const authStore = useAuthStore();
 const gatewayIdMap = ref<Record<string, string>>({});
 const isGatewayIdMapLoading = ref(false);
+const nodeIdMap = ref<Record<string, string>>({});
+const isNodeIdMapLoading = ref(false);
 
 async function loadGatewayIdMap() {
   if (!import.meta.client) return;
@@ -400,6 +724,48 @@ async function loadGatewayIdMap() {
     console.error("Failed to load gateway IDs", error);
   } finally {
     isGatewayIdMapLoading.value = false;
+  }
+}
+
+async function loadNodeIdMap() {
+  if (!import.meta.client) return;
+  if (isNodeIdMapLoading.value) return;
+  if (!apiConfig.controlModule) return;
+
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) return;
+
+  isNodeIdMapLoading.value = true;
+  try {
+    const endpoint = `${apiConfig.controlModule.replace(/\/$/, "")}/nodes`;
+    const response = await fetch(endpoint, {
+      headers: {
+        Authorization: authorization,
+        Accept: "application/json",
+      },
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message ?? "Failed to load nodes.");
+    }
+
+    const rows = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload)
+        ? payload
+        : [];
+    const map: Record<string, string> = {};
+    rows.forEach((row: any) => {
+      if (row?.external_id && row?.id) {
+        map[row.external_id] = row.id;
+      }
+    });
+    nodeIdMap.value = map;
+  } catch (error) {
+    console.error("Failed to load node IDs", error);
+  } finally {
+    isNodeIdMapLoading.value = false;
   }
 }
 
@@ -581,6 +947,25 @@ const nodeTableColumns: Array<{ key: string; label: string; width: string }> = [
   { key: "lastSeen", label: "Last Seen", width: "auto" },
   { key: "actions", label: "Actions", width: "auto" },
 ];
+const activeControlUrlNodeId = ref<string | null>(null);
+const activeControlNodeUuid = ref<string | null>(null);
+const isSavingControlUrl = ref(false);
+const isLoadingControlUrls = ref(false);
+const controlUrlLoadError = ref<string | null>(null);
+const controlUrlForm = ref({
+  name: "",
+  url: "",
+  inputType: "",
+  status: "off" as "on" | "off",
+});
+type ControlUrlItem = {
+  id: string;
+  name: string;
+  url: string;
+  input_type: string;
+  status: "on" | "off";
+};
+const controlUrlItems = ref<ControlUrlItem[]>([]);
 const deviceTableColumnDefinitions = computed(() =>
   activeDeviceTab.value === "gateways" ? gatewayTableColumns : nodeTableColumns,
 );
@@ -908,5 +1293,22 @@ watch(deviceSearchKeyword, () => {
 
 :deep(.device-table table) {
   table-layout: fixed;
+}
+
+.inline-slide-enter-active,
+.inline-slide-leave-active {
+  transition: max-height 220ms ease, opacity 220ms ease, transform 220ms ease;
+}
+.inline-slide-enter-from,
+.inline-slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.inline-slide-enter-to,
+.inline-slide-leave-from {
+  max-height: 120px;
+  opacity: 1;
+  transform: translateY(0);
 }
 </style>
