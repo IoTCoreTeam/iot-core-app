@@ -38,24 +38,26 @@ export function useRegisterDevice() {
     }
 
     const endpoint = `${CONTROL_MODULE_BASE}/nodes/register`;
+    const resolvedType = normalizeNodeType(options?.type ?? row.type ?? null);
     const payload = {
       name: row.name,
       ip_address: options?.gatewayIp ?? row.ip ?? null,
       mac_address: row.mac ?? null,
       external_id: row.id,
       gateway_id: options?.gatewayId ?? row.gatewayId ?? null,
-      type: options?.type ?? null,
+      type: resolvedType,
     };
 
     try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: authorization,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: authorization,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
       const responsePayload = await response.json().catch(() => null);
       if (!response.ok) {
@@ -115,13 +117,14 @@ export function useRegisterDevice() {
               mac_address: row.mac,
               external_id: row.id,
               gateway_id: options?.gatewayId ?? row.gatewayId ?? null,
-              type: row.type ?? null,
+              type: normalizeNodeType(row.type ?? null),
             };
 
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           Authorization: authorization,
+          Accept: "application/json",
           "Content-Type": "application/json",
         },
         body: JSON.stringify(registrationPayload),
@@ -156,4 +159,16 @@ export function useRegisterDevice() {
     registerDevice,
     registerNode,
   };
+}
+
+function normalizeNodeType(value?: string | null) {
+  if (!value) return null;
+  const normalized = value.toLowerCase().trim();
+  if (normalized === "control") return "controller";
+  if (normalized === "node-control") return "controller";
+  if (normalized === "node-sensor") return "sensor";
+  if (normalized.startsWith("node-")) {
+    return normalized.slice("node-".length);
+  }
+  return normalized;
 }

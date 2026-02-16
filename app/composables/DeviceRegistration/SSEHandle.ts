@@ -4,6 +4,8 @@ import type { DeviceRow } from "@/types/devices-control";
 export type NodeEventPayload = {
   gateway_id?: string | null;
   gatewayId?: string | null;
+  external_id?: string | null;
+  externalId?: string | null;
   id?: string | null;
   node_id?: string | null;
   nodeId?: string | null;
@@ -80,9 +82,16 @@ function buildNodeRow(
   gatewayId?: string | null,
 ): DeviceRow {
   const id = resolveNodeId(payload) ?? existing?.id ?? "unknown-node";
+  const rawName = payload.name ?? existing?.name ?? null;
+  const externalId =
+    payload.external_id ??
+    payload.externalId ??
+    existing?.externalId ??
+    null;
   return {
     id,
-    name: payload.name ?? existing?.name ?? `Node ${id}`,
+    externalId,
+    name: rawName ?? "N/A",
     gatewayId:
       payload.gateway_id ??
       payload.gatewayId ??

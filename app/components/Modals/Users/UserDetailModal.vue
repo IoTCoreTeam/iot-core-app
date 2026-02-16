@@ -133,7 +133,7 @@
           </button>
           <button
             type="submit"
-            class="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+            class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
             :disabled="isBusy"
           >
             {{ isSaving ? "Saving..." : "Save Changes" }}

@@ -1,26 +1,24 @@
 <template>
   <div class="w-full min-h-[80vh] bg-gray-50 p-4">
     <div class="mx-auto flex max-w-8xl flex-col gap-4">
+      <section class="grid grid-cols-1 gap-4 items-start">
+        <DevicesControlMetricDataWidgetBox />
+      </section>
+
       <section
-        class="grid grid-cols-1 gap-2 lg:grid-cols-3 xl:grid-cols-5 items-start min-h-[40vh]"
+        class="grid grid-cols-1 gap-4 xl:grid-cols-5 items-start min-h-[40vh]"
       >
         <SingleMetricChart
-          class="lg:col-span-3 xl:col-span-5"
+          class="xl:col-span-4"
           :series="chartSeries"
           :selected-metric-key="selectedMetricKey"
           :selected-timeframe="selectedTimeframe"
           @update:selected-metric-key="handleMetricChange"
           @update:selected-timeframe="handleTimeframeChange"
         />
-      </section>
-
-      <section class="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start min-h-[40vh]">
-        <div class="lg:col-span-1 h-full">
+        <div class="xl:col-span-1 h-full">
           <!-- ActiveDevicesPanel now handles its own data fetching via SSE -->
           <DevicesControlActiveDevicesPanel />
-        </div>
-        <div class="lg:col-span-1 h-full">
-          <DevicesControlLatestSensorDataPanel />
         </div>
       </section>
 
@@ -46,6 +44,7 @@ import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
 import { METRICS } from "~~/config/metric";
+import DevicesControlMetricDataWidgetBox from "@/components/devices-control/MetricDataWidgetBox.vue";
 
 const authStore = useAuthStore();
 import type {

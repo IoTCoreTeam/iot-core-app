@@ -2,6 +2,16 @@ import type { DashboardMetric } from "@/types/dashboard";
 
 export const METRICS: DashboardMetric[] = [
   {
+    key: "temperature",
+    title: "Temperature",
+    subtitle: "Temperature",
+    value: 28.4,
+    unit: "C",
+    icon: "thermometer-half",
+    change: 0.7,
+    description: "Ambient temperature in the greenhouse.",
+  },
+  {
     key: "soilMoisture",
     title: "Soil moisture",
     subtitle: "Soil moisture",
@@ -40,15 +50,5 @@ export const METRICS: DashboardMetric[] = [
     icon: "droplet",
     change: 2.1,
     description: "Ideal range 55-70% for most plants.",
-  },
-  {
-    key: "temperature",
-    title: "Temperature",
-    subtitle: "Temperature",
-    value: 28.4,
-    unit: "C",
-    icon: "thermometer-half",
-    change: 0.7,
-    description: "Ambient temperature in the greenhouse.",
   },
 ];

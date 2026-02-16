@@ -197,12 +197,32 @@
                               !isUnactiveStatus(row.status)
                             "
                             type="button"
-                            class="w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
+                            :class="infoButtonClass"
                             title="View details"
                             @click.stop="openGatewayDetail(row)"
                           >
                             <BootstrapIcon name="info-circle" class="w-3 h-3" />
                             <span class="sr-only">Details</span>
+                          </button>
+                          <button
+                            v-if="shouldShowNodeControlDetail(row)"
+                            type="button"
+                            :class="infoButtonClass"
+                            title="View controller details"
+                            @click.stop="openNodeControlDetail(row)"
+                          >
+                            <BootstrapIcon name="info-circle" class="w-3 h-3" />
+                            <span class="sr-only">Controller Details</span>
+                          </button>
+                          <button
+                            v-if="shouldShowNodeSensorDetail(row)"
+                            type="button"
+                            :class="infoButtonClass"
+                            title="View sensor details"
+                            @click.stop="openNodeSensorDetail(row)"
+                          >
+                            <BootstrapIcon name="info-circle" class="w-3 h-3" />
+                            <span class="sr-only">Sensor Details</span>
                           </button>
                           <template v-if="row.registered === false">
                             <button
@@ -270,6 +290,24 @@
       :nodes="connectedGatewayNodes"
       @close="closeGatewayDetail"
     />
+    <NodeControlDetailModal
+      v-if="isNodeControlDetailOpen"
+      :model-value="isNodeControlDetailOpen"
+      :node="selectedNodeDetail"
+      :controller="selectedControllerDetail"
+      :gateway-id="selectedGatewayUuid"
+      @update:modelValue="isNodeControlDetailOpen = $event"
+      @close="closeNodeControlDetail"
+    />
+    <NodeSensorDetailModal
+      v-if="isNodeSensorDetailOpen"
+      :model-value="isNodeSensorDetailOpen"
+      :node="selectedNodeDetail"
+      :sensor="selectedSensorDetail"
+      :gateway-id="selectedGatewayUuid"
+      @update:modelValue="isNodeSensorDetailOpen = $event"
+      @close="closeNodeSensorDetail"
+    />
   </section>
 </template>
 
@@ -291,6 +329,7 @@ import type {
   DeviceTab,
   DeviceTabKey,
   Section,
+  NodeInfo,
 } from "@/types/devices-control";
 import type { TimeframeKey } from "@/types/dashboard";
 import { apiConfig } from "~~/config/api";
@@ -308,6 +347,8 @@ import {
   useDeviceFilter,
 } from "@/composables/DeviceRegistration/DeviceFilter";
 import GatewayDetailModal from "@/components/Modals/Devices/GatewayDetailModal.vue";
+import NodeControlDetailModal from "@/components/Modals/Devices/NodeControlDetailModal.vue";
+import NodeSensorDetailModal from "@/components/Modals/Devices/NodeSensorDetailModal.vue";
 
 defineProps<{
   section: Section;
@@ -320,6 +361,12 @@ const sensorRows = ref<DeviceRow[]>([]);
 const deviceTableKey = ref(0);
 const isGatewayDetailOpen = ref(false);
 const selectedGateway = ref<DeviceRow | null>(null);
+const isNodeControlDetailOpen = ref(false);
+const isNodeSensorDetailOpen = ref(false);
+const selectedNodeDetail = ref<NodeInfo | null>(null);
+const selectedControllerDetail = ref<Record<string, unknown> | null>(null);
+const selectedSensorDetail = ref<Record<string, unknown> | null>(null);
+const selectedGatewayUuid = ref<string | null>(null);
 
 const selectedNodeMetricKey = ref<string>(METRICS[0]?.key ?? "");
 const selectedNodeTimeframe = ref<TimeframeKey>("second");
@@ -328,6 +375,9 @@ const selectedNodeId = ref<string | undefined>(undefined);
 const nodeChartNodeIds = computed(() =>
   nodeRows.value.map((row) => row.id).filter((id) => id)
 );
+
+const infoButtonClass =
+  "w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 cursor-pointer transition-colors duration-150 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300";
 
 function handleNodeMetricChange(value: string) {
   selectedNodeMetricKey.value = value;
@@ -505,6 +555,59 @@ function openGatewayDetail(row: DeviceRow) {
 function closeGatewayDetail() {
   isGatewayDetailOpen.value = false;
   selectedGateway.value = null;
+}
+
+function shouldShowNodeControlDetail(row: DeviceRow) {
+  return activeDeviceTab.value === "nodes" && normalizeNodeType(row.type) === "controller";
+}
+
+function shouldShowNodeSensorDetail(row: DeviceRow) {
+  return activeDeviceTab.value === "nodes" && normalizeNodeType(row.type) === "sensor";
+}
+
+async function resolveGatewayUuid(row: DeviceRow) {
+  const gatewayExternalId = row.gatewayId ?? null;
+  if (!gatewayExternalId) return null;
+  if (!gatewayIdMap.value[gatewayExternalId]) {
+    await loadGatewayIdMap();
+  }
+  return gatewayIdMap.value[gatewayExternalId] ?? null;
+}
+
+async function openNodeControlDetail(row: DeviceRow) {
+  selectedNodeDetail.value = mapDeviceRowToNodeInfo(row);
+  selectedControllerDetail.value = null;
+  selectedGatewayUuid.value = await resolveGatewayUuid(row);
+  isNodeControlDetailOpen.value = true;
+}
+
+async function openNodeSensorDetail(row: DeviceRow) {
+  selectedNodeDetail.value = mapDeviceRowToNodeInfo(row);
+  selectedSensorDetail.value = null;
+  selectedGatewayUuid.value = await resolveGatewayUuid(row);
+  isNodeSensorDetailOpen.value = true;
+}
+
+function closeNodeControlDetail() {
+  isNodeControlDetailOpen.value = false;
+  if (!isNodeSensorDetailOpen.value) {
+    selectedNodeDetail.value = null;
+  }
+  selectedControllerDetail.value = null;
+  if (!isNodeSensorDetailOpen.value) {
+    selectedGatewayUuid.value = null;
+  }
+}
+
+function closeNodeSensorDetail() {
+  isNodeSensorDetailOpen.value = false;
+  if (!isNodeControlDetailOpen.value) {
+    selectedNodeDetail.value = null;
+  }
+  selectedSensorDetail.value = null;
+  if (!isNodeControlDetailOpen.value) {
+    selectedGatewayUuid.value = null;
+  }
 }
 
 const nodeCollectionsStore = createNodeCollectionsStore();
@@ -744,6 +847,31 @@ function isOnlineExactStatus(status?: DeviceRow["status"]) {
 function isUnactiveStatus(status?: DeviceRow["status"]) {
   const normalized = (status ?? "").toLowerCase();
   return normalized === "offline";
+}
+
+function normalizeNodeType(value?: string | null) {
+  if (!value) return "";
+  const normalized = value.toLowerCase().trim();
+  const trimmed = normalized.startsWith("node-")
+    ? normalized.slice("node-".length)
+    : normalized;
+  if (trimmed === "control") return "controller";
+  return trimmed;
+}
+
+function mapDeviceRowToNodeInfo(row: DeviceRow): NodeInfo {
+  return {
+    id: null,
+    external_id: row.externalId ?? row.id ?? null,
+    name: row.name ?? null,
+    type: row.type ?? null,
+    gateway_id: row.gatewayId ?? null,
+    ip_address: row.ip ?? null,
+    mac_address: row.mac ?? null,
+    status: row.status ?? null,
+    registered: row.registered ?? null,
+    last_seen: row.lastSeen ?? null,
+  };
 }
 
 function getColumnWidth(index: number) {

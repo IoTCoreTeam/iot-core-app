@@ -52,14 +52,14 @@
 
             <td class="px-3 text-center">
               <span
-                class="px-1.5 py-0.5 rounded text-xs font-semibold"
+                class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase"
                 :class="statusColorClass(device.status)"
               >
                 {{ formatStatus(device.status) }}
               </span>
             </td>
 
-            <td class="px-1.5 py-0.5 rounded text-xs font-semibold text-center">
+            <td class="px-1.5 py-0.5 rounded text-xs font-semibold text-center uppercase">
               <span :class="registeredClass(device.registered)">
                 {{ formatRegistered(device.registered) }}
               </span>
