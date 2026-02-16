@@ -5,8 +5,6 @@ import type { GatewayEventPayload } from "@/composables/DeviceRegistration/SSEHa
 type DeviceRowRefs = {
   gatewayRows: Ref<DeviceRow[]>;
   nodeRows: Ref<DeviceRow[]>;
-  controllerRows: Ref<DeviceRow[]>;
-  sensorRows: Ref<DeviceRow[]>;
 };
 
 const KNOWN_DEVICE_STATUSES = new Set<DeviceRow["status"]>([
@@ -77,8 +75,6 @@ export function useLoadDataRow(refs: DeviceRowRefs) {
   function pollDeviceStatuses() {
     markRowsOfflineByLastSeen(refs.gatewayRows.value);
     markRowsOfflineByLastSeen(refs.nodeRows.value);
-    markRowsOfflineByLastSeen(refs.controllerRows.value);
-    markRowsOfflineByLastSeen(refs.sensorRows.value);
   }
 
   function startDeviceStatusPolling() {

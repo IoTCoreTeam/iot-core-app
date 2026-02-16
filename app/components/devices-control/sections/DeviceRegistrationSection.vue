@@ -205,24 +205,14 @@
                             <span class="sr-only">Details</span>
                           </button>
                           <button
-                            v-if="shouldShowNodeControlDetail(row)"
+                            v-if="activeDeviceTab === 'nodes'"
                             type="button"
                             :class="infoButtonClass"
-                            title="View controller details"
-                            @click.stop="openNodeControlDetail(row)"
+                            title="View node details"
+                            @click.stop="openNodeDetail(row)"
                           >
                             <BootstrapIcon name="info-circle" class="w-3 h-3" />
-                            <span class="sr-only">Controller Details</span>
-                          </button>
-                          <button
-                            v-if="shouldShowNodeSensorDetail(row)"
-                            type="button"
-                            :class="infoButtonClass"
-                            title="View sensor details"
-                            @click.stop="openNodeSensorDetail(row)"
-                          >
-                            <BootstrapIcon name="info-circle" class="w-3 h-3" />
-                            <span class="sr-only">Sensor Details</span>
+                            <span class="sr-only">Node Details</span>
                           </button>
                           <template v-if="row.registered === false">
                             <button
@@ -290,23 +280,12 @@
       :nodes="connectedGatewayNodes"
       @close="closeGatewayDetail"
     />
-    <NodeControlDetailModal
-      v-if="isNodeControlDetailOpen"
-      :model-value="isNodeControlDetailOpen"
+    <BaseNodeDetailModal
+      v-if="isNodeDetailOpen"
+      :model-value="isNodeDetailOpen"
       :node="selectedNodeDetail"
-      :controller="selectedControllerDetail"
-      :gateway-id="selectedGatewayUuid"
-      @update:modelValue="isNodeControlDetailOpen = $event"
-      @close="closeNodeControlDetail"
-    />
-    <NodeSensorDetailModal
-      v-if="isNodeSensorDetailOpen"
-      :model-value="isNodeSensorDetailOpen"
-      :node="selectedNodeDetail"
-      :sensor="selectedSensorDetail"
-      :gateway-id="selectedGatewayUuid"
-      @update:modelValue="isNodeSensorDetailOpen = $event"
-      @close="closeNodeSensorDetail"
+      @update:modelValue="isNodeDetailOpen = $event"
+      @close="closeNodeDetail"
     />
   </section>
 </template>
@@ -341,14 +320,9 @@ import {
   type GatewayEventPayload,
 } from "@/composables/DeviceRegistration/SSEHandle";
 import { useLoadDataRow } from "@/composables/DeviceRegistration/loadDataRow";
-import {
-  defaultDeviceFilters,
-  type GatewayFilterState,
-  useDeviceFilter,
-} from "@/composables/DeviceRegistration/DeviceFilter";
+import { useDeviceFilter } from "@/composables/DeviceRegistration/DeviceFilter";
 import GatewayDetailModal from "@/components/Modals/Devices/GatewayDetailModal.vue";
-import NodeControlDetailModal from "@/components/Modals/Devices/NodeControlDetailModal.vue";
-import NodeSensorDetailModal from "@/components/Modals/Devices/NodeSensorDetailModal.vue";
+import BaseNodeDetailModal from "@/components/Modals/Devices/BaseNodeDetailModal.vue";
 
 defineProps<{
   section: Section;
@@ -356,17 +330,11 @@ defineProps<{
 
 const gatewayRows = ref<DeviceRow[]>([]);
 const nodeRows = ref<DeviceRow[]>([]);
-const controllerRows = ref<DeviceRow[]>([]);
-const sensorRows = ref<DeviceRow[]>([]);
 const deviceTableKey = ref(0);
 const isGatewayDetailOpen = ref(false);
 const selectedGateway = ref<DeviceRow | null>(null);
-const isNodeControlDetailOpen = ref(false);
-const isNodeSensorDetailOpen = ref(false);
+const isNodeDetailOpen = ref(false);
 const selectedNodeDetail = ref<NodeInfo | null>(null);
-const selectedControllerDetail = ref<Record<string, unknown> | null>(null);
-const selectedSensorDetail = ref<Record<string, unknown> | null>(null);
-const selectedGatewayUuid = ref<string | null>(null);
 
 const selectedNodeMetricKey = ref<string>(METRICS[0]?.key ?? "");
 const selectedNodeTimeframe = ref<TimeframeKey>("second");
@@ -557,57 +525,14 @@ function closeGatewayDetail() {
   selectedGateway.value = null;
 }
 
-function shouldShowNodeControlDetail(row: DeviceRow) {
-  return activeDeviceTab.value === "nodes" && normalizeNodeType(row.type) === "controller";
-}
-
-function shouldShowNodeSensorDetail(row: DeviceRow) {
-  return activeDeviceTab.value === "nodes" && normalizeNodeType(row.type) === "sensor";
-}
-
-async function resolveGatewayUuid(row: DeviceRow) {
-  const gatewayExternalId = row.gatewayId ?? null;
-  if (!gatewayExternalId) return null;
-  if (!gatewayIdMap.value[gatewayExternalId]) {
-    await loadGatewayIdMap();
-  }
-  return gatewayIdMap.value[gatewayExternalId] ?? null;
-}
-
-async function openNodeControlDetail(row: DeviceRow) {
+function openNodeDetail(row: DeviceRow) {
   selectedNodeDetail.value = mapDeviceRowToNodeInfo(row);
-  selectedControllerDetail.value = null;
-  selectedGatewayUuid.value = await resolveGatewayUuid(row);
-  isNodeControlDetailOpen.value = true;
+  isNodeDetailOpen.value = true;
 }
 
-async function openNodeSensorDetail(row: DeviceRow) {
-  selectedNodeDetail.value = mapDeviceRowToNodeInfo(row);
-  selectedSensorDetail.value = null;
-  selectedGatewayUuid.value = await resolveGatewayUuid(row);
-  isNodeSensorDetailOpen.value = true;
-}
-
-function closeNodeControlDetail() {
-  isNodeControlDetailOpen.value = false;
-  if (!isNodeSensorDetailOpen.value) {
-    selectedNodeDetail.value = null;
-  }
-  selectedControllerDetail.value = null;
-  if (!isNodeSensorDetailOpen.value) {
-    selectedGatewayUuid.value = null;
-  }
-}
-
-function closeNodeSensorDetail() {
-  isNodeSensorDetailOpen.value = false;
-  if (!isNodeControlDetailOpen.value) {
-    selectedNodeDetail.value = null;
-  }
-  selectedSensorDetail.value = null;
-  if (!isNodeControlDetailOpen.value) {
-    selectedGatewayUuid.value = null;
-  }
+function closeNodeDetail() {
+  isNodeDetailOpen.value = false;
+  selectedNodeDetail.value = null;
 }
 
 const nodeCollectionsStore = createNodeCollectionsStore();
@@ -621,8 +546,6 @@ const {
 } = useLoadDataRow({
   gatewayRows,
   nodeRows,
-  controllerRows,
-  sensorRows,
 });
 
 let deviceRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -849,16 +772,6 @@ function isUnactiveStatus(status?: DeviceRow["status"]) {
   return normalized === "offline";
 }
 
-function normalizeNodeType(value?: string | null) {
-  if (!value) return "";
-  const normalized = value.toLowerCase().trim();
-  const trimmed = normalized.startsWith("node-")
-    ? normalized.slice("node-".length)
-    : normalized;
-  if (trimmed === "control") return "controller";
-  return trimmed;
-}
-
 function mapDeviceRowToNodeInfo(row: DeviceRow): NodeInfo {
   return {
     id: null,
@@ -918,8 +831,6 @@ function handleGatewayUpdate(event: MessageEvent) {
     updateGatewayFromPayload(payload);
     nodeCollectionsStore.updateFromGatewayPayload(payload, {
       nodeRows,
-      controllerRows,
-      sensorRows,
     });
   } catch (error) {
     console.error("Failed to parse gateway SSE payload:", error);

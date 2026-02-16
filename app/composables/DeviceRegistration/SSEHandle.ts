@@ -39,8 +39,6 @@ export type GatewayEventPayload = {
 
 type NodeCollectionsRefs = {
   nodeRows: Ref<DeviceRow[]>;
-  controllerRows: Ref<DeviceRow[]>;
-  sensorRows: Ref<DeviceRow[]>;
 };
 
 function normalizeStatus(value?: string | null): DeviceRow["status"] {
@@ -123,8 +121,6 @@ export function createNodeCollectionsStore() {
 
   function syncToRefs(refs: NodeCollectionsRefs) {
     refs.nodeRows.value = sortRows(Array.from(nodeCache.values()));
-    refs.controllerRows.value = [];
-    refs.sensorRows.value = [];
   }
 
   function hydrateFromRows(refs: NodeCollectionsRefs) {
@@ -133,8 +129,6 @@ export function createNodeCollectionsStore() {
       if (!row?.id) return;
       nodeCache.set(row.id, row);
     });
-    refs.controllerRows.value = [];
-    refs.sensorRows.value = [];
   }
 
   function updateFromGatewayPayload(

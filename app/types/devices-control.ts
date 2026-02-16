@@ -1,6 +1,6 @@
 import type { Component } from "vue";
 
-export type DeviceTabKey = "gateways" | "nodes" | "controller" | "sensor";
+export type DeviceTabKey = "gateways" | "nodes";
 
 export type DeviceRowStatus = "online" | "offline";
 

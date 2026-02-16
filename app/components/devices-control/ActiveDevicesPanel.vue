@@ -89,8 +89,6 @@ const activeTab = ref<"gateway" | "node">("gateway");
 
 const gatewayRows = ref<DeviceRow[]>([]);
 const nodeRows = ref<DeviceRow[]>([]); // To be implemented similarly
-const controllerRows = ref<DeviceRow[]>([]); // To be implemented similarly
-const sensorRows = ref<DeviceRow[]>([]); // To be implemented similarly
 
 const {
   updateGatewayFromPayload,
@@ -99,8 +97,6 @@ const {
 } = useLoadDataRow({
   gatewayRows,
   nodeRows,
-  controllerRows,
-  sensorRows,
 });
 let gatewayEventSource: EventSource | null = null;
 
