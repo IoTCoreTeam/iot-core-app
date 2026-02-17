@@ -23,50 +23,56 @@
         <section class="space-y-4">
           <div class="flex items-center justify-between border-b border-gray-200 pb-2">
             <h4 class="text-xs font-semibold text-gray-700">Node Information</h4>
+            <span class="text-[10px] uppercase tracking-wider text-gray-500">
+              {{ nodeView.externalId }}
+            </span>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="rounded bg-gray-50 p-3 border border-gray-200">
-              <p class="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-1">
-                External ID
-              </p>
-              <p class="text-gray-900 text-xs break-all">{{ nodeView.externalId }}</p>
-            </div>
-
-            <div class="rounded bg-gray-50 p-3 border border-gray-200">
-              <p class="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-1">
-                Name
-              </p>
-              <p class="text-gray-900 text-xs">{{ nodeView.name }}</p>
-            </div>
-
-            <div class="rounded bg-gray-50 p-3 border border-gray-200">
-              <p class="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-1">
-                Type
-              </p>
-              <p class="text-gray-900 text-xs">{{ nodeView.type }}</p>
-            </div>
-
-            <div class="rounded bg-gray-50 p-3 border border-gray-200">
-              <p class="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-1">
-                Gateway ID
-              </p>
-              <p class="text-gray-900 text-xs break-all">{{ nodeView.gatewayId }}</p>
-            </div>
-
-            <div class="rounded bg-gray-50 p-3 border border-gray-200">
-              <p class="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-1">
-                MAC Address
-              </p>
-              <p class="text-gray-900 text-xs">{{ nodeView.mac }}</p>
-            </div>
-
-            <div class="rounded bg-gray-50 p-3 border border-gray-200">
-              <p class="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-1">
-                Last Seen
-              </p>
-              <p class="text-gray-900 text-xs">{{ nodeView.lastSeen }}</p>
-            </div>
+          <div class="rounded-lg border border-gray-200 bg-white overflow-hidden">
+            <table class="w-full text-xs">
+              <tbody>
+                <tr class="border-b border-gray-100">
+                  <td class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]">
+                    Name
+                  </td>
+                  <td class="px-4 py-3 text-gray-900 break-all">
+                    {{ nodeView.name }}
+                  </td>
+                </tr>
+                <tr class="border-b border-gray-100">
+                  <td class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]">
+                    Type
+                  </td>
+                  <td class="px-4 py-3 text-gray-900">
+                    {{ nodeView.type }}
+                  </td>
+                </tr>
+                <tr class="border-b border-gray-100">
+                  <td class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]">
+                    Gateway ID
+                  </td>
+                  <td class="px-4 py-3 text-gray-900 break-all">
+                    {{ nodeView.gatewayId }}
+                  </td>
+                </tr>
+                <tr class="border-b border-gray-100">
+                  <td class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]">
+                    MAC
+                  </td>
+                  <td class="px-4 py-3 text-gray-900 break-all">
+                    {{ nodeView.mac }}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]">
+                    Last Seen
+                  </td>
+                  <td class="px-4 py-3 text-gray-900">
+                    {{ nodeView.lastSeen }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -75,8 +81,12 @@
             <h4 class="text-xs font-semibold text-gray-700">{{ extendedTitle }}</h4>
             <slot name="extended-header" />
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <slot />
+          <div class="rounded-lg border border-gray-200 bg-white overflow-hidden">
+            <table class="w-full text-xs">
+              <tbody>
+                <slot />
+              </tbody>
+            </table>
           </div>
         </section>
       </template>

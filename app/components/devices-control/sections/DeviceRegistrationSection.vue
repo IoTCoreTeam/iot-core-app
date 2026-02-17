@@ -218,11 +218,16 @@
                                 isControlNode(row)
                               "
                               type="button"
-                              class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
+                              class="w-8 h-8 inline-flex items-center justify-center rounded border cursor-pointer"
+                              :class="
+                                row.registered === false
+                                  ? 'border-gray-200 text-gray-400 bg-gray-50 hover:bg-gray-100'
+                                  : 'border-blue-200 text-blue-600 hover:bg-blue-50'
+                              "
                               title="Add control url"
-                              @click.stop="toggleControlUrlInline(row)"
+                              @click.stop="handleControlUrlClick(row)"
                             >
-                              <BootstrapIcon name="plus-lg" class="w-3 h-3" />
+                              <BootstrapIcon name="link-45deg" class="w-3 h-3" />
                               <span class="sr-only">Add Control URL</span>
                             </button>
                             <template v-if="row.registered === false">
@@ -300,14 +305,14 @@
                           <div
                             v-for="item in controlUrlItems"
                             :key="item.id"
-                            class="flex flex-wrap items-end gap-3 w-full rounded border border-blue-100 bg-white p-2"
+                            class="flex flex-wrap items-end gap-3 w-full py-2 border-b border-slate-100"
                           >
                             <div class="flex flex-col gap-1">
                               <label class="text-[10px] text-gray-500">Name</label>
                               <input
                                 v-model="item.name"
                                 type="text"
-                                class="border border-gray-300 rounded px-2 py-1 text-xs w-40 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                                class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-40 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                               />
                             </div>
                             <div class="flex flex-col gap-1">
@@ -315,7 +320,7 @@
                               <input
                                 v-model="item.url"
                                 type="text"
-                                class="border border-gray-300 rounded px-2 py-1 text-xs w-80 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                                class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-80 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                               />
                             </div>
                             <div class="flex flex-col gap-1">
@@ -323,14 +328,14 @@
                               <input
                                 v-model="item.input_type"
                                 type="text"
-                                class="border border-gray-300 rounded px-2 py-1 text-xs w-28 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                                class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-28 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                               />
                             </div>
                             <div class="flex flex-col gap-1">
                               <label class="text-[10px] text-gray-500">Status</label>
                               <select
                                 v-model="item.status"
-                                class="border border-gray-300 rounded px-2 py-1 text-xs w-24 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                                class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-24 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                               >
                                 <option value="on">on</option>
                                 <option value="off">off</option>
@@ -339,17 +344,21 @@
                             <div class="flex items-center gap-2">
                               <button
                                 type="button"
-                                class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
+                                title="Update control url"
                                 @click="handleUpdateControlUrl(item)"
                               >
-                                Update
+                                <BootstrapIcon name="pencil-square" class="w-3 h-3" />
+                                <span class="sr-only">Update</span>
                               </button>
                               <button
                                 type="button"
-                                class="inline-flex items-center bg-white hover:bg-blue-50 text-blue-600 rounded px-3 py-1 text-xs border border-blue-200"
+                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50"
+                                title="Delete control url"
                                 @click="handleDeleteControlUrl(item)"
                               >
-                                Delete
+                                <BootstrapIcon name="trash" class="w-3 h-3" />
+                                <span class="sr-only">Delete</span>
                               </button>
                             </div>
                           </div>
@@ -358,7 +367,7 @@
                             <input
                               v-model="controlUrlForm.name"
                               type="text"
-                              class="border border-gray-300 rounded px-2 py-1 text-xs w-48 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-48 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                               placeholder="e.g. Pump On"
                             />
                           </div>
@@ -367,7 +376,7 @@
                             <input
                               v-model="controlUrlForm.url"
                               type="text"
-                              class="border border-gray-300 rounded px-2 py-1 text-xs w-80 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-80 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                               placeholder="http://..."
                             />
                           </div>
@@ -376,7 +385,7 @@
                             <input
                               v-model="controlUrlForm.inputType"
                               type="text"
-                              class="border border-gray-300 rounded px-2 py-1 text-xs w-32 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-32 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                               placeholder="switch"
                             />
                           </div>
@@ -384,7 +393,7 @@
                             <label class="text-[10px] text-gray-500">Status</label>
                             <select
                               v-model="controlUrlForm.status"
-                              class="border border-gray-300 rounded px-2 py-1 text-xs w-24 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                              class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-24 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                             >
                               <option value="on">on</option>
                               <option value="off">off</option>
@@ -393,18 +402,28 @@
                           <div class="flex items-center gap-2">
                             <button
                               type="button"
-                              class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+                              class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
                               :disabled="isSavingControlUrl"
                               @click="submitControlUrl(row)"
+                              title="Save control url"
                             >
-                              {{ isSavingControlUrl ? "Saving..." : "Save" }}
+                              <BootstrapIcon
+                                :name="isSavingControlUrl ? 'arrow-repeat' : 'check-lg'"
+                                class="w-3 h-3"
+                                :class="{ 'animate-spin': isSavingControlUrl }"
+                              />
+                              <span class="sr-only">
+                                {{ isSavingControlUrl ? "Saving" : "Save" }}
+                              </span>
                             </button>
                             <button
                               type="button"
-                              class="inline-flex items-center bg-white hover:bg-blue-50 text-blue-600 rounded px-3 py-1 text-xs border border-blue-200"
+                              class="w-8 h-8 inline-flex items-center justify-center rounded border border-slate-200 text-slate-500 hover:bg-slate-50"
                               @click="closeControlUrlInline"
+                              title="Cancel"
                             >
-                              Cancel
+                              <BootstrapIcon name="x-lg" class="w-3 h-3" />
+                              <span class="sr-only">Cancel</span>
                             </button>
                           </div>
                           </div>
@@ -471,6 +490,7 @@ import type {
 } from "@/types/devices-control";
 import type { TimeframeKey } from "@/types/dashboard";
 import { apiConfig } from "~~/config/api";
+import { formatIotDateTime } from "~~/config/iot-time-format";
 import { useRegisterDevice } from "@/composables/DeviceRegistration/RegisterDevice";
 import { useDeviceDeactivation } from "@/composables/DeviceRegistration/DeactiveDevice";
 import { useAuthStore } from "~~/stores/auth";
@@ -583,6 +603,23 @@ async function toggleControlUrlInline(row: DeviceRow) {
     status: "off",
   };
   await fetchControlUrls(controlNodeId);
+}
+
+async function handleControlUrlClick(row: DeviceRow) {
+  if (row.registered === false) {
+    if (!isGatewayRegisteredForRow(row)) {
+      const gatewayId = getGatewayIdFromRow(row);
+      message.info(
+        gatewayId
+          ? `Please register gateway ${gatewayId} first.`
+          : "Please register the node's gateway first.",
+      );
+      return;
+    }
+    message.info("Please register this node before adding control URLs.");
+    return;
+  }
+  await toggleControlUrlInline(row);
 }
 
 function showControlUrlInline(row: DeviceRow) {
@@ -1108,18 +1145,8 @@ function exportDevices() {
   message.success("Devices exported.");
 }
 
-const lastSeenFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "medium",
-});
-
 function formatLastSeen(value?: string | null) {
-  if (!value) return "N/A";
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) {
-    return value;
-  }
-  return lastSeenFormatter.format(timestamp);
+  return formatIotDateTime(value);
 }
 
 function formatDeviceStatus(status: DeviceRow["status"]) {
