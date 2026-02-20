@@ -10,6 +10,7 @@
       :items="controlUrlItems"
       :is-loading="isLoadingControlUrls"
       :error="controlUrlLoadError"
+      :on-execute="handleExecuteControlUrl"
     />
     <DevicesControlContentSection :section="section" />
   </div>
@@ -24,6 +25,7 @@ import SingleMetricChart from "@/components/SingleMetricChart.vue";
 import { METRICS } from "~~/config/metric";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
+import { useControlUrlActions } from "@/composables/DeviceControl/useControlUrlActions";
 import type { TimeframeKey } from "@/types/dashboard";
 import type { Section } from "@/types/devices-control";
 
@@ -58,6 +60,7 @@ type ControlUrlItem = {
 };
 
 const authStore = useAuthStore();
+const { executeControlUrl } = useControlUrlActions();
 const controlUrlItems = ref<ControlUrlItem[]>([]);
 const isLoadingControlUrls = ref(false);
 const controlUrlLoadError = ref<string | null>(null);
@@ -100,6 +103,33 @@ async function fetchControlUrls() {
     message.error(controlUrlLoadError.value);
   } finally {
     isLoadingControlUrls.value = false;
+  }
+}
+
+async function handleExecuteControlUrl(widget: {
+  id: string;
+  raw: ControlUrlItem;
+}, nextState: boolean) {
+  if (!apiConfig.controlModule) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    throw new Error("Missing authorization.");
+  }
+
+  const url = widget.raw.url ?? "";
+  if (!url) {
+    throw new Error("Missing control URL.");
+  }
+
+  const state = nextState ? "on" : "off";
+  await executeControlUrl(authorization, widget.id, {
+    url,
+    state,
+  });
+
+  const target = controlUrlItems.value.find((item) => item.id === widget.id);
+  if (target) {
+    target.status = state;
   }
 }
 

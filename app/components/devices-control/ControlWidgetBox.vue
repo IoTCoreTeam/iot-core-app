@@ -72,6 +72,7 @@
               ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 focus:ring-emerald-300'
               : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 focus:ring-slate-300'"
             :aria-pressed="isWidgetOn(widget)"
+            :disabled="isExecuting(widget.id)"
             @click="toggleWidget(widget)"
           >
             <span
@@ -111,6 +112,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { message } from "ant-design-vue";
 import ControlUrlDetailModal from "@/components/Modals/Devices/ControlUrlDetailModal.vue";
 
 type ControlUrlItem = {
@@ -149,9 +151,11 @@ const props = defineProps<{
   items: ControlUrlItem[];
   isLoading?: boolean;
   error?: string | null;
+  onExecute?: (widget: ControlWidget, nextState: boolean) => Promise<void>;
 }>();
 
 const widgetState = ref<Record<string, boolean>>({});
+const executingMap = ref<Record<string, boolean>>({});
 const isDetailOpen = ref(false);
 const selectedWidget = ref<ControlWidget | null>(null);
 
@@ -174,8 +178,30 @@ function isWidgetOn(widget: ControlWidget) {
   return typeof state === "boolean" ? state : widget.isOn;
 }
 
-function toggleWidget(widget: ControlWidget) {
-  widgetState.value[widget.id] = !isWidgetOn(widget);
+function isExecuting(id: string) {
+  return executingMap.value[id] === true;
+}
+
+async function toggleWidget(widget: ControlWidget) {
+  const nextState = !isWidgetOn(widget);
+  if (!props.onExecute) {
+    widgetState.value[widget.id] = nextState;
+    return;
+  }
+
+  if (isExecuting(widget.id)) {
+    return;
+  }
+
+  executingMap.value[widget.id] = true;
+  try {
+    await props.onExecute(widget, nextState);
+    widgetState.value[widget.id] = nextState;
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to execute control url.");
+  } finally {
+    executingMap.value[widget.id] = false;
+  }
 }
 
 function isDigitalInput(widget: ControlWidget) {

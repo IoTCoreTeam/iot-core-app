@@ -67,9 +67,27 @@ export function useControlUrlActions() {
     });
   }
 
+  async function executeControlUrl(
+    authorization: string,
+    id: string,
+    payload: Record<string, any>,
+  ) {
+    const endpoint = `${CONTROL_MODULE_BASE}/control-urls/${id}/execute`;
+    return requestJson(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: authorization,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  }
+
   return {
     createControlUrl,
     updateControlUrl,
     deleteControlUrl,
+    executeControlUrl,
   };
 }

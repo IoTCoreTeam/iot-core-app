@@ -4,7 +4,7 @@ import { message } from "ant-design-vue";
 import { apiConfig } from "~~/config/api";
 import type { DeviceRow, DeviceTabKey } from "@/types/devices-control";
 import { useAuthStore } from "~~/stores/auth";
-import { useControlUrlActions } from "@/composables/DeviceRegistration/useControlUrlActions";
+import { useControlUrlActions } from "@/composables/DeviceControl/useControlUrlActions";
 
 type ControlUrlFormState = {
   name: string;

@@ -372,14 +372,14 @@
                             />
                           </div>
                           <div class="flex flex-col gap-1">
-                            <label class="text-[10px] text-gray-500">URL</label>
-                            <input
-                              v-model="controlUrlForm.url"
-                              type="text"
-                              class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-80 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
-                              placeholder="http://..."
-                            />
-                          </div>
+                              <label class="text-[10px] text-gray-500">URL</label>
+                              <input
+                                v-model="controlUrlForm.url"
+                                type="text"
+                                class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-80 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
+                                placeholder="e.g. /pump"
+                              />
+                            </div>
                           <div class="flex flex-col gap-1">
                             <label class="text-[10px] text-gray-500">Input type</label>
                             <input
