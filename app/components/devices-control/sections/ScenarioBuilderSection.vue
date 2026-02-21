@@ -23,6 +23,22 @@
             <BootstrapIcon name="arrow-counterclockwise" class="h-3 w-3" />
             Reset
           </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
+            @click="openConstantsModal"
+          >
+            <BootstrapIcon name="info-circle" class="h-3 w-3" />
+            Constants
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700"
+            @click="saveFlow"
+          >
+            <BootstrapIcon name="save" class="h-3 w-3" />
+            Save
+          </button>
         </div>
       </div>
       <div class="mt-3 w-full">
@@ -63,14 +79,167 @@
         :fit-view-on-init="true"
         class="scenario-flow rounded bg-white"
         @connect="handleConnect"
+        @node-click="handleNodeClick"
       >
+        <Background pattern-color="#e5e7eb" :gap="20" :size="1" />
+        <Controls :show-interactive="false" />
+        <MiniMap />
       </VueFlow>
     </div>
   </section>
+
+  <BaseModal
+    :model-value="isActionModalOpen"
+    title="Configure Action"
+    max-width="max-w-md"
+    panel-class="p-6 shadow-xl"
+    :close-disabled="isSavingNode"
+    @request-close="closeActionModal"
+  >
+    <form class="space-y-4 text-xs text-gray-700" @submit.prevent="saveActionNode">
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-gray-700">Control URL</label>
+        <select
+          v-model="actionForm.control_url_id"
+          class="w-full rounded border border-gray-300 px-3 py-2 text-xs focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+        >
+          <option value="">Select control</option>
+          <option
+            v-for="item in controlUrlOptions"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.name || item.url || item.id }}
+          </option>
+        </select>
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-gray-700">Duration (seconds)</label>
+        <input
+          v-model.number="actionForm.duration_seconds"
+          type="number"
+          min="0"
+          step="1"
+          class="w-full rounded border border-gray-300 px-3 py-2 text-xs focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+          placeholder="5"
+        />
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button
+          type="button"
+          class="rounded border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="isSavingNode"
+          @click="closeActionModal"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="rounded bg-blue-600 px-4 py-1 text-xs text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="isSavingNode"
+        >
+          Save
+        </button>
+      </div>
+    </form>
+  </BaseModal>
+
+  <BaseModal
+    :model-value="isConditionModalOpen"
+    title="Configure Condition"
+    max-width="max-w-md"
+    panel-class="p-6 shadow-xl"
+    :close-disabled="isSavingNode"
+    @request-close="closeConditionModal"
+  >
+    <form class="space-y-4 text-xs text-gray-700" @submit.prevent="saveConditionNode">
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-gray-700">Metric</label>
+        <select
+          v-model="conditionForm.metric_key"
+          class="w-full rounded border border-gray-300 px-3 py-2 text-xs focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+        >
+          <option value="">Select metric</option>
+          <option v-for="metric in metrics" :key="metric.key" :value="metric.key">
+            {{ metric.title }}
+          </option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-gray-700">Operator</label>
+          <select
+            v-model="conditionForm.operator"
+            class="w-full rounded border border-gray-300 px-3 py-2 text-xs focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+          >
+            <option value=">">&gt;</option>
+            <option value="<">&lt;</option>
+            <option value=">=">&gt;=</option>
+            <option value="<=">&lt;=</option>
+            <option value="==">==</option>
+            <option value="!=">!=</option>
+          </select>
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-gray-700">Value</label>
+          <input
+            v-model.number="conditionForm.value"
+            type="number"
+            step="0.01"
+            class="w-full rounded border border-gray-300 px-3 py-2 text-xs focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+            placeholder="30"
+          />
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button
+          type="button"
+          class="rounded border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="isSavingNode"
+          @click="closeConditionModal"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="rounded bg-blue-600 px-4 py-1 text-xs text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="isSavingNode"
+        >
+          Save
+        </button>
+      </div>
+    </form>
+  </BaseModal>
+
+  <BaseModal
+    :model-value="isConstantsModalOpen"
+    title="Scenario Constants"
+    max-width="max-w-lg"
+    panel-class="p-6 shadow-xl"
+    @request-close="closeConstantsModal"
+  >
+    <div class="space-y-3 text-xs text-gray-700">
+      <p class="text-xs text-gray-600">
+        These rules define how the flow builder behaves:
+      </p>
+      <ol class="list-decimal pl-4 space-y-2 text-xs text-gray-600">
+        <li>Only one Start node and one End node are allowed.</li>
+        <li>Each non-condition node can connect to only one other node.</li>
+        <li>A Condition node can connect to at most two nodes.</li>
+        <li>If one branch is labeled True, the other branch is automatically False.</li>
+        <li>The flow must have a valid path from Start to End before saving.</li>
+      </ol>
+    </div>
+  </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { message, Modal } from "ant-design-vue";
 import {
   VueFlow,
   type Connection,
@@ -78,8 +247,24 @@ import {
   type Node,
   useVueFlow,
 } from "@vue-flow/core";
+import { Background } from "@vue-flow/background";
+import { Controls } from "@vue-flow/controls";
+import { MiniMap } from "@vue-flow/minimap";
+import "@vue-flow/controls/dist/style.css";
+import "@vue-flow/minimap/dist/style.css";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
+import BaseModal from "@/components/Modals/BaseModal.vue";
+import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
+import { METRICS } from "~~/config/metric";
+import {
+  canConnectFromNode,
+  canCreateEnd,
+  canCreateStart,
+  resolveConditionBranch,
+  validateFlow,
+} from "@/composables/Scenario/flowConstants";
 
 type ScenarioRow = {
   id: string | number;
@@ -88,10 +273,12 @@ type ScenarioRow = {
 
 const props = defineProps<{
   scenario: ScenarioRow;
+  definition?: { nodes?: Node<NodeData>[]; edges?: Edge[] } | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "back"): void;
+  (e: "save", payload: { nodes: Node<NodeData>[]; edges: Edge[] }): void;
 }>();
 
 const palette = [
@@ -113,20 +300,63 @@ const palette = [
     subtitle: "If / else",
     icon: "shuffle",
   },
+  {
+    type: "end",
+    label: "End",
+    subtitle: "Stop flow",
+    icon: "stop-fill",
+  },
 ] as const;
+
+type NodeData = {
+  label?: string;
+  kind?: "start" | "action" | "condition" | "end";
+  control_url_id?: string;
+  duration_seconds?: number;
+  metric_key?: string;
+  operator?: string;
+  value?: number;
+};
+
+type ControlUrlOption = {
+  id: string;
+  name?: string | null;
+  url?: string | null;
+  input_type?: string | null;
+};
 
 const { addNodes, addEdges, project } = useVueFlow();
 
-const nodes = ref<Node[]>([
+const nodes = ref<Node<NodeData>[]>([
   {
     id: "start-node",
     type: "default",
     position: { x: 100, y: 80 },
-    data: { label: "Start" },
+    data: { label: "Start", kind: "start" },
   },
 ]);
 
 const edges = ref<Edge[]>([]);
+const metrics = METRICS;
+const authStore = useAuthStore();
+const controlModuleBase = computed(() =>
+  (apiConfig.controlModule || "").replace(/\/$/, ""),
+);
+const controlUrlOptions = ref<ControlUrlOption[]>([]);
+const isActionModalOpen = ref(false);
+const isConditionModalOpen = ref(false);
+const isConstantsModalOpen = ref(false);
+const isSavingNode = ref(false);
+const activeNode = ref<Node<NodeData> | null>(null);
+const actionForm = ref({
+  control_url_id: "",
+  duration_seconds: 5,
+});
+const conditionForm = ref({
+  metric_key: "",
+  operator: ">",
+  value: 0,
+});
 
 function handleDragStart(event: DragEvent, type: string) {
   if (!event.dataTransfer) return;
@@ -151,6 +381,14 @@ function handleDrop(event: DragEvent) {
   if (!event.dataTransfer) return;
   const type = event.dataTransfer.getData("application/vueflow");
   if (!type) return;
+  if (type === "start" && !canCreateStart(nodes.value)) {
+    message.warning("Only one Start node is allowed.");
+    return;
+  }
+  if (type === "end" && !canCreateEnd(nodes.value)) {
+    message.warning("Only one End node is allowed.");
+    return;
+  }
   const position = project({
     x: event.clientX,
     y: event.clientY,
@@ -161,13 +399,60 @@ function handleDrop(event: DragEvent) {
       id,
       type: "default",
       position,
-      data: { label: buildNodeLabel(type) },
+      data: { label: buildNodeLabel(type), kind: type },
     },
   ]);
 }
 
 function handleConnect(connection: Connection) {
-  addEdges([connection]);
+  if (!connection.source || !connection.target) return;
+  const connectCheck = canConnectFromNode(nodes.value, edges.value, connection.source);
+  if (!connectCheck.ok) {
+    message.warning(connectCheck.reason || "Cannot connect nodes.");
+    return;
+  }
+  if (connectCheck.kind !== "condition") {
+    addEdges([connection]);
+    return;
+  }
+
+  const nextBranch = resolveConditionBranch(connectCheck.outgoing || []);
+  if (nextBranch) {
+    addEdges([
+      {
+        ...connection,
+        label: nextBranch === "true" ? "True" : "False",
+        data: { branch: nextBranch },
+      },
+    ]);
+    return;
+  }
+
+  Modal.confirm({
+    title: "Condition Branch",
+    content: "Choose which branch this connection represents.",
+    okText: "True",
+    cancelText: "False",
+    centered: true,
+    onOk: () => {
+      addEdges([
+        {
+          ...connection,
+          label: "True",
+          data: { branch: "true" },
+        },
+      ]);
+    },
+    onCancel: () => {
+      addEdges([
+        {
+          ...connection,
+          label: "False",
+          data: { branch: "false" },
+        },
+      ]);
+    },
+  });
 }
 
 function resetFlow() {
@@ -176,11 +461,217 @@ function resetFlow() {
       id: "start-node",
       type: "default",
       position: { x: 100, y: 80 },
-      data: { label: "Start" },
+      data: { label: "Start", kind: "start" },
     },
   ];
   edges.value = [];
 }
+
+function saveFlow() {
+  const validation = validateFlow(nodes.value, edges.value);
+  if (!validation.ok) {
+    message.error(validation.message ?? "Flow validation failed.");
+    return;
+  }
+  emit("save", { nodes: nodes.value, edges: edges.value });
+}
+
+function handleNodeClick(event: { node: Node<NodeData> }) {
+  const node = event.node;
+  const kind = node.data?.kind;
+  if (kind === "action") {
+    activeNode.value = node;
+    actionForm.value = {
+      control_url_id: node.data?.control_url_id ?? "",
+      duration_seconds: node.data?.duration_seconds ?? 5,
+    };
+    isActionModalOpen.value = true;
+    return;
+  }
+  if (kind === "condition") {
+    activeNode.value = node;
+    conditionForm.value = {
+      metric_key: node.data?.metric_key ?? "",
+      operator: node.data?.operator ?? ">",
+      value: node.data?.value ?? 0,
+    };
+    isConditionModalOpen.value = true;
+    return;
+  }
+}
+
+function closeActionModal() {
+  if (isSavingNode.value) return;
+  isActionModalOpen.value = false;
+  activeNode.value = null;
+}
+
+function closeConditionModal() {
+  if (isSavingNode.value) return;
+  isConditionModalOpen.value = false;
+  activeNode.value = null;
+}
+
+function openConstantsModal() {
+  isConstantsModalOpen.value = true;
+}
+
+function closeConstantsModal() {
+  isConstantsModalOpen.value = false;
+}
+
+function updateNodeLabel(node: Node<NodeData>) {
+  if (node.data?.kind === "action") {
+    const selected = controlUrlOptions.value.find(
+      (item) => item.id === node.data?.control_url_id,
+    );
+    const name = selected?.name || selected?.url || node.data?.control_url_id || "Action";
+    const duration = node.data?.duration_seconds ?? 0;
+    node.data = {
+      ...(node.data ?? {}),
+      label: `${name} (${duration}s)`,
+    };
+    return;
+  }
+  if (node.data?.kind === "condition") {
+    const metric = metrics.find((item) => item.key === node.data?.metric_key);
+    const metricName = metric?.title ?? node.data?.metric_key ?? "Metric";
+    const operator = node.data?.operator ?? ">";
+    const value = node.data?.value ?? 0;
+    node.data = {
+      ...(node.data ?? {}),
+      label: `${metricName} ${operator} ${value}`,
+    };
+    return;
+  }
+}
+
+function applyDefinition(definition?: { nodes?: Node<NodeData>[]; edges?: Edge[] } | null) {
+  if (!definition || !Array.isArray(definition.nodes)) {
+    return;
+  }
+  if (!definition.nodes.length) {
+    nodes.value = [
+      {
+        id: "start-node",
+        type: "default",
+        position: { x: 100, y: 80 },
+        data: { label: "Start", kind: "start" },
+      },
+    ];
+    edges.value = [];
+    return;
+  }
+  nodes.value = definition.nodes.map((node) => ({
+    ...node,
+    type: node.type || "default",
+  }));
+  edges.value = Array.isArray(definition.edges)
+    ? definition.edges.map((edge) => ({ ...edge }))
+    : [];
+  nodes.value.forEach((node) => updateNodeLabel(node));
+}
+
+function saveActionNode() {
+  if (isSavingNode.value) return;
+  const target = activeNode.value;
+  if (!target) return;
+  if (!actionForm.value.control_url_id) {
+    message.warning("Please select a control URL.");
+    return;
+  }
+  isSavingNode.value = true;
+  target.data = {
+    ...(target.data ?? {}),
+    kind: "action",
+    control_url_id: actionForm.value.control_url_id,
+    duration_seconds: Number(actionForm.value.duration_seconds || 0),
+  };
+  updateNodeLabel(target);
+  isSavingNode.value = false;
+  isActionModalOpen.value = false;
+  activeNode.value = null;
+}
+
+function saveConditionNode() {
+  if (isSavingNode.value) return;
+  const target = activeNode.value;
+  if (!target) return;
+  if (!conditionForm.value.metric_key) {
+    message.warning("Please select a metric.");
+    return;
+  }
+  isSavingNode.value = true;
+  target.data = {
+    ...(target.data ?? {}),
+    kind: "condition",
+    metric_key: conditionForm.value.metric_key,
+    operator: conditionForm.value.operator,
+    value: Number(conditionForm.value.value ?? 0),
+  };
+  updateNodeLabel(target);
+  isSavingNode.value = false;
+  isConditionModalOpen.value = false;
+  activeNode.value = null;
+}
+
+
+async function fetchControlUrls() {
+  if (!controlModuleBase.value) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+  try {
+    const endpoint = `${controlModuleBase.value}/control-urls?per_page=200`;
+    const response = await fetch(endpoint, {
+      headers: {
+        Authorization: authorization,
+        Accept: "application/json",
+      },
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message ?? "Failed to load control urls.");
+    }
+    const rows = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload)
+        ? payload
+        : [];
+    controlUrlOptions.value = rows as ControlUrlOption[];
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to load control urls.");
+  }
+}
+
+onMounted(() => {
+  if (!import.meta.client) return;
+  fetchControlUrls();
+  if (props.definition && !hasHydrated.value) {
+    applyDefinition(props.definition);
+    hasHydrated.value = true;
+  }
+});
+
+watch(
+  () => props.definition,
+  (value) => {
+    if (!value) return;
+    applyDefinition(value);
+    hasHydrated.value = true;
+  },
+);
+
+watch(
+  controlUrlOptions,
+  () => {
+    nodes.value.forEach((node) => updateNodeLabel(node));
+  },
+  { deep: true },
+);
+const hasHydrated = ref(false);
 </script>
 
 <style scoped>

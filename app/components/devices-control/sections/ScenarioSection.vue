@@ -1,199 +1,204 @@
 <template>
   <section class="min-h-screen">
     <div class="pt-4 px-0">
-      <Transition name="slide-left" mode="out-in">
-        <ScenarioBuilderSection
-          v-if="activeScenarioConfig"
-          :scenario="activeScenarioConfig"
-          @back="closeScenarioConfig"
-        />
+      <ScenarioBuilderSection
+        v-if="activeScenarioConfig"
+        :key="`builder-${activeScenarioConfig.id}`"
+        :scenario="activeScenarioConfig"
+        :definition="activeScenarioConfig.control_definition ?? activeScenarioConfig.definition"
+        @back="closeScenarioConfig"
+        @save="handleScenarioDefinitionSave"
+      />
 
-        <div v-else class="flex flex-col gap-4 lg:flex-row lg:items-start">
-        <div
-          :class="[
-            'bg-white rounded border border-slate-200 overflow-hidden w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
-            { hidden: !isFilterVisible },
-          ]"
-        >
-          <div class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
-            <div>
-              <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
-              <p class="text-xs text-gray-500">Refine the scenario list.</p>
-            </div>
-            <button
-              type="button"
-              class="text-xs text-gray-500 hover:text-gray-700 lg:hidden"
-              @click="toggleFilters"
+      <div
+        v-show="!activeScenarioConfig"
+        :key="'scenario-list'"
+        class="flex flex-col gap-4 lg:flex-row lg:items-start"
+      >
+            <div
+              :class="[
+                'bg-white rounded border border-slate-200 overflow-hidden w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
+                { hidden: !isFilterVisible },
+              ]"
             >
-              Close
-            </button>
-          </div>
-          <AdvancedFilterPanel
-            :fields="scenarioFilterFields"
-            :model-value="scenarioFilters"
-            :is-loading="isScenarioLoading"
-            apply-label="Apply"
-            reset-label="Reset"
-            @update:modelValue="handleFilterModelUpdate"
-            @apply="applyFilters"
-            @reset="resetFilters"
-          />
-        </div>
-
-        <DataBoxCard
-          :class="[
-            'lg:self-start',
-            isFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
-          ]"
-          :is-loading="isScenarioLoading"
-          :columns="scenarioTableColumns.length"
-          :has-data="displayedScenarioRows.length > 0"
-          :pagination="scenarioPagination"
-          :loading-text="loadingText"
-          @prev-page="prevScenarioPage"
-          @next-page="nextScenarioPage"
-          @change-per-page="changeScenarioPerPage"
-        >
-          <template #header>
-            <div class="flex items-center gap-2">
-              <h3 class="text-gray-700 text-xs">
-                {{ title }}
-              </h3>
-              <button
-                type="button"
-                class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
-                @click="toggleFilters"
-              >
-                {{ isFilterVisible ? "Hide Filters" : "Show Filters" }}
-              </button>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <div class="relative">
-                <input
-                  v-model="searchKeyword"
-                  type="text"
-                  placeholder="Search scenario..."
-                  class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-52 text-xs cursor-text"
-                />
-                <BootstrapIcon
-                  name="search"
-                  class="absolute left-1 top-1.5 w-3 h-3 text-gray-400"
-                />
-              </div>
-              <button
-                @click="refreshRows"
-                class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
-                :disabled="isScenarioLoading"
-              >
-                <BootstrapIcon
-                  name="arrow-clockwise"
-                  class="w-3 h-3 mr-1"
-                  :class="{ 'animate-spin': isScenarioLoading }"
-                />
-                {{ isScenarioLoading ? "Refreshing..." : "Refresh" }}
-              </button>
-              <button
-                type="button"
-                class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
-                @click="openAddScenario"
-              >
-                <BootstrapIcon name="plus-lg" class="w-3 h-3 mr-1" />
-                Add Scenario
-              </button>
-              <button
-                type="button"
-                class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
-                :disabled="isScenarioLoading"
-                @click="exportRows"
-              >
-                <BootstrapIcon name="file-earmark-arrow-down" class="w-3 h-3 mr-1" />
-                Export
-              </button>
-            </div>
-          </template>
-
-          <template #head>
-            <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600 text-center">
-              <th
-                v-for="column in scenarioTableColumns"
-                :key="column"
-                class="px-2 py-2 font-normal text-gray-600 text-center align-middle leading-4"
-              >
-                {{ column }}
-              </th>
-            </tr>
-          </template>
-
-          <template #default>
-            <tr
-              v-for="row in displayedScenarioRows"
-              :key="row.id"
-              class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100 py-1 text-center"
-            >
-              <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
-                {{ row.name || "-" }}
-              </td>
-              <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
-                {{ row.status || "-" }}
-              </td>
-              <td class="px-2 py-2 text-gray-600 text-center align-middle leading-4">
-                {{ formatDateTime(row.created_at) }}
-              </td>
-              <td class="px-2 py-2 text-gray-600 text-center align-middle leading-4">
-                {{ formatDateTime(row.updated_at) }}
-              </td>
-              <td class="px-2 py-2 text-center align-middle">
-                <div class="inline-flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
-                    @click="openEditScenario(row)"
-                    title="Edit"
-                    aria-label="Edit scenario"
-                  >
-                    <BootstrapIcon name="pencil-square" class="w-3 h-3" />
-                    <span class="sr-only">Edit</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
-                    @click="confirmDeleteScenario(row)"
-                    title="Delete"
-                    aria-label="Delete scenario"
-                  >
-                    <BootstrapIcon name="trash" class="w-3 h-3" />
-                    <span class="sr-only">Delete</span>
-                  </button>
+              <div class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
+                  <p class="text-xs text-gray-500">Refine the scenario list.</p>
                 </div>
-              </td>
-              <td class="px-2 py-2 text-center align-middle">
                 <button
                   type="button"
-                  class="w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
-                  @click="openScenarioConfig(row)"
-                  title="Configure"
-                  aria-label="Configure scenario"
+                  class="text-xs text-gray-500 hover:text-gray-700 lg:hidden"
+                  @click="toggleFilters"
                 >
-                  <BootstrapIcon name="gear" class="w-3 h-3" />
-                  <span class="sr-only">Configure</span>
+                  Close
                 </button>
-              </td>
-            </tr>
-          </template>
+              </div>
+              <AdvancedFilterPanel
+                :fields="scenarioFilterFields"
+                :model-value="scenarioFilters"
+                :is-loading="isScenarioLoading"
+                apply-label="Apply"
+                reset-label="Reset"
+                @update:modelValue="handleFilterModelUpdate"
+                @apply="applyFilters"
+                @reset="resetFilters"
+              />
+            </div>
 
-          <template #empty> {{ emptyText }} </template>
+            <DataBoxCard
+              :class="[
+                'lg:self-start',
+                isFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
+              ]"
+              :is-loading="isScenarioLoading"
+              :columns="scenarioTableColumns.length"
+              :has-data="displayedScenarioRows.length > 0"
+              :pagination="scenarioPagination"
+              :loading-text="loadingText"
+              @prev-page="prevScenarioPage"
+              @next-page="nextScenarioPage"
+              @change-per-page="changeScenarioPerPage"
+            >
+              <template #header>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-gray-700 text-xs">
+                    {{ title }}
+                  </h3>
+                  <button
+                    type="button"
+                    class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
+                    @click="toggleFilters"
+                  >
+                    {{ isFilterVisible ? "Hide Filters" : "Show Filters" }}
+                  </button>
+                </div>
 
-          <template #footer>
-            <span>Showing {{ displayedScenarioRows.length }} entries on this page.</span>
-            <span>
-              Total filtered:
-              <span class="text-gray-600 font-medium">{{ scenarioPagination.total }}</span>
-            </span>
-          </template>
-        </DataBoxCard>
-        </div>
-      </Transition>
+                <div class="flex items-center gap-2">
+                  <div class="relative">
+                    <input
+                      v-model="searchKeyword"
+                      type="text"
+                      placeholder="Search scenario..."
+                      class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-52 text-xs cursor-text"
+                    />
+                    <BootstrapIcon
+                      name="search"
+                      class="absolute left-1 top-1.5 w-3 h-3 text-gray-400"
+                    />
+                  </div>
+                  <button
+                    @click="refreshRows"
+                    class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                    :disabled="isScenarioLoading"
+                  >
+                    <BootstrapIcon
+                      name="arrow-clockwise"
+                      class="w-3 h-3 mr-1"
+                      :class="{ 'animate-spin': isScenarioLoading }"
+                    />
+                    {{ isScenarioLoading ? "Refreshing..." : "Refresh" }}
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+                    @click="openAddScenario"
+                  >
+                    <BootstrapIcon name="plus-lg" class="w-3 h-3 mr-1" />
+                    Add Scenario
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
+                    :disabled="isScenarioLoading"
+                    @click="exportRows"
+                  >
+                    <BootstrapIcon name="file-earmark-arrow-down" class="w-3 h-3 mr-1" />
+                    Export
+                  </button>
+                </div>
+              </template>
+
+              <template #head>
+                <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600 text-center">
+                  <th
+                    v-for="column in scenarioTableColumns"
+                    :key="column"
+                    class="px-2 py-2 font-normal text-gray-600 text-center align-middle leading-4"
+                  >
+                    {{ column }}
+                  </th>
+                </tr>
+              </template>
+
+              <template #default>
+                <tr
+                  v-for="row in displayedScenarioRows"
+                  :key="row.id"
+                  class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100 py-1 text-center"
+                >
+                  <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                    {{ row.name || "-" }}
+                  </td>
+                  <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                    {{ row.status || "-" }}
+                  </td>
+                  <td class="px-2 py-2 text-gray-600 text-center align-middle leading-4">
+                    {{ formatDateTime(row.created_at) }}
+                  </td>
+                  <td class="px-2 py-2 text-gray-600 text-center align-middle leading-4">
+                    {{ formatDateTime(row.updated_at) }}
+                  </td>
+                  <td class="px-2 py-2 text-center align-middle">
+                    <div class="inline-flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
+                        @click="openEditScenario(row)"
+                        title="Edit"
+                        aria-label="Edit scenario"
+                      >
+                        <BootstrapIcon name="pencil-square" class="w-3 h-3" />
+                        <span class="sr-only">Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
+                        @click="confirmDeleteScenario(row)"
+                        title="Delete"
+                        aria-label="Delete scenario"
+                      >
+                        <BootstrapIcon name="trash" class="w-3 h-3" />
+                        <span class="sr-only">Delete</span>
+                      </button>
+                    </div>
+                  </td>
+                  <td class="px-2 py-2 text-center align-middle">
+                    <button
+                      type="button"
+                      class="w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
+                      @click="openScenarioConfig(row)"
+                      title="Configure"
+                      aria-label="Configure scenario"
+                    >
+                      <BootstrapIcon name="gear" class="w-3 h-3" />
+                      <span class="sr-only">Configure</span>
+                    </button>
+                  </td>
+                </tr>
+              </template>
+
+              <template #empty> {{ emptyText }} </template>
+
+              <template #footer>
+                <span>Showing {{ displayedScenarioRows.length }} entries on this page.</span>
+                <span>
+                  Total filtered:
+                  <span class="text-gray-600 font-medium">{{ scenarioPagination.total }}</span>
+                </span>
+              </template>
+            </DataBoxCard>
+      </div>
     </div>
 
     <ScenarioFormModal
@@ -218,8 +223,15 @@ import AdvancedFilterPanel, {
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import type { Section } from "@/types/devices-control";
 import { formatIotDateTime } from "~~/config/iot-time-format";
-import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
+import {
+  buildWorkflowListParams,
+  createWorkflow,
+  deleteWorkflow,
+  fetchWorkflowDetail,
+  fetchWorkflows,
+  updateWorkflow,
+} from "@/composables/Scenario/handleWorkflow";
 
 defineProps<{
   section: Section;
@@ -230,6 +242,7 @@ type ScenarioRow = {
   name: string | null;
   status: string | null;
   definition: Record<string, unknown> | null;
+  control_definition?: Record<string, unknown> | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -455,18 +468,7 @@ async function deleteScenario(row: ScenarioRow) {
 
   isScenarioLoading.value = true;
   try {
-    const endpoint = `${controlModuleBase.value}/workflows/${row.id}`;
-    const response = await fetch(endpoint, {
-      method: "DELETE",
-      headers: {
-        Authorization: authorization,
-        Accept: "application/json",
-      },
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(payload?.message ?? "Failed to delete scenario.");
-    }
+    await deleteWorkflow(row.id, authorization);
     scenarioRows.value = scenarioRows.value.filter((item) => item.id !== row.id);
     message.success("Scenario deleted.");
   } catch (error: any) {
@@ -561,23 +563,9 @@ async function saveScenario() {
       status: scenarioForm.status,
       definition,
     };
-    const endpoint = isScenarioEditMode.value
-      ? `${controlModuleBase.value}/workflows/${scenarioForm.id}`
-      : `${controlModuleBase.value}/workflows`;
-    const response = await fetch(endpoint, {
-      method: isScenarioEditMode.value ? "PUT" : "POST",
-      headers: {
-        Authorization: authorization,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    const result = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(result?.message ?? "Failed to save scenario.");
-    }
-    const saved = result?.data ?? result;
+    const saved = isScenarioEditMode.value
+      ? await updateWorkflow(scenarioForm.id, authorization, payload)
+      : await createWorkflow(authorization, payload);
     if (saved) {
       const index = scenarioRows.value.findIndex((row) => row.id === saved.id);
       if (index >= 0) {
@@ -598,21 +586,55 @@ async function saveScenario() {
   }
 }
 
-function openScenarioConfig(row: ScenarioRow) {
+async function openScenarioConfig(row: ScenarioRow) {
   activeScenarioConfig.value = row;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+  try {
+    const workflow = await fetchWorkflowDetail(row.id, authorization);
+    if (workflow) {
+      activeScenarioConfig.value = workflow;
+      const index = scenarioRows.value.findIndex((item) => item.id === workflow.id);
+      if (index >= 0) {
+        scenarioRows.value[index] = workflow;
+      }
+    }
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to load workflow.");
+  }
 }
 
 function closeScenarioConfig() {
   activeScenarioConfig.value = null;
 }
 
+async function handleScenarioDefinitionSave(payload: { nodes: any[]; edges: any[] }) {
+  if (!activeScenarioConfig.value) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+  const definition = {
+    version: 1,
+    nodes: payload.nodes,
+    edges: payload.edges,
+  };
+  try {
+    await updateWorkflow(activeScenarioConfig.value.id, authorization, { definition });
+    message.success("Scenario definition saved.");
+    await fetchScenarios();
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to save workflow definition.");
+  }
+}
+
 const authStore = useAuthStore();
-const controlModuleBase = computed(() =>
-  (apiConfig.controlModule || "").replace(/\/$/, ""),
-);
 
 async function fetchScenarios() {
-  if (!controlModuleBase.value) return;
   const authorization = authStore.authorizationHeader;
   if (!authorization) {
     message.error("Missing authorization.");
@@ -621,40 +643,15 @@ async function fetchScenarios() {
 
   isScenarioLoading.value = true;
   try {
-    const params = new URLSearchParams();
-    params.set("per_page", "200");
-    if (appliedScenarioFilters.value.name) {
-      params.set("name", appliedScenarioFilters.value.name);
-    }
-    if (appliedScenarioFilters.value.status) {
-      params.set("status", appliedScenarioFilters.value.status);
-    }
-    if (appliedScenarioFilters.value.created_from) {
-      params.set("created_from", appliedScenarioFilters.value.created_from);
-    }
-    if (appliedScenarioFilters.value.created_to) {
-      params.set("created_to", appliedScenarioFilters.value.created_to);
-    }
-    if (searchKeyword.value.trim()) {
-      params.set("search", searchKeyword.value.trim());
-    }
-    const endpoint = `${controlModuleBase.value}/workflows?${params.toString()}`;
-    const response = await fetch(endpoint, {
-      headers: {
-        Authorization: authorization,
-        Accept: "application/json",
-      },
+    const params = buildWorkflowListParams({
+      per_page: "200",
+      name: appliedScenarioFilters.value.name,
+      status: appliedScenarioFilters.value.status,
+      created_from: appliedScenarioFilters.value.created_from,
+      created_to: appliedScenarioFilters.value.created_to,
+      search: searchKeyword.value.trim() || undefined,
     });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(payload?.message ?? "Failed to load scenarios.");
-    }
-    const rows = Array.isArray(payload?.data)
-      ? payload.data
-      : Array.isArray(payload)
-        ? payload
-        : [];
-    scenarioRows.value = rows as ScenarioRow[];
+    scenarioRows.value = (await fetchWorkflows(authorization, params)) as ScenarioRow[];
     recalculateScenarioPagination();
   } catch (error: any) {
     scenarioRows.value = [];
