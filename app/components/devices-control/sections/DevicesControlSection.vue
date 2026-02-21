@@ -6,7 +6,7 @@
       :selected-timeframe="selectedTimeframe"
       @update:selected-metric-key="handleMetricChange"
     />
-    <ControlWidgetBox />
+    <ControlWidgetBox :has-sse="false" />
     <DevicesControlContentSection :section="section" />
   </div>
 </template>

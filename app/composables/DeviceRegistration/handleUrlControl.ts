@@ -70,7 +70,7 @@ export function useHandleUrlControl(options: HandleUrlControlOptions) {
   function resolveControlUrlKey(item: ControlUrlItem) {
     const url = item.url ?? "";
     if (url) {
-      const sanitized = url.split("?")[0].trim();
+      const sanitized = (url.split("?")[0] ?? "").trim();
       const segments = sanitized.split("/").filter(Boolean);
       const lastSegment = segments.at(-1);
       if (lastSegment) {

@@ -146,12 +146,18 @@ type ControlWidget = {
   raw: ControlUrlItem;
 };
 
-const props = defineProps<{
-  items: ControlUrlItem[];
-  isLoading?: boolean;
-  error?: string | null;
-  onExecute?: (widget: ControlWidget, nextState: boolean) => Promise<void>;
-}>();
+const props = withDefaults(
+  defineProps<{
+    items: ControlUrlItem[];
+    isLoading?: boolean;
+    error?: string | null;
+    onExecute?: (widget: ControlWidget, nextState: boolean) => Promise<void>;
+    hasSse?: boolean;
+  }>(),
+  {
+    hasSse: true,
+  },
+);
 
 const widgetState = ref<Record<string, boolean>>({});
 const executingMap = ref<Record<string, boolean>>({});
@@ -182,6 +188,10 @@ function isExecuting(id: string) {
 }
 
 async function toggleWidget(widget: ControlWidget) {
+  if (!props.hasSse) {
+    message.warning("The device is currently offline.");    return;
+  }
+
   const nextState = !isWidgetOn(widget);
   if (!props.onExecute) {
     widgetState.value[widget.id] = nextState;

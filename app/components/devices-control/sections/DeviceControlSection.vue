@@ -11,6 +11,7 @@
       :is-loading="isLoadingControlUrls"
       :error="controlUrlLoadError"
       :on-execute="handleExecuteControlUrl"
+      :has-sse="false"
     />
     <DevicesControlContentSection :section="section" />
   </div>
