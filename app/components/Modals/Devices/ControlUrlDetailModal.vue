@@ -17,12 +17,7 @@
       <template v-else>
         <section class="space-y-4">
           <div class="flex items-center justify-between pb-3 border-b border-gray-200">
-            <span
-              class="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-              :class="statusBadgeClass(controlUrl.status)"
-            >
-              {{ formatValue(controlUrl.status) }}
-            </span>
+            <h4 class="text-xs font-semibold text-gray-700">Control URL</h4>
           </div>
 
           <div class="rounded-lg border border-gray-200 bg-white overflow-hidden">
@@ -157,7 +152,6 @@ type ControlUrlItem = {
   name?: string | null;
   url?: string | null;
   input_type?: string | null;
-  status?: string | null;
   node?: {
     id?: string | null;
     name?: string | null;
@@ -188,17 +182,6 @@ const emit = defineEmits<{
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "N/A";
   return String(value);
-}
-
-function statusBadgeClass(status?: string | null) {
-  const normalized = String(status ?? "").toLowerCase();
-  if (normalized === "on" || normalized === "online") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  }
-  if (normalized === "off" || normalized === "offline") {
-    return "border-red-200 bg-red-50 text-red-700";
-  }
-  return "border-gray-200 bg-gray-50 text-gray-600";
 }
 
 function handleClose() {

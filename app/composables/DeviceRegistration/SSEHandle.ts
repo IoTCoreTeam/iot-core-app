@@ -1,5 +1,5 @@
 import type { Ref } from "vue";
-import type { DeviceRow } from "@/types/devices-control";
+import type { ControllerState, DeviceRow } from "@/types/devices-control";
 
 export type NodeEventPayload = {
   gateway_id?: string | null;
@@ -24,6 +24,7 @@ export type NodeEventPayload = {
   node_type?: string | null;
   role?: string | null;
   category?: string | null;
+  devices?: ControllerState[] | null;
 };
 
 export type GatewayEventPayload = {
@@ -39,6 +40,7 @@ export type GatewayEventPayload = {
 
 type NodeCollectionsRefs = {
   nodeRows: Ref<DeviceRow[]>;
+  controllerStatesByNode?: Ref<Record<string, ControllerState[]>>;
 };
 
 function normalizeStatus(value?: string | null): DeviceRow["status"] {
@@ -107,6 +109,7 @@ function buildNodeRow(
     status: normalizeStatus(payload.status ?? existing?.status ?? null),
     registered: payload.registered ?? existing?.registered ?? false,
     lastSeen: normalizeLastSeen(payload, existing),
+    devices: payload.devices ?? existing?.devices ?? null,
   };
 }
 
@@ -149,6 +152,14 @@ export function createNodeCollectionsStore() {
       const row = buildNodeRow(node, existing, payload.id ?? null);
 
       nodeCache.set(id, row);
+
+      if (refs.controllerStatesByNode) {
+        const devices = Array.isArray(node.devices) ? node.devices : [];
+        refs.controllerStatesByNode.value = {
+          ...refs.controllerStatesByNode.value,
+          [id]: devices,
+        };
+      }
     });
 
     syncToRefs(refs);

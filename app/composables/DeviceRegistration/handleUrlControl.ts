@@ -2,23 +2,16 @@ import type { Ref } from "vue";
 import { ref } from "vue";
 import { message } from "ant-design-vue";
 import { apiConfig } from "~~/config/api";
-import type { DeviceRow, DeviceTabKey } from "@/types/devices-control";
+import type { ControllerState, DeviceRow, DeviceTabKey } from "@/types/devices-control";
 import { useAuthStore } from "~~/stores/auth";
 import { useControlUrlActions } from "@/composables/DeviceControl/useControlUrlActions";
 
-type ControlUrlFormState = {
-  name: string;
-  url: string;
-  inputType: string;
-  status: "on" | "off";
-};
-
 export type ControlUrlItem = {
   id: string;
+  controller_id?: string;
   name: string;
   url: string;
   input_type: string;
-  status: "on" | "off";
 };
 
 type HandleUrlControlOptions = {
@@ -27,6 +20,7 @@ type HandleUrlControlOptions = {
   loadNodeIdMap: () => Promise<void> | void;
   isGatewayRegisteredForRow: (row: DeviceRow) => boolean;
   getGatewayIdFromRow: (row: DeviceRow) => string | null;
+  controllerStatesByNode?: Ref<Record<string, ControllerState[]>>;
 };
 
 export function useHandleUrlControl(options: HandleUrlControlOptions) {
@@ -36,10 +30,11 @@ export function useHandleUrlControl(options: HandleUrlControlOptions) {
     loadNodeIdMap,
     isGatewayRegisteredForRow,
     getGatewayIdFromRow,
+    controllerStatesByNode,
   } = options;
 
   const authStore = useAuthStore();
-  const { createControlUrl, updateControlUrl, deleteControlUrl } =
+  const { updateControlUrl, deleteControlUrl } =
     useControlUrlActions();
 
   const activeControlUrlNodeId = ref<string | null>(null);
@@ -47,13 +42,125 @@ export function useHandleUrlControl(options: HandleUrlControlOptions) {
   const isSavingControlUrl = ref(false);
   const isLoadingControlUrls = ref(false);
   const controlUrlLoadError = ref<string | null>(null);
-  const controlUrlForm = ref<ControlUrlFormState>({
-    name: "",
-    url: "",
-    inputType: "",
-    status: "off",
-  });
   const controlUrlItems = ref<ControlUrlItem[]>([]);
+
+  function normalizeControllerDeviceKey(value?: string | null) {
+    if (!value) return null;
+    const trimmed = value.trim().toLowerCase();
+    return trimmed.length ? trimmed : null;
+  }
+
+  function resolveControllerKey(state: ControllerState) {
+    return (
+      normalizeControllerDeviceKey(state.device) ||
+      normalizeControllerDeviceKey(state.name) ||
+      normalizeControllerDeviceKey(state.id) ||
+      null
+    );
+  }
+
+  function resolveControllerKind(state: ControllerState) {
+    return (
+      normalizeControllerDeviceKey(state.kind) ||
+      normalizeControllerDeviceKey(state.type) ||
+      "digital"
+    );
+  }
+
+  function resolveControlUrlKey(item: ControlUrlItem) {
+    const url = item.url ?? "";
+    if (url) {
+      const sanitized = url.split("?")[0].trim();
+      const segments = sanitized.split("/").filter(Boolean);
+      const lastSegment = segments.at(-1);
+      if (lastSegment) {
+        return lastSegment.toLowerCase();
+      }
+    }
+    if (item.name) {
+      const normalized = item.name.trim().toLowerCase();
+      if (normalized) {
+        return normalized.split(/\s+/)[0] ?? normalized;
+      }
+    }
+    return null;
+  }
+
+  function applyControllerStates(nodeId: string) {
+    if (!controllerStatesByNode) return;
+    const controllers = controllerStatesByNode.value[nodeId];
+    if (!Array.isArray(controllers) || controllers.length === 0) {
+      return;
+    }
+
+    const controllerMap = new Map<string, { kind: string; controllerId?: string }>();
+    controllers.forEach((state) => {
+      const key = resolveControllerKey(state);
+      if (!key) return;
+      controllerMap.set(key, {
+        kind: resolveControllerKind(state),
+        controllerId:
+          typeof state.id === "string" && state.id.trim().length
+            ? state.id.trim()
+            : undefined,
+      });
+    });
+
+    if (!controllerMap.size) {
+      return;
+    }
+
+    const existingByKey = new Map<string, ControlUrlItem>();
+    controlUrlItems.value.forEach((item) => {
+      const key = resolveControlUrlKey(item);
+      if (key) {
+        existingByKey.set(key, item);
+      }
+    });
+
+    const nextItems: ControlUrlItem[] = [];
+
+    controllerMap.forEach((controller, key) => {
+      const existing = existingByKey.get(key);
+      const controllerId = controller.controllerId ?? existing?.controller_id;
+      if (existing) {
+        nextItems.push({
+          ...existing,
+          name: key,
+          input_type: controller.kind || existing.input_type,
+          controller_id: controllerId ?? existing.controller_id,
+          id: controllerId ?? existing.id,
+        });
+        return;
+      }
+
+      nextItems.push({
+        id: controllerId ?? key,
+        controller_id: controllerId ?? undefined,
+        name: key,
+        url: "",
+        input_type: controller.kind || "digital",
+      });
+    });
+
+    controlUrlItems.value = nextItems.map((item) => {
+      const key = resolveControlUrlKey(item);
+      if (!key || !controllerMap.has(key)) {
+        return item;
+      }
+      const controller = controllerMap.get(key)!;
+      const next = { ...item };
+      next.name = key;
+      if (controller.kind) {
+        next.input_type = controller.kind;
+      }
+      if (controller.controllerId) {
+        next.controller_id = controller.controllerId;
+        next.id = controller.controllerId;
+      }
+      return next;
+    });
+  }
 
   function isControlNode(row: DeviceRow) {
     return (row.type ?? "").toLowerCase() === "control";
@@ -92,12 +199,15 @@ export function useHandleUrlControl(options: HandleUrlControlOptions) {
           ? payload
           : [];
       controlUrlItems.value = rows.map((row: any) => ({
-        id: row.id,
+        id: row.controller_id ?? row.id,
+        controller_id: row.controller_id ?? undefined,
         name: row.name ?? "",
         url: row.url ?? "",
         input_type: row.input_type ?? "",
-        status: row.status === "on" ? "on" : "off",
       }));
+      if (activeControlUrlNodeId.value) {
+        applyControllerStates(activeControlUrlNodeId.value);
+      }
     } catch (error: any) {
       controlUrlLoadError.value =
         error?.message ?? "Failed to load control urls.";
@@ -123,12 +233,6 @@ export function useHandleUrlControl(options: HandleUrlControlOptions) {
     }
     activeControlUrlNodeId.value = row.id;
     activeControlNodeUuid.value = controlNodeId;
-    controlUrlForm.value = {
-      name: "",
-      url: "",
-      inputType: "",
-      status: "off",
-    };
     await fetchControlUrls(controlNodeId);
   }
 
@@ -162,48 +266,11 @@ export function useHandleUrlControl(options: HandleUrlControlOptions) {
     activeControlNodeUuid.value = null;
   }
 
-  async function submitControlUrl(row: DeviceRow) {
-    if (isSavingControlUrl.value) return;
-    const authorization = authStore.authorizationHeader;
-    if (!authorization) {
-      message.error("Missing authorization.");
+  function syncControlUrlItemsFromControllerStates() {
+    if (!activeControlUrlNodeId.value) {
       return;
     }
-    if (
-      !controlUrlForm.value.name ||
-      !controlUrlForm.value.url ||
-      !controlUrlForm.value.inputType
-    ) {
-      message.warning("Please fill in name, url, and input type.");
-      return;
-    }
-
-    const controlNodeId =
-      activeControlNodeUuid.value ?? (await resolveControlNodeId(row));
-    if (!controlNodeId) {
-      message.warning(
-        `Node ${row.externalId ?? row.id} not found in Control Module.`,
-      );
-      return;
-    }
-
-    isSavingControlUrl.value = true;
-    try {
-      await createControlUrl(authorization, {
-        node_id: controlNodeId,
-        name: controlUrlForm.value.name,
-        url: controlUrlForm.value.url,
-        input_type: controlUrlForm.value.inputType,
-        status: controlUrlForm.value.status,
-      });
-      message.success("Control URL created.");
-      await fetchControlUrls(controlNodeId);
-      closeControlUrlInline();
-    } catch (error: any) {
-      message.error(error?.message ?? "Failed to create control url.");
-    } finally {
-      isSavingControlUrl.value = false;
-    }
+    applyControllerStates(activeControlUrlNodeId.value);
   }
 
   async function handleUpdateControlUrl(item: ControlUrlItem) {
@@ -217,14 +284,20 @@ export function useHandleUrlControl(options: HandleUrlControlOptions) {
       message.warning("Missing node id.");
       return;
     }
+    if (!item.controller_id) {
+      message.warning("Missing controller id from SSE.");
+      return;
+    }
 
+    const resolvedName = item.name || item.controller_id || item.url;
+    const resolvedInputType = item.input_type || "digital";
     try {
       await updateControlUrl(authorization, item.id, {
+        controller_id: item.controller_id,
         node_id: nodeId,
-        name: item.name,
+        name: resolvedName,
         url: item.url,
-        input_type: item.input_type,
-        status: item.status,
+        input_type: resolvedInputType,
       });
       message.success("Control URL updated.");
     } catch (error: any) {
@@ -250,17 +323,17 @@ export function useHandleUrlControl(options: HandleUrlControlOptions) {
   }
 
   return {
-    controlUrlForm,
     controlUrlItems,
     controlUrlLoadError,
+    activeControlUrlNodeId,
     isControlNode,
     isLoadingControlUrls,
     isSavingControlUrl,
     handleControlUrlClick,
     showControlUrlInline,
     closeControlUrlInline,
-    submitControlUrl,
     handleUpdateControlUrl,
     handleDeleteControlUrl,
+    syncControlUrlItemsFromControllerStates,
   };
 }

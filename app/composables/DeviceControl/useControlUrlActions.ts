@@ -1,11 +1,19 @@
 import { apiConfig } from "~~/config/api";
 
-type ControlUrlPayload = {
+type CreateControlUrlPayload = {
+  controller_id: string;
   node_id: string;
   name: string;
   url: string;
   input_type: string;
-  status: "on" | "off";
+};
+
+type UpdateControlUrlPayload = {
+  controller_id?: string;
+  node_id?: string;
+  name?: string;
+  url?: string;
+  input_type?: string;
 };
 
 const CONTROL_MODULE_BASE = (apiConfig.controlModule || "").replace(/\/$/, "");
@@ -25,7 +33,7 @@ async function requestJson(
 export function useControlUrlActions() {
   async function createControlUrl(
     authorization: string,
-    payload: ControlUrlPayload,
+    payload: CreateControlUrlPayload,
   ) {
     const endpoint = `${CONTROL_MODULE_BASE}/control-urls`;
     return requestJson(endpoint, {
@@ -42,7 +50,7 @@ export function useControlUrlActions() {
   async function updateControlUrl(
     authorization: string,
     id: string,
-    payload: ControlUrlPayload,
+    payload: UpdateControlUrlPayload,
   ) {
     const endpoint = `${CONTROL_MODULE_BASE}/control-urls/${id}`;
     return requestJson(endpoint, {

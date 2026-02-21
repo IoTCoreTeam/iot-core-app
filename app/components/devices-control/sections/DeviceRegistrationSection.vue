@@ -312,6 +312,7 @@
                               <input
                                 v-model="item.name"
                                 type="text"
+                                readonly
                                 class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-40 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                               />
                             </div>
@@ -320,6 +321,7 @@
                               <input
                                 v-model="item.url"
                                 type="text"
+                                placeholder="e.g. /pump"
                                 class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-80 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                               />
                             </div>
@@ -328,103 +330,35 @@
                               <input
                                 v-model="item.input_type"
                                 type="text"
+                                readonly
                                 class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-28 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
                               />
-                            </div>
-                            <div class="flex flex-col gap-1">
-                              <label class="text-[10px] text-gray-500">Status</label>
-                              <select
-                                v-model="item.status"
-                                class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-24 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
-                              >
-                                <option value="on">on</option>
-                                <option value="off">off</option>
-                              </select>
                             </div>
                             <div class="flex items-center gap-2">
                               <button
                                 type="button"
                                 class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
                                 title="Update control url"
+                                :disabled="isSavingControlUrl || !item.url"
                                 @click="handleUpdateControlUrl(item)"
                               >
-                                <BootstrapIcon name="pencil-square" class="w-3 h-3" />
+                                <BootstrapIcon
+                                  name="pencil-square"
+                                  class="w-3 h-3"
+                                />
                                 <span class="sr-only">Update</span>
                               </button>
                               <button
                                 type="button"
                                 class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50"
                                 title="Delete control url"
+                                :disabled="false"
                                 @click="handleDeleteControlUrl(item)"
                               >
                                 <BootstrapIcon name="trash" class="w-3 h-3" />
                                 <span class="sr-only">Delete</span>
                               </button>
                             </div>
-                          </div>
-                          <div class="flex flex-col gap-1">
-                            <label class="text-[10px] text-gray-500">Name</label>
-                            <input
-                              v-model="controlUrlForm.name"
-                              type="text"
-                              class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-48 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
-                              placeholder="e.g. Pump On"
-                            />
-                          </div>
-                          <div class="flex flex-col gap-1">
-                              <label class="text-[10px] text-gray-500">URL</label>
-                              <input
-                                v-model="controlUrlForm.url"
-                                type="text"
-                                class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-80 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
-                                placeholder="e.g. /pump"
-                              />
-                            </div>
-                          <div class="flex flex-col gap-1">
-                            <label class="text-[10px] text-gray-500">Input type</label>
-                            <input
-                              v-model="controlUrlForm.inputType"
-                              type="text"
-                              class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-32 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
-                              placeholder="switch"
-                            />
-                          </div>
-                          <div class="flex flex-col gap-1">
-                            <label class="text-[10px] text-gray-500">Status</label>
-                            <select
-                              v-model="controlUrlForm.status"
-                              class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-24 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
-                            >
-                              <option value="on">on</option>
-                              <option value="off">off</option>
-                            </select>
-                          </div>
-                          <div class="flex items-center gap-2">
-                            <button
-                              type="button"
-                              class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
-                              :disabled="isSavingControlUrl"
-                              @click="submitControlUrl(row)"
-                              title="Save control url"
-                            >
-                              <BootstrapIcon
-                                :name="isSavingControlUrl ? 'arrow-repeat' : 'check-lg'"
-                                class="w-3 h-3"
-                                :class="{ 'animate-spin': isSavingControlUrl }"
-                              />
-                              <span class="sr-only">
-                                {{ isSavingControlUrl ? "Saving" : "Save" }}
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              class="w-8 h-8 inline-flex items-center justify-center rounded border border-slate-200 text-slate-500 hover:bg-slate-50"
-                              @click="closeControlUrlInline"
-                              title="Cancel"
-                            >
-                              <BootstrapIcon name="x-lg" class="w-3 h-3" />
-                              <span class="sr-only">Cancel</span>
-                            </button>
                           </div>
                           </div>
                         </td>
@@ -487,6 +421,7 @@ import type {
   DeviceTabKey,
   Section,
   NodeInfo,
+  ControllerState,
 } from "@/types/devices-control";
 import type { TimeframeKey } from "@/types/dashboard";
 import { apiConfig } from "~~/config/api";
@@ -510,6 +445,7 @@ defineProps<{
 
 const gatewayRows = ref<DeviceRow[]>([]);
 const nodeRows = ref<DeviceRow[]>([]);
+const controllerStatesByNode = ref<Record<string, ControllerState[]>>({});
 const deviceTableKey = ref(0);
 const isGatewayDetailOpen = ref(false);
 const selectedGateway = ref<DeviceRow | null>(null);
@@ -802,24 +738,24 @@ const nodeTableColumns: Array<{ key: string; label: string; width: string }> = [
   { key: "actions", label: "Actions", width: "auto" },
 ];
 const {
-  controlUrlForm,
   controlUrlItems,
   controlUrlLoadError,
+  activeControlUrlNodeId,
   isControlNode,
   isLoadingControlUrls,
   isSavingControlUrl,
   handleControlUrlClick,
   showControlUrlInline,
-  closeControlUrlInline,
-  submitControlUrl,
   handleUpdateControlUrl,
   handleDeleteControlUrl,
+  syncControlUrlItemsFromControllerStates,
 } = useHandleUrlControl({
   activeDeviceTab,
   nodeIdMap,
   loadNodeIdMap,
   isGatewayRegisteredForRow,
   getGatewayIdFromRow,
+  controllerStatesByNode,
 });
 const deviceTableColumnDefinitions = computed(() =>
   activeDeviceTab.value === "gateways" ? gatewayTableColumns : nodeTableColumns,
@@ -1061,7 +997,11 @@ function handleGatewayUpdate(event: MessageEvent) {
     updateGatewayFromPayload(payload);
     nodeCollectionsStore.updateFromGatewayPayload(payload, {
       nodeRows,
+      controllerStatesByNode,
     });
+    if (activeControlUrlNodeId.value) {
+      syncControlUrlItemsFromControllerStates();
+    }
   } catch (error) {
     console.error("Failed to parse gateway SSE payload:", error);
   }

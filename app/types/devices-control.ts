@@ -4,6 +4,18 @@ export type DeviceTabKey = "gateways" | "nodes";
 
 export type DeviceRowStatus = "online" | "offline";
 
+export type ControllerState = {
+  device?: string | null;
+  kind?: string | null;
+  state?: string | null;
+  id?: string | null;
+  name?: string | null;
+  type?: string | null;
+  status?: string | null;
+  value?: string | number | boolean | null;
+  timestamp?: string | null;
+};
+
 export type DeviceRow = {
   id: string;
   externalId?: string | null;
@@ -15,6 +27,7 @@ export type DeviceRow = {
   status: DeviceRowStatus;
   registered?: boolean;
   lastSeen?: string | null;
+  devices?: ControllerState[] | null;
 };
 
 export type NodeInfo = {

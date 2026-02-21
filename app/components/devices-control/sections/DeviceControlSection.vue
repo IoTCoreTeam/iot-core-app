@@ -41,7 +41,6 @@ type ControlUrlItem = {
   name?: string | null;
   url?: string | null;
   input_type?: string | null;
-  status?: string | null;
   node?: {
     id?: string | null;
     name?: string | null;
@@ -127,10 +126,6 @@ async function handleExecuteControlUrl(widget: {
     state,
   });
 
-  const target = controlUrlItems.value.find((item) => item.id === widget.id);
-  if (target) {
-    target.status = state;
-  }
 }
 
 onMounted(() => {

@@ -120,7 +120,6 @@ type ControlUrlItem = {
   name?: string | null;
   url?: string | null;
   input_type?: string | null;
-  status?: string | null;
   node?: {
     id?: string | null;
     name?: string | null;
@@ -168,7 +167,7 @@ const widgets = computed<ControlWidget[]>(() =>
       "N/A",
     nodeName: item.node?.name ?? item.node?.external_id ?? "N/A",
     controllerName: item.name ?? item.url ?? "N/A",
-    isOn: item.status === "on",
+    isOn: false,
     raw: item,
   })),
 );
