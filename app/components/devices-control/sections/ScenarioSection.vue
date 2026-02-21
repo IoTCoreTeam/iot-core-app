@@ -189,6 +189,7 @@ import AdvancedFilterPanel, {
 } from "@/components/common/AdvancedFilterPanel.vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import type { Section } from "@/types/devices-control";
+import { formatIotDateTime } from "~~/config/iot-time-format";
 
 defineProps<{
   section: Section;
@@ -402,16 +403,8 @@ function recalculateScenarioPagination() {
   }
 }
 
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
 function formatDateTime(value?: string | null) {
-  if (!value) return "-";
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) return value;
-  return dateTimeFormatter.format(new Date(timestamp));
+  return formatIotDateTime(value, { fallback: "-" });
 }
 
 watch(

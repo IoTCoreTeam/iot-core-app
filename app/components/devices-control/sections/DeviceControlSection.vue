@@ -11,14 +11,15 @@
       :is-loading="isLoadingControlUrls"
       :error="controlUrlLoadError"
       :on-execute="handleExecuteControlUrl"
-      :has-sse="false"
+      :has-sse="isSseConnected"
+      :controller-states-by-node="controllerStatesByNode"
     />
     <DevicesControlContentSection :section="section" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { message } from "ant-design-vue";
 import ControlWidgetBox from "@/components/devices-control/ControlWidgetBox.vue";
 import DevicesControlContentSection from "@/components/devices-control/layouts/DevicesControlContentSection.vue";
@@ -27,8 +28,12 @@ import { METRICS } from "~~/config/metric";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
 import { useControlUrlActions } from "@/composables/DeviceControl/useControlUrlActions";
+import {
+  createNodeCollectionsStore,
+  type GatewayEventPayload,
+} from "@/composables/DeviceRegistration/SSEHandle";
 import type { TimeframeKey } from "@/types/dashboard";
-import type { Section } from "@/types/devices-control";
+import type { ControllerState, DeviceRow, Section } from "@/types/devices-control";
 
 defineProps<{
   section: Section;
@@ -39,6 +44,7 @@ const selectedTimeframe = ref<TimeframeKey>("second");
 
 type ControlUrlItem = {
   id: string;
+  controller_id?: string | null;
   name?: string | null;
   url?: string | null;
   input_type?: string | null;
@@ -64,6 +70,12 @@ const { executeControlUrl } = useControlUrlActions();
 const controlUrlItems = ref<ControlUrlItem[]>([]);
 const isLoadingControlUrls = ref(false);
 const controlUrlLoadError = ref<string | null>(null);
+const nodeRows = ref<DeviceRow[]>([]);
+const controllerStatesByNode = ref<Record<string, ControllerState[]>>({});
+const isSseConnected = ref(false);
+
+const nodeCollectionsStore = createNodeCollectionsStore();
+let gatewayEventSource: EventSource | null = null;
 
 function handleMetricChange(value: string) {
   selectedMetricKey.value = value;
@@ -129,8 +141,67 @@ async function handleExecuteControlUrl(widget: {
 
 }
 
+function handleGatewayUpdate(event: MessageEvent) {
+  if (!event.data) {
+    return;
+  }
+
+  try {
+    const payload = JSON.parse(event.data) as GatewayEventPayload;
+    nodeCollectionsStore.updateFromGatewayPayload(payload, {
+      nodeRows,
+      controllerStatesByNode,
+    });
+  } catch (error) {
+    console.error("Failed to parse gateway SSE payload:", error);
+  }
+}
+
+function handleGatewayReady() {
+  isSseConnected.value = true;
+}
+
+function handleGatewayError(event: Event) {
+  console.error("Gateway SSE error:", event);
+  isSseConnected.value = false;
+}
+
+function connectGatewaySse() {
+  if (!import.meta.client || !apiConfig.server) {
+    return;
+  }
+
+  disconnectGatewaySse();
+
+  try {
+    const endpoint = `${apiConfig.server.replace(/\/$/, "")}/events/gateways`;
+    const source = new EventSource(endpoint);
+    source.addEventListener("gateway-update", handleGatewayUpdate);
+    source.addEventListener("ready", handleGatewayReady);
+    source.addEventListener("error", handleGatewayError);
+    source.onopen = handleGatewayReady;
+    gatewayEventSource = source;
+  } catch (error) {
+    console.error("Failed to connect to gateway SSE:", error);
+    isSseConnected.value = false;
+  }
+}
+
+function disconnectGatewaySse() {
+  if (gatewayEventSource) {
+    gatewayEventSource.close();
+    gatewayEventSource = null;
+  }
+  isSseConnected.value = false;
+}
+
 onMounted(() => {
   if (!import.meta.client) return;
+  connectGatewaySse();
   fetchControlUrls();
+});
+
+onBeforeUnmount(() => {
+  disconnectGatewaySse();
 });
 </script>

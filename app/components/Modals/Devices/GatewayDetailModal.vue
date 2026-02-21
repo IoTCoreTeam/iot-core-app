@@ -117,6 +117,7 @@
 import { computed, ref, watch } from "vue";
 import BaseModal from "../BaseModal.vue";
 import type { DeviceRow } from "@/types/devices-control";
+import { formatIotDateTime } from "~~/config/iot-time-format";
 
 const props = defineProps<{
   gateway: DeviceRow | null;
@@ -135,10 +136,10 @@ const lastSeenFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 function formatLastSeen(value?: string | null) {
-  if (!value) return "N/A";
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) return value;
-  return lastSeenFormatter.format(timestamp);
+  return formatIotDateTime(value, {
+    formatter: lastSeenFormatter,
+    fallback: "N/A",
+  });
 }
 
 function closeModal() {

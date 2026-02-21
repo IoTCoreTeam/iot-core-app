@@ -83,6 +83,7 @@ import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import type { DeviceRow, DeviceRowStatus } from "@/types/devices-control";
 import { useLoadDataRow } from "@/composables/DeviceRegistration/loadDataRow";
 import { apiConfig } from "~~/config/api";
+import { formatIotDateTime } from "~~/config/iot-time-format";
 
 // Internal State
 const activeTab = ref<"gateway" | "node">("gateway");
@@ -174,14 +175,7 @@ const timeFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 function formatLastSeen(val: string | null) {
-  if (!val) return "-";
-  try {
-    const date = new Date(val);
-    if (isNaN(date.getTime())) return val;
-    return timeFormatter.format(date);
-  } catch {
-    return val;
-  }
+  return formatIotDateTime(val, { formatter: timeFormatter, fallback: "-" });
 }
 
 function formatRegistered(value?: boolean) {

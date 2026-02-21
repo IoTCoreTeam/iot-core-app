@@ -103,6 +103,7 @@ import { computed, useSlots } from "vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 import BaseModal from "../BaseModal.vue";
 import type { NodeInfo } from "@/types/devices-control";
+import { formatIotDateTime } from "~~/config/iot-time-format";
 
 const props = withDefaults(
   defineProps<{
@@ -160,13 +161,13 @@ function formatValue(value: unknown) {
 }
 
 function formatLastSeen(value?: string | null) {
-  if (!value) return "N/A";
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) return value;
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(timestamp);
+  return formatIotDateTime(value, {
+    formatter: new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }),
+    fallback: "N/A",
+  });
 }
 
 function handleClose() {

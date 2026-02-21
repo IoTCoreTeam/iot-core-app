@@ -85,6 +85,7 @@ import { onBeforeUnmount, onMounted, ref } from "vue";
 import { apiConfig } from "~~/config/api";
 import { METRICS } from "~~/config/metric";
 import type { DashboardMetric } from "@/types/dashboard";
+import { formatIotDateTime } from "~~/config/iot-time-format";
 
 interface MetricWidgetItem {
   key: string;
@@ -114,17 +115,17 @@ const sensorTypeMapping: Record<string, string> = {
 };
 
 const formatTimestamp = (value?: string) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(date);
+  return formatIotDateTime(value, {
+    formatter: new Intl.DateTimeFormat("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }),
+    fallback: "-",
+  });
 };
 
 const toNumber = (v: any): number | null => {

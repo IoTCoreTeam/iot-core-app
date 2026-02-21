@@ -438,6 +438,7 @@ import MapConfig from "@/components/devices-control/sections/map-section/MapConf
 import type { Section } from "@/types/devices-control";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
+import { formatIotDateTime } from "~~/config/iot-time-format";
 
 defineProps<{ section: Section }>();
 
@@ -1241,16 +1242,8 @@ function exportAreas() {
   window.URL.revokeObjectURL(url);
 }
 
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
 function formatDateTime(value?: string | null) {
-  if (!value) return "-";
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) return value;
-  return dateTimeFormatter.format(new Date(timestamp));
+  return formatIotDateTime(value, { fallback: "-" });
 }
 
 function openAddModal() {

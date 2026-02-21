@@ -114,9 +114,11 @@
 import { computed, ref } from "vue";
 import { message } from "ant-design-vue";
 import ControlUrlDetailModal from "@/components/Modals/Devices/ControlUrlDetailModal.vue";
+import type { ControllerState } from "@/types/devices-control";
 
 type ControlUrlItem = {
   id: string;
+  controller_id?: string | null;
   name?: string | null;
   url?: string | null;
   input_type?: string | null;
@@ -139,6 +141,7 @@ type ControlUrlItem = {
 
 type ControlWidget = {
   id: string;
+  controllerId?: string | null;
   gatewayName: string;
   nodeName: string;
   controllerName: string;
@@ -153,6 +156,7 @@ const props = withDefaults(
     error?: string | null;
     onExecute?: (widget: ControlWidget, nextState: boolean) => Promise<void>;
     hasSse?: boolean;
+    controllerStatesByNode?: Record<string, ControllerState[]>;
   }>(),
   {
     hasSse: true,
@@ -167,6 +171,7 @@ const selectedWidget = ref<ControlWidget | null>(null);
 const widgets = computed<ControlWidget[]>(() =>
   (props.items ?? []).map((item) => ({
     id: item.id,
+    controllerId: item.controller_id ?? null,
     gatewayName:
       item.node?.gateway?.name ??
       item.node?.gateway?.external_id ??
@@ -179,6 +184,10 @@ const widgets = computed<ControlWidget[]>(() =>
 );
 
 function isWidgetOn(widget: ControlWidget) {
+  const sseState = resolveSseState(widget);
+  if (typeof sseState === "boolean") {
+    return sseState;
+  }
   const state = widgetState.value[widget.id];
   return typeof state === "boolean" ? state : widget.isOn;
 }
@@ -187,9 +196,66 @@ function isExecuting(id: string) {
   return executingMap.value[id] === true;
 }
 
+function normalizeKey(value?: string | null) {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized.length ? normalized : null;
+}
+
+function resolveNodeKey(widget: ControlWidget) {
+  const node = widget.raw.node;
+  return normalizeKey(
+    node?.external_id ??
+      node?.id ??
+      node?.name ??
+      null,
+  );
+}
+
+function resolveControllerId(widget: ControlWidget) {
+  return normalizeKey(
+    widget.controllerId ??
+      widget.raw.controller_id ??
+      null,
+  );
+}
+
+function resolveControllerStateValue(state: ControllerState) {
+  const raw = state.status ?? state.state ?? state.value ?? null;
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "number") return raw !== 0;
+  if (typeof raw === "string") {
+    const normalized = raw.trim().toLowerCase();
+    if (["on", "true", "1", "open", "opened", "enabled"].includes(normalized)) {
+      return true;
+    }
+    if (["off", "false", "0", "close", "closed", "disabled"].includes(normalized)) {
+      return false;
+    }
+  }
+  return null;
+}
+
+function resolveSseState(widget: ControlWidget) {
+  const nodeKey = resolveNodeKey(widget);
+  if (!nodeKey) return null;
+  const controllers = props.controllerStatesByNode?.[nodeKey];
+  if (!Array.isArray(controllers) || controllers.length === 0) {
+    return null;
+  }
+  const controllerId = resolveControllerId(widget);
+  if (!controllerId) return null;
+  const match = controllers.find(
+    (controller) => normalizeKey(controller.id) === controllerId,
+  );
+  if (!match) return null;
+  return resolveControllerStateValue(match);
+}
+
 async function toggleWidget(widget: ControlWidget) {
   if (!props.hasSse) {
-    message.warning("The device is currently offline.");    return;
+    message.warning("The device is currently offline.");
+    return;
   }
 
   const nextState = !isWidgetOn(widget);
