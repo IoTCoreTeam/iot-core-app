@@ -150,8 +150,8 @@
                         {{ row.area?.name || row.area_name || "Unknown" }}
                       </div>
                     </td>
-                    <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
-                      {{ row.description || "-" }}
+                    <td class="px-2 py-2 text-gray-700 text-left align-middle leading-4">
+                      {{ row.description }}
                     </td>
                     <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
                       {{ row.width_px ?? "-" }}
@@ -1346,19 +1346,3 @@ watch(activeTab, () => {
 });
 </script>
 
-<style scoped>
-.slide-left-enter-active,
-.slide-left-leave-active {
-  transition: all 0.25s ease;
-}
-
-.slide-left-enter-from {
-  opacity: 0;
-  transform: translateX(24px);
-}
-
-.slide-left-leave-to {
-  opacity: 0;
-  transform: translateX(-24px);
-}
-</style>

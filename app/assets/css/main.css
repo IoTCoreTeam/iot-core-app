@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./modal-transitions.css";
+@import "./section-transitions.css";
 /* Devices registration tabs */
 .custom-tabs .ant-tabs-nav {
   margin-bottom: 1rem;

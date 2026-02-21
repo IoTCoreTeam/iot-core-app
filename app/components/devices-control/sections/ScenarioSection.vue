@@ -1,7 +1,14 @@
 <template>
   <section class="min-h-screen">
-    <div class="px-4 pb-2">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
+    <div class="pt-4 px-0">
+      <Transition name="slide-left" mode="out-in">
+        <ScenarioBuilderSection
+          v-if="activeScenarioConfig"
+          :scenario="activeScenarioConfig"
+          @back="closeScenarioConfig"
+        />
+
+        <div v-else class="flex flex-col gap-4 lg:flex-row lg:items-start">
         <div
           :class="[
             'bg-white rounded border border-slate-200 overflow-hidden w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
@@ -124,17 +131,14 @@
               :key="row.id"
               class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100 py-1 text-center"
             >
-              <td class="px-2 py-2 text-gray-800 text-center align-middle leading-4">
-                {{ row.id }}
-              </td>
               <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
                 {{ row.name || "-" }}
               </td>
               <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
-                {{ row.type || "-" }}
-              </td>
-              <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
                 {{ row.status || "-" }}
+              </td>
+              <td class="px-2 py-2 text-gray-600 text-center align-middle leading-4">
+                {{ formatDateTime(row.created_at) }}
               </td>
               <td class="px-2 py-2 text-gray-600 text-center align-middle leading-4">
                 {{ formatDateTime(row.updated_at) }}
@@ -163,6 +167,18 @@
                   </button>
                 </div>
               </td>
+              <td class="px-2 py-2 text-center align-middle">
+                <button
+                  type="button"
+                  class="w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
+                  @click="openScenarioConfig(row)"
+                  title="Configure"
+                  aria-label="Configure scenario"
+                >
+                  <BootstrapIcon name="gear" class="w-3 h-3" />
+                  <span class="sr-only">Configure</span>
+                </button>
+              </td>
             </tr>
           </template>
 
@@ -176,20 +192,34 @@
             </span>
           </template>
         </DataBoxCard>
-      </div>
+        </div>
+      </Transition>
     </div>
+
+    <ScenarioFormModal
+      v-model="isScenarioModalOpen"
+      :is-edit="isScenarioEditMode"
+      :is-saving="isScenarioSaving"
+      :form="scenarioForm"
+      @submit="saveScenario"
+      @close="handleScenarioModalClose"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
-import { message } from "ant-design-vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { message, Modal } from "ant-design-vue";
+import ScenarioFormModal from "@/components/Modals/Devices/ScenarioFormModal.vue";
+import ScenarioBuilderSection from "@/components/devices-control/sections/ScenarioBuilderSection.vue";
 import AdvancedFilterPanel, {
   type FilterFieldRow,
 } from "@/components/common/AdvancedFilterPanel.vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import type { Section } from "@/types/devices-control";
 import { formatIotDateTime } from "~~/config/iot-time-format";
+import { apiConfig } from "~~/config/api";
+import { useAuthStore } from "~~/stores/auth";
 
 defineProps<{
   section: Section;
@@ -197,17 +227,18 @@ defineProps<{
 
 type ScenarioRow = {
   id: string | number;
-  name?: string | null;
-  type?: string | null;
-  status?: string | null;
-  updated_at?: string | null;
+  name: string | null;
+  status: string | null;
+  definition: Record<string, unknown> | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 type ScenarioFilterState = {
-  id: string;
   name: string;
-  type: string;
   status: string;
+  created_from: string;
+  created_to: string;
 };
 
 const title = "Scenarios";
@@ -215,12 +246,12 @@ const loadingText = "Loading scenarios...";
 const emptyText = "No scenarios found.";
 
 const scenarioTableColumns = [
-  "ID",
   "Name",
-  "Type",
   "Status",
+  "Created",
   "Updated",
   "Actions",
+  "Config",
 ];
 
 const isScenarioLoading = ref(false);
@@ -229,55 +260,77 @@ const searchKeyword = ref("");
 
 const scenarioRows = ref<ScenarioRow[]>([]);
 const scenarioPagination = ref({ page: 1, perPage: 10, lastPage: 1, total: 0 });
+const activeScenarioConfig = ref<ScenarioRow | null>(null);
+
+const isScenarioModalOpen = ref(false);
+const isScenarioEditMode = ref(false);
+const isScenarioSaving = ref(false);
+const scenarioForm = reactive({
+  id: "" as string | number,
+  name: "",
+  status: "draft",
+  definition: "",
+});
 
 const scenarioFilters = reactive<ScenarioFilterState>({
-  id: "",
   name: "",
-  type: "",
   status: "",
+  created_from: "",
+  created_to: "",
 });
 const appliedScenarioFilters = ref<ScenarioFilterState>({
   ...scenarioFilters,
 });
 
 const scenarioFilterFields: FilterFieldRow[] = [
+  [{ key: "name", label: "Scenario name", type: "text", placeholder: "Name" }],
   [
-    { key: "id", label: "Scenario ID", type: "text", placeholder: "ID" },
-    { key: "name", label: "Scenario name", type: "text", placeholder: "Name" },
-  ],
-  [
-    { key: "type", label: "Type", type: "text", placeholder: "Type" },
     {
       key: "status",
       label: "Status",
       type: "select",
       options: [
         { label: "All", value: "" },
+        { label: "Draft", value: "draft" },
         { label: "Active", value: "active" },
         { label: "Inactive", value: "inactive" },
       ],
+    },
+  ],
+  [
+    {
+      key: "created_from",
+      label: "Created from",
+      type: "datetime-local",
+    },
+    {
+      key: "created_to",
+      label: "Created to",
+      type: "datetime-local",
     },
   ],
 ];
 
 const filteredScenarioRows = computed(() => {
   const filters = appliedScenarioFilters.value;
-  const idFilter = normalizeText(filters.id);
   const nameFilter = normalizeText(filters.name);
-  const typeFilter = normalizeText(filters.type);
   const statusFilter = normalizeText(filters.status);
   const keyword = normalizeText(searchKeyword.value);
+  const createdFrom = filters.created_from ? new Date(filters.created_from) : null;
+  const createdTo = filters.created_to ? new Date(filters.created_to) : null;
 
   return scenarioRows.value.filter((row) => {
-    if (idFilter && !normalizeText(row.id).includes(idFilter)) return false;
     if (nameFilter && !normalizeText(row.name).includes(nameFilter)) return false;
-    if (typeFilter && !normalizeText(row.type).includes(typeFilter)) return false;
     if (statusFilter && normalizeText(row.status) !== statusFilter) return false;
+    if (createdFrom || createdTo) {
+      const createdAt = row.created_at ? new Date(row.created_at) : null;
+      if (!createdAt || Number.isNaN(createdAt.getTime())) return false;
+      if (createdFrom && createdAt < createdFrom) return false;
+      if (createdTo && createdAt > createdTo) return false;
+    }
     if (keyword) {
       const haystack = [
-        row.id,
         row.name,
-        row.type,
         row.status,
       ]
         .map((value) => normalizeText(value))
@@ -309,15 +362,17 @@ function applyFilters(payload?: Record<string, string>) {
     ...(payload ?? {}),
   };
   scenarioPagination.value.page = 1;
+  fetchScenarios();
 }
 
 function resetFilters() {
-  scenarioFilters.id = "";
   scenarioFilters.name = "";
-  scenarioFilters.type = "";
   scenarioFilters.status = "";
+  scenarioFilters.created_from = "";
+  scenarioFilters.created_to = "";
   appliedScenarioFilters.value = { ...scenarioFilters };
   scenarioPagination.value.page = 1;
+  fetchScenarios();
 }
 
 function toggleFilters() {
@@ -326,14 +381,13 @@ function toggleFilters() {
 
 function refreshRows() {
   if (isScenarioLoading.value) return;
-  isScenarioLoading.value = true;
-  setTimeout(() => {
-    isScenarioLoading.value = false;
-  }, 800);
+  fetchScenarios();
 }
 
 function openAddScenario() {
-  message.info("Scenario creation will be available soon.");
+  isScenarioEditMode.value = false;
+  resetScenarioForm();
+  isScenarioModalOpen.value = true;
 }
 
 function exportRows() {
@@ -343,7 +397,9 @@ function exportRows() {
     message.warning("No scenarios to export.");
     return;
   }
-  const headers = scenarioTableColumns.filter((column) => column !== "Actions");
+  const headers = scenarioTableColumns.filter(
+    (column) => column !== "Actions" && column !== "Config",
+  );
   const escapeValue = (value: string | number | null | undefined) => {
     const str = (value ?? "").toString().replace(/"/g, '""');
     return `"${str}"`;
@@ -351,7 +407,7 @@ function exportRows() {
   const csvRows = [
     headers.map(escapeValue).join(","),
     ...rows.map((row) =>
-      [row.id, row.name, row.type, row.status, row.updated_at]
+      [row.name, row.status, row.created_at, row.updated_at]
         .map(escapeValue)
         .join(","),
     ),
@@ -369,11 +425,55 @@ function exportRows() {
 }
 
 function openEditScenario(row: ScenarioRow) {
-  message.info(`Edit scenario ${row.name ?? row.id}`);
+  isScenarioEditMode.value = true;
+  scenarioForm.id = row.id;
+  scenarioForm.name = row.name ?? "";
+  scenarioForm.status = row.status ?? "draft";
+  scenarioForm.definition = JSON.stringify(row.definition ?? defaultDefinition(), null, 2);
+  isScenarioModalOpen.value = true;
 }
 
 function confirmDeleteScenario(row: ScenarioRow) {
-  message.info(`Delete scenario ${row.name ?? row.id}`);
+  Modal.confirm({
+    title: "Delete Scenario",
+    content: `Are you sure you want to delete ${row.name ?? `scenario #${row.id}`}?`,
+    okText: "Delete",
+    okType: "danger",
+    cancelText: "Cancel",
+    centered: true,
+    onOk: () => deleteScenario(row),
+  });
+}
+
+async function deleteScenario(row: ScenarioRow) {
+  if (!import.meta.client) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+
+  isScenarioLoading.value = true;
+  try {
+    const endpoint = `${controlModuleBase.value}/workflows/${row.id}`;
+    const response = await fetch(endpoint, {
+      method: "DELETE",
+      headers: {
+        Authorization: authorization,
+        Accept: "application/json",
+      },
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message ?? "Failed to delete scenario.");
+    }
+    scenarioRows.value = scenarioRows.value.filter((item) => item.id !== row.id);
+    message.success("Scenario deleted.");
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to delete scenario.");
+  } finally {
+    isScenarioLoading.value = false;
+  }
 }
 
 function prevScenarioPage() {
@@ -407,6 +507,169 @@ function formatDateTime(value?: string | null) {
   return formatIotDateTime(value, { fallback: "-" });
 }
 
+function resetScenarioForm() {
+  scenarioForm.id = "";
+  scenarioForm.name = "";
+  scenarioForm.status = "draft";
+  scenarioForm.definition = JSON.stringify(defaultDefinition(), null, 2);
+}
+
+function handleScenarioModalClose() {
+  if (isScenarioSaving.value) return;
+  resetScenarioForm();
+}
+
+function parseDefinition(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return defaultDefinition();
+  return JSON.parse(trimmed) as Record<string, unknown>;
+}
+
+function defaultDefinition() {
+  return {
+    version: 1,
+    nodes: [],
+    edges: [],
+  };
+}
+
+async function saveScenario() {
+  if (isScenarioSaving.value) return;
+  const name = scenarioForm.name.trim();
+  if (!name) {
+    message.warning("Scenario name is required.");
+    return;
+  }
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+
+  let definition: Record<string, unknown>;
+  try {
+    definition = parseDefinition(scenarioForm.definition);
+  } catch (error: any) {
+    message.error(error?.message ?? "Definition must be valid JSON.");
+    return;
+  }
+
+  isScenarioSaving.value = true;
+  try {
+    const payload = {
+      name,
+      status: scenarioForm.status,
+      definition,
+    };
+    const endpoint = isScenarioEditMode.value
+      ? `${controlModuleBase.value}/workflows/${scenarioForm.id}`
+      : `${controlModuleBase.value}/workflows`;
+    const response = await fetch(endpoint, {
+      method: isScenarioEditMode.value ? "PUT" : "POST",
+      headers: {
+        Authorization: authorization,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(result?.message ?? "Failed to save scenario.");
+    }
+    const saved = result?.data ?? result;
+    if (saved) {
+      const index = scenarioRows.value.findIndex((row) => row.id === saved.id);
+      if (index >= 0) {
+        scenarioRows.value[index] = saved;
+      } else {
+        scenarioRows.value.unshift(saved);
+      }
+    } else {
+      await fetchScenarios();
+    }
+    message.success(isScenarioEditMode.value ? "Scenario updated." : "Scenario created.");
+    isScenarioModalOpen.value = false;
+    resetScenarioForm();
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to save scenario.");
+  } finally {
+    isScenarioSaving.value = false;
+  }
+}
+
+function openScenarioConfig(row: ScenarioRow) {
+  activeScenarioConfig.value = row;
+}
+
+function closeScenarioConfig() {
+  activeScenarioConfig.value = null;
+}
+
+const authStore = useAuthStore();
+const controlModuleBase = computed(() =>
+  (apiConfig.controlModule || "").replace(/\/$/, ""),
+);
+
+async function fetchScenarios() {
+  if (!controlModuleBase.value) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+
+  isScenarioLoading.value = true;
+  try {
+    const params = new URLSearchParams();
+    params.set("per_page", "200");
+    if (appliedScenarioFilters.value.name) {
+      params.set("name", appliedScenarioFilters.value.name);
+    }
+    if (appliedScenarioFilters.value.status) {
+      params.set("status", appliedScenarioFilters.value.status);
+    }
+    if (appliedScenarioFilters.value.created_from) {
+      params.set("created_from", appliedScenarioFilters.value.created_from);
+    }
+    if (appliedScenarioFilters.value.created_to) {
+      params.set("created_to", appliedScenarioFilters.value.created_to);
+    }
+    if (searchKeyword.value.trim()) {
+      params.set("search", searchKeyword.value.trim());
+    }
+    const endpoint = `${controlModuleBase.value}/workflows?${params.toString()}`;
+    const response = await fetch(endpoint, {
+      headers: {
+        Authorization: authorization,
+        Accept: "application/json",
+      },
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message ?? "Failed to load scenarios.");
+    }
+    const rows = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload)
+        ? payload
+        : [];
+    scenarioRows.value = rows as ScenarioRow[];
+    recalculateScenarioPagination();
+  } catch (error: any) {
+    scenarioRows.value = [];
+    message.error(error?.message ?? "Failed to load scenarios.");
+  } finally {
+    isScenarioLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  if (!import.meta.client) return;
+  resetScenarioForm();
+  fetchScenarios();
+});
+
 watch(
   filteredScenarioRows,
   () => {
@@ -425,5 +688,6 @@ watch(
 
 watch(searchKeyword, () => {
   scenarioPagination.value.page = 1;
+  fetchScenarios();
 });
 </script>

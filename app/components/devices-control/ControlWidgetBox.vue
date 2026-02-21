@@ -16,8 +16,8 @@
       <div
         v-for="widget in widgets"
         :key="widget.id"
-        class="group relative rounded border border-slate-200 bg-white p-6
-               transition-all duration-200"
+        class="group relative rounded border p-6 transition-all duration-200"
+        :class="props.hasSse ? 'border-slate-200 bg-white' : 'border-red-200 bg-red-50'"
       >
         <!-- Status Indicator -->
         <div
