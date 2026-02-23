@@ -68,20 +68,27 @@
     </div>
 
     <div
-      class="mt-4 min-h-[420px] rounded border border-gray-200 bg-slate-50 "
+      class="relative mt-4 min-h-[420px] rounded border border-gray-200 bg-slate-50"
       @drop="handleDrop"
       @dragover="handleDragOver"
     >
+      <div
+        v-if="!isFlowVisible"
+        class="absolute inset-0 z-10 flex items-center justify-center rounded bg-white/70 backdrop-blur-sm"
+      >
+        <LoadingState message="Loading scenario canvas..." />
+      </div>
       <VueFlow
+        v-if="isFlowVisible"
         v-model:nodes="nodes"
         v-model:edges="edges"
         :default-viewport="{ zoom: 1 }"
         :fit-view-on-init="true"
-        class="scenario-flow rounded bg-white"
+        class="scenario-flow rounded bg-gray-100 min-h-[80vh]"
         @connect="handleConnect"
         @node-click="handleNodeClick"
       >
-        <Background pattern-color="#e5e7eb" :gap="20" :size="1" />
+        <Background pattern-color="ffffff" :gap="20" :size="1" />
         <Controls :show-interactive="false" />
         <MiniMap />
       </VueFlow>
@@ -255,9 +262,10 @@ import "@vue-flow/minimap/dist/style.css";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import BaseModal from "@/components/Modals/BaseModal.vue";
+import LoadingState from "@/components/common/LoadingState.vue";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
-import { METRICS } from "~~/config/metric";
+import { useMetrics } from "@/composables/useMetrics";
 import {
   canConnectFromNode,
   canCreateEnd,
@@ -265,6 +273,7 @@ import {
   resolveConditionBranch,
   validateFlow,
 } from "@/composables/Scenario/flowConstants";
+import { formatControlDefinition } from "@/composables/Scenario/formatControlDefinition";
 
 type ScenarioRow = {
   id: string | number;
@@ -278,7 +287,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "back"): void;
-  (e: "save", payload: { nodes: Node<NodeData>[]; edges: Edge[] }): void;
+  (e: "save", payload: { nodes: Node<NodeData>[]; edges: Edge[]; controlDefinition: any }): void;
 }>();
 
 const palette = [
@@ -337,7 +346,8 @@ const nodes = ref<Node<NodeData>[]>([
 ]);
 
 const edges = ref<Edge[]>([]);
-const metrics = METRICS;
+const { metrics: metricsRef, fetchMetrics } = useMetrics();
+const metrics = computed(() => metricsRef.value);
 const authStore = useAuthStore();
 const controlModuleBase = computed(() =>
   (apiConfig.controlModule || "").replace(/\/$/, ""),
@@ -347,6 +357,7 @@ const isActionModalOpen = ref(false);
 const isConditionModalOpen = ref(false);
 const isConstantsModalOpen = ref(false);
 const isSavingNode = ref(false);
+const isFlowVisible = ref(false);
 const activeNode = ref<Node<NodeData> | null>(null);
 const actionForm = ref({
   control_url_id: "",
@@ -473,7 +484,8 @@ function saveFlow() {
     message.error(validation.message ?? "Flow validation failed.");
     return;
   }
-  emit("save", { nodes: nodes.value, edges: edges.value });
+  const controlDefinition = formatControlDefinition(nodes.value, edges.value);
+  emit("save", { nodes: nodes.value, edges: edges.value, controlDefinition });
 }
 
 function handleNodeClick(event: { node: Node<NodeData> }) {
@@ -534,7 +546,7 @@ function updateNodeLabel(node: Node<NodeData>) {
     return;
   }
   if (node.data?.kind === "condition") {
-    const metric = metrics.find((item) => item.key === node.data?.metric_key);
+    const metric = metrics.value.find((item) => item.key === node.data?.metric_key);
     const metricName = metric?.title ?? node.data?.metric_key ?? "Metric";
     const operator = node.data?.operator ?? ">";
     const value = node.data?.value ?? 0;
@@ -648,11 +660,15 @@ async function fetchControlUrls() {
 
 onMounted(() => {
   if (!import.meta.client) return;
+  fetchMetrics();
   fetchControlUrls();
   if (props.definition && !hasHydrated.value) {
     applyDefinition(props.definition);
     hasHydrated.value = true;
   }
+  setTimeout(() => {
+    isFlowVisible.value = true;
+  }, 1000);
 });
 
 watch(

@@ -96,6 +96,10 @@ export function useMetricQuery(props: UseMetricQueryProps) {
   const fetchOnce = async () => {
     if (!BASE_URL) return;
     if (isFetching.value) return;
+    if (!props.sensorType && !props.selectedMetricKey) {
+      fetchedSeries.value = [];
+      return;
+    }
 
     isFetching.value = true;
     fetchError.value = null;

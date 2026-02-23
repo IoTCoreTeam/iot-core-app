@@ -11,6 +11,7 @@ export type WorkflowRow = {
   name: string | null;
   status: string | null;
   definition: Record<string, unknown> | null;
+  control_definition?: Record<string, unknown> | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -69,7 +70,12 @@ export async function fetchWorkflowDetail(id: string | number, authorization: st
 
 export async function createWorkflow(
   authorization: string | null,
-  payload: { name: string; status: string; definition: Record<string, unknown> },
+  payload: {
+    name: string;
+    status: string;
+    definition: Record<string, unknown>;
+    control_definition?: Record<string, unknown>;
+  },
 ) {
   const base = getBaseUrl();
   if (!base) throw new Error("API base URL is not configured.");
@@ -91,7 +97,12 @@ export async function createWorkflow(
 export async function updateWorkflow(
   id: string | number,
   authorization: string | null,
-  payload: Partial<{ name: string; status: string; definition: Record<string, unknown> }>,
+  payload: Partial<{
+    name: string;
+    status: string;
+    definition: Record<string, unknown>;
+    control_definition: Record<string, unknown>;
+  }>,
 ) {
   const base = getBaseUrl();
   if (!base) throw new Error("API base URL is not configured.");
@@ -105,7 +116,7 @@ export async function updateWorkflow(
   });
   const result = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(result?.message ?? "Failed to update workflow.");
+    throw new Error(result?.message ?? "Failed to upd ate workflow.");
   }
   return (result?.data ?? result) as WorkflowRow;
 }

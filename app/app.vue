@@ -1,15 +1,22 @@
 <template>
   <div class="relative min-h-screen flex flex-col bg-white">
-    <!-- Layout hiển thị page -->
+    <!-- Layout hi?n th? page -->
     <NuxtLayout>
-      <!-- Chỉ NuxtPage được reload -->
+      <!-- Ch? NuxtPage du?c reload -->
       <NuxtPage :key="$route.fullPath" />
     </NuxtLayout>
   </div>
 </template>
 
 <script setup>
+import { onMounted } from "vue";
 import { useRoute } from "vue-router";
-// vẫn theo dõi route để reload NuxtPage nếu cần
+import { useMetrics } from "@/composables/useMetrics";
+
 const route = useRoute();
+const { fetchMetrics } = useMetrics();
+
+onMounted(() => {
+  fetchMetrics();
+});
 </script>

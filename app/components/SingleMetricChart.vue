@@ -85,7 +85,7 @@ import LoadingState from "@/components/common/LoadingState.vue";
 import type { ApexOptions } from "apexcharts";
 import type { DashboardMetric, SeriesPoint, TimeframeKey } from "@/types/dashboard";
 import { useMetricQuery } from "@/composables/SingleMetricChart/useMetricQuery";
-import { METRICS } from "~~/config/metric";
+import { useMetrics } from "@/composables/useMetrics";
 
 const props = withDefaults(
   defineProps<{
@@ -122,9 +122,13 @@ const {
   fetchOnce,
 } = metricQuery;
 
-const availableMetrics = computed(() =>
-  props.metrics && props.metrics.length > 0 ? props.metrics : METRICS
-);
+const { metrics: metricsRef, fetchMetrics } = useMetrics();
+
+const availableMetrics = computed(() => {
+  if (props.metrics && props.metrics.length > 0) return props.metrics;
+  if (metricsRef.value.length > 0) return metricsRef.value;
+  return [];
+});
 
 const selectedMetric = computed(() =>
   availableMetrics.value.find(
@@ -338,6 +342,7 @@ const selectedSeriesMaxLabel = computed(() => {
 });
 
 onMounted(() => {
+  fetchMetrics();
   setTimeout(() => {
     initialLoading.value = false;
   }, 5000);

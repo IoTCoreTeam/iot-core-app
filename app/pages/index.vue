@@ -39,11 +39,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
-import { METRICS } from "~~/config/metric";
+import { useMetrics } from "@/composables/useMetrics";
 import DevicesControlMetricDataWidgetBox from "@/components/devices-control/MetricDataWidgetBox.vue";
 
 const authStore = useAuthStore();
@@ -83,7 +83,8 @@ const isTypeDistributionLoading = ref(true);
 
 const automationBatches = ref<AutomationBatchItem[]>([]);
 
-const selectedMetricKey = ref<string>(METRICS[0]?.key || "");
+const { metrics, fetchMetrics } = useMetrics();
+const selectedMetricKey = ref<string>("");
 const selectedTimeframe = ref<TimeframeKey>("second");
 // const chartSeries = ref<SeriesPoint[]>([]); // handled in child or removed
 const chartSeries = ref<SeriesPoint[]>([]);
@@ -105,6 +106,20 @@ onMounted(() => {
     fetchTypeDistribution();
   }
 });
+
+onMounted(() => {
+  fetchMetrics();
+});
+
+watch(
+  metrics,
+  (value) => {
+    if (!selectedMetricKey.value && value.length > 0) {
+      selectedMetricKey.value = value[0]?.key || "";
+    }
+  },
+  { immediate: true },
+);
 
 async function fetchTypeDistribution() {
   if (!import.meta.client) return;

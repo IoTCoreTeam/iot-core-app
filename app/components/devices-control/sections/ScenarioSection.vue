@@ -5,7 +5,7 @@
         v-if="activeScenarioConfig"
         :key="`builder-${activeScenarioConfig.id}`"
         :scenario="activeScenarioConfig"
-        :definition="activeScenarioConfig.control_definition ?? activeScenarioConfig.definition"
+        :definition="activeScenarioConfig.definition"
         @back="closeScenarioConfig"
         @save="handleScenarioDefinitionSave"
       />
@@ -283,6 +283,7 @@ const scenarioForm = reactive({
   name: "",
   status: "draft",
   definition: "",
+  control_definition: "",
 });
 
 const scenarioFilters = reactive<ScenarioFilterState>({
@@ -443,6 +444,9 @@ function openEditScenario(row: ScenarioRow) {
   scenarioForm.name = row.name ?? "";
   scenarioForm.status = row.status ?? "draft";
   scenarioForm.definition = JSON.stringify(row.definition ?? defaultDefinition(), null, 2);
+  scenarioForm.control_definition = row.control_definition
+    ? JSON.stringify(row.control_definition, null, 2)
+    : "";
   isScenarioModalOpen.value = true;
 }
 
@@ -514,6 +518,7 @@ function resetScenarioForm() {
   scenarioForm.name = "";
   scenarioForm.status = "draft";
   scenarioForm.definition = JSON.stringify(defaultDefinition(), null, 2);
+  scenarioForm.control_definition = "";
 }
 
 function handleScenarioModalClose() {
@@ -524,6 +529,12 @@ function handleScenarioModalClose() {
 function parseDefinition(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return defaultDefinition();
+  return JSON.parse(trimmed) as Record<string, unknown>;
+}
+
+function parseControlDefinition(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
   return JSON.parse(trimmed) as Record<string, unknown>;
 }
 
@@ -549,10 +560,17 @@ async function saveScenario() {
   }
 
   let definition: Record<string, unknown>;
+  let controlDefinition: Record<string, unknown> | null;
   try {
     definition = parseDefinition(scenarioForm.definition);
   } catch (error: any) {
     message.error(error?.message ?? "Definition must be valid JSON.");
+    return;
+  }
+  try {
+    controlDefinition = parseControlDefinition(scenarioForm.control_definition);
+  } catch (error: any) {
+    message.error(error?.message ?? "Control definition must be valid JSON.");
     return;
   }
 
@@ -562,6 +580,7 @@ async function saveScenario() {
       name,
       status: scenarioForm.status,
       definition,
+      control_definition: controlDefinition,
     };
     const saved = isScenarioEditMode.value
       ? await updateWorkflow(scenarioForm.id, authorization, payload)
@@ -611,7 +630,7 @@ function closeScenarioConfig() {
   activeScenarioConfig.value = null;
 }
 
-async function handleScenarioDefinitionSave(payload: { nodes: any[]; edges: any[] }) {
+async function handleScenarioDefinitionSave(payload: { nodes: any[]; edges: any[]; controlDefinition: any }) {
   if (!activeScenarioConfig.value) return;
   const authorization = authStore.authorizationHeader;
   if (!authorization) {
@@ -624,7 +643,10 @@ async function handleScenarioDefinitionSave(payload: { nodes: any[]; edges: any[
     edges: payload.edges,
   };
   try {
-    await updateWorkflow(activeScenarioConfig.value.id, authorization, { definition });
+    await updateWorkflow(activeScenarioConfig.value.id, authorization, {
+      definition,
+      control_definition: payload.controlDefinition,
+    });
     message.success("Scenario definition saved.");
     await fetchScenarios();
   } catch (error: any) {

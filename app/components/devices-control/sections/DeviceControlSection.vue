@@ -19,12 +19,12 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { message } from "ant-design-vue";
 import ControlWidgetBox from "@/components/devices-control/ControlWidgetBox.vue";
 import DevicesControlContentSection from "@/components/devices-control/layouts/DevicesControlContentSection.vue";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
-import { METRICS } from "~~/config/metric";
+import { useMetrics } from "@/composables/useMetrics";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
 import { useControlUrlActions } from "@/composables/DeviceControl/useControlUrlActions";
@@ -39,7 +39,8 @@ defineProps<{
   section: Section;
 }>();
 
-const selectedMetricKey = ref<string>(METRICS[0]?.key ?? "");
+const { metrics, fetchMetrics } = useMetrics();
+const selectedMetricKey = ref<string>("");
 const selectedTimeframe = ref<TimeframeKey>("second");
 
 type ControlUrlItem = {
@@ -199,7 +200,18 @@ onMounted(() => {
   if (!import.meta.client) return;
   connectGatewaySse();
   fetchControlUrls();
+  fetchMetrics();
 });
+
+watch(
+  metrics,
+  (value) => {
+    if (!selectedMetricKey.value && value.length > 0) {
+      selectedMetricKey.value = value[0]?.key ?? "";
+    }
+  },
+  { immediate: true },
+);
 
 onBeforeUnmount(() => {
   disconnectGatewaySse();
