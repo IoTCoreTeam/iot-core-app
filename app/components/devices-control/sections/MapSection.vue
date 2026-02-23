@@ -140,12 +140,12 @@
                     <td class="px-2 py-2 text-gray-800 text-center align-middle leading-4">
                       <div>{{ row.id }}</div>
                     </td>
-                    <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                    <td class="px-2 py-2 text-gray-700 text-left align-middle leading-4">
                       <div>
                         {{ row.name || "-" }}
                       </div>
                     </td>
-                    <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                    <td class="px-2 py-2 text-gray-700 text-left align-middle leading-4">
                       <div>
                         {{ row.area?.name || row.area_name || "Unknown" }}
                       </div>
