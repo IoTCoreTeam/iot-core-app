@@ -45,6 +45,16 @@
             <BootstrapIcon name="save" class="h-3 w-3" />
             Save
           </button>
+          <span class="text-xs text-gray-400" aria-hidden="true">|</span>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="isRunningFlow"
+            @click="runFlow"
+          >
+            <BootstrapIcon name="play-fill" class="h-3 w-3" />
+            {{ isRunningFlow ? "Running..." : "Run" }}
+          </button>
         </div>
       </div>
       <div class="mt-3 w-full">
@@ -288,6 +298,7 @@ import {
   validateFlow,
 } from "@/composables/Scenario/flowConstants";
 import { formatControlDefinition } from "@/composables/Scenario/formatControlDefinition";
+import { runWorkflow } from "@/composables/Scenario/handleWorkflow";
 
 type ScenarioRow = {
   id: string | number;
@@ -373,6 +384,7 @@ const isActionModalOpen = ref(false);
 const isConditionModalOpen = ref(false);
 const isConstantsModalOpen = ref(false);
 const isSavingNode = ref(false);
+const isRunningFlow = ref(false);
 const isFlowVisible = ref(false);
 const activeNode = ref<Node<NodeData> | null>(null);
 const actionForm = ref({
@@ -515,6 +527,26 @@ function saveFlow() {
   }
   const controlDefinition = formatControlDefinition(nodes.value, edges.value);
   emit("save", { nodes: nodes.value, edges: edges.value, controlDefinition });
+}
+
+async function runFlow() {
+  if (!import.meta.client) return;
+  if (isRunningFlow.value) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+  isRunningFlow.value = true;
+  message.info("Scenario is starting...");
+  try {
+    await runWorkflow(props.scenario.id, authorization);
+    message.success("Scenario ran successfully.");
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to run scenario.");
+  } finally {
+    isRunningFlow.value = false;
+  }
 }
 
 function handleNodeClick(event: { node: Node<NodeData> }) {
