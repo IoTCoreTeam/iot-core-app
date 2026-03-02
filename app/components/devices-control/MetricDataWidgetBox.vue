@@ -81,9 +81,9 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { apiConfig } from "~~/config/api";
-import { METRICS } from "~~/config/metric";
+import { useMetrics } from "@/composables/useMetrics";
 import type { DashboardMetric } from "@/types/dashboard";
 import { formatIotDateTime } from "~~/config/iot-time-format";
 
@@ -154,7 +154,8 @@ const buildDefaultWidget = (metric: DashboardMetric): MetricWidgetItem => ({
   gatewayId: "-",
 });
 
-const widgets = ref<MetricWidgetItem[]>(METRICS.map(buildDefaultWidget));
+const { metrics, fetchMetrics } = useMetrics();
+const widgets = ref<MetricWidgetItem[]>([]);
 
 const fetchLatestByMetric = async (metricKey: string) => {
   const params = new URLSearchParams();
@@ -182,7 +183,7 @@ const loadLatestMetrics = async () => {
 
   try {
     const results = await Promise.all(
-      METRICS.map(async (metric) => {
+      metrics.value.map(async (metric) => {
         const row = await fetchLatestByMetric(metric.key);
         if (!row) return buildDefaultWidget(metric);
 
@@ -216,7 +217,7 @@ const loadLatestMetrics = async () => {
     hasLoadedOnce.value = true;
   } catch (error) {
     console.error("Failed to load metric widgets:", error);
-    widgets.value = METRICS.map(buildDefaultWidget);
+    widgets.value = metrics.value.map(buildDefaultWidget);
   } finally {
     isLoading.value = false;
     isRefreshing.value = false;
@@ -288,10 +289,24 @@ const chartAreaPoints = (widget: MetricWidgetItem) => {
 
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
 
-onMounted(() => {
-  loadLatestMetrics();
+const startPolling = () => {
+  if (pollingTimer) return;
   pollingTimer = setInterval(loadLatestMetrics, 10000);
+};
+
+onMounted(() => {
+  fetchMetrics();
 });
+
+watch(
+  metrics,
+  (value) => {
+    if (value.length === 0) return;
+    loadLatestMetrics();
+    startPolling();
+  },
+  { immediate: true },
+);
 
 onBeforeUnmount(() => {
   if (pollingTimer) {

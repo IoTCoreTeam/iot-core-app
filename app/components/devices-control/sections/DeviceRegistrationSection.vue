@@ -414,7 +414,7 @@ import { message } from "ant-design-vue";
 import AdvancedFilterPanel from "@/components/common/AdvancedFilterPanel.vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
-import { METRICS } from "~~/config/metric";
+import { useMetrics } from "@/composables/useMetrics";
 import type {
   DeviceRow,
   DeviceTab,
@@ -452,7 +452,8 @@ const selectedGateway = ref<DeviceRow | null>(null);
 const isNodeDetailOpen = ref(false);
 const selectedNodeDetail = ref<NodeInfo | null>(null);
 
-const selectedNodeMetricKey = ref<string>(METRICS[0]?.key ?? "");
+const { metrics, fetchMetrics } = useMetrics();
+const selectedNodeMetricKey = ref<string>("");
 const selectedNodeTimeframe = ref<TimeframeKey>("second");
 const selectedNodeId = ref<string | undefined>(undefined);
 
@@ -1041,6 +1042,7 @@ onMounted(() => {
   loadGatewayIdMap();
   connectGatewaySse();
   startDeviceStatusPolling();
+  fetchMetrics();
 });
 
 onBeforeUnmount(() => {
@@ -1067,6 +1069,16 @@ watch(
 watch(deviceSearchKeyword, () => {
   devicePagination.value.page = 1;
 });
+
+watch(
+  metrics,
+  (value) => {
+    if (!selectedNodeMetricKey.value && value.length > 0) {
+      selectedNodeMetricKey.value = value[0]?.key ?? "";
+    }
+  },
+  { immediate: true },
+);
 
 </script>
 

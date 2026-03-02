@@ -19,12 +19,12 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { message } from "ant-design-vue";
 import ControlWidgetBox from "@/components/devices-control/ControlWidgetBox.vue";
 import DevicesControlContentSection from "@/components/devices-control/layouts/DevicesControlContentSection.vue";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
-import { METRICS } from "~~/config/metric";
+import { useMetrics } from "@/composables/useMetrics";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
 import { useControlUrlActions } from "@/composables/DeviceControl/useControlUrlActions";
@@ -39,7 +39,8 @@ defineProps<{
   section: Section;
 }>();
 
-const selectedMetricKey = ref<string>(METRICS[0]?.key ?? "");
+const { metrics, fetchMetrics } = useMetrics();
+const selectedMetricKey = ref<string>("");
 const selectedTimeframe = ref<TimeframeKey>("second");
 
 type ControlUrlItem = {
@@ -81,6 +82,17 @@ function handleMetricChange(value: string) {
   selectedMetricKey.value = value;
 }
 
+function normalizeActionType(value?: string | null) {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes("relay")) return "relay_control";
+  if (normalized.includes("digital")) return "digital";
+  if (normalized.includes("analog")) return "analog";
+  if (normalized.includes("servo")) return "servo_control";
+  return normalized;
+}
+
 async function fetchControlUrls() {
   if (!apiConfig.controlModule) return;
   const authorization = authStore.authorizationHeader;
@@ -94,7 +106,7 @@ async function fetchControlUrls() {
   try {
     const endpoint = `${apiConfig.controlModule.replace(/\/$/, "")}/control-urls?include=gateway&per_page=100`;
     const response = await fetch(endpoint, {
-      headers: {
+        headers: {
         Authorization: authorization,
         Accept: "application/json",
       },
@@ -134,9 +146,11 @@ async function handleExecuteControlUrl(widget: {
   }
 
   const state = nextState ? "on" : "off";
+  const actionType = normalizeActionType(widget.raw.input_type);
   await executeControlUrl(authorization, widget.id, {
     url,
     state,
+    action_type: actionType ?? undefined,
   });
 
 }
@@ -199,7 +213,18 @@ onMounted(() => {
   if (!import.meta.client) return;
   connectGatewaySse();
   fetchControlUrls();
+  fetchMetrics();
 });
+
+watch(
+  metrics,
+  (value) => {
+    if (!selectedMetricKey.value && value.length > 0) {
+      selectedMetricKey.value = value[0]?.key ?? "";
+    }
+  },
+  { immediate: true },
+);
 
 onBeforeUnmount(() => {
   disconnectGatewaySse();
