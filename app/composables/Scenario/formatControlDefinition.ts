@@ -7,6 +7,7 @@ export type ControlDefinitionNode = {
   type: "start" | "action" | "condition" | "end";
   control_url_id?: string | null;
   duration_seconds?: number | null;
+  action_value?: string | number | null;
   metric_key?: string | null;
   operator?: string | null;
   value?: number | null;
@@ -28,6 +29,7 @@ type NodeData = {
   kind?: "start" | "action" | "condition" | "end";
   control_url_id?: string;
   duration_seconds?: number;
+  action_value?: string | number;
   metric_key?: string;
   operator?: string;
   value?: number;
@@ -56,6 +58,11 @@ export function formatControlDefinition(
         duration_seconds:
           typeof node.data?.duration_seconds === "number"
             ? node.data.duration_seconds
+            : null,
+        action_value:
+          typeof node.data?.action_value === "number" ||
+          typeof node.data?.action_value === "string"
+            ? node.data.action_value
             : null,
       };
     }

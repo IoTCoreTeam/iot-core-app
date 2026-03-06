@@ -171,10 +171,20 @@ async function handleExecuteControlUrl(widget: {
 
   const state = nextState ? "on" : "off";
   const actionType = normalizeActionType(widget.raw.input_type);
+  const gatewayId =
+    widget.raw.node?.gateway?.external_id ??
+    widget.raw.node?.gateway?.id ??
+    null;
+  const nodeId =
+    widget.raw.node?.external_id ??
+    widget.raw.node?.id ??
+    null;
   await executeControlUrl(authorization, widget.id, {
     url,
     state,
     action_type: actionType ?? undefined,
+    gateway_id: gatewayId ?? undefined,
+    node_id: nodeId ?? undefined,
   });
 
 }
@@ -195,10 +205,20 @@ async function handleExecuteAnalog(widget: {
   }
 
   const actionType = normalizeActionType(widget.raw.input_type);
+  const gatewayId =
+    widget.raw.node?.gateway?.external_id ??
+    widget.raw.node?.gateway?.id ??
+    null;
+  const nodeId =
+    widget.raw.node?.external_id ??
+    widget.raw.node?.id ??
+    null;
   await executeControlUrl(authorization, widget.id, {
     url,
     value,
     action_type: actionType ?? undefined,
+    gateway_id: gatewayId ?? undefined,
+    node_id: nodeId ?? undefined,
   });
 }
 

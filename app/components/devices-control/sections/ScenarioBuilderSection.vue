@@ -49,7 +49,7 @@
           <button
             type="button"
             class="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="isRunningFlow"
+            :disabled="isRunningFlow || hasMissingActionNodes"
             @click="runFlow"
           >
             <BootstrapIcon name="play-fill" class="h-3 w-3" />
@@ -205,6 +205,28 @@
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div v-if="isSelectedDigital" class="space-y-1">
+        <label class="text-xs font-semibold text-gray-700">State</label>
+        <select
+          v-model="actionForm.action_value"
+          class="w-full rounded border border-gray-300 px-3 py-2 text-xs focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+        >
+          <option value="on">On</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+
+      <div v-else-if="isSelectedAnalog" class="space-y-1">
+        <label class="text-xs font-semibold text-gray-700">Value</label>
+        <input
+          v-model.number="actionForm.action_value"
+          type="number"
+          step="0.01"
+          class="w-full rounded border border-gray-300 px-3 py-2 text-xs focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+          placeholder="0"
+        />
       </div>
 
       <div class="space-y-1">
@@ -449,6 +471,7 @@ type NodeData = {
   kind?: "start" | "action" | "condition" | "end";
   control_url_id?: string;
   duration_seconds?: number;
+  action_value?: string | number;
   metric_key?: string;
   operator?: string;
   value?: number;
@@ -525,6 +548,7 @@ const workflowSteps = ref<WorkflowStep[]>([]);
 const currentWorkflowStep = ref<number>(0);
 const workflowErrorMessage = ref<string | null>(null);
 const hasWorkflowCompleted = ref(false);
+const hasLoadedControlUrls = ref(false);
 const lastNodeStepIndex = ref<number | null>(null);
 const lastNodeContext = ref<{
   label: string;
@@ -541,6 +565,7 @@ const workflowStreamAbortController = ref<AbortController | null>(null);
 const actionForm = ref({
   control_url_id: "",
   duration_seconds: 5,
+  action_value: "on" as "on" | "off" | number | "",
 });
 const conditionForm = ref({
   metric_key: "",
@@ -548,6 +573,32 @@ const conditionForm = ref({
   value: 0,
 });
 const isMetricNodesLoading = ref(false);
+const lastActionInputKind = ref<string | null>(null);
+
+function normalizeControlInputType(value?: string | null) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes("analog")) return "analog";
+  if (normalized.includes("digital") || normalized.includes("relay")) return "digital";
+  return normalized;
+}
+
+function resolveControlInputTypeById(controlUrlId?: string | null) {
+  if (!controlUrlId) return null;
+  const selected = controlUrlOptions.value.find((item) => item.id === controlUrlId);
+  return normalizeControlInputType(selected?.input_type);
+}
+
+const selectedControlUrl = computed(() =>
+  controlUrlOptions.value.find((item) => item.id === actionForm.value.control_url_id),
+);
+
+const selectedControlInputType = computed(() =>
+  normalizeControlInputType(selectedControlUrl.value?.input_type),
+);
+
+const isSelectedDigital = computed(() => selectedControlInputType.value === "digital");
+const isSelectedAnalog = computed(() => selectedControlInputType.value === "analog");
 
 function isControlUrlSelected(id: string) {
   return actionForm.value.control_url_id === id;
@@ -555,6 +606,23 @@ function isControlUrlSelected(id: string) {
 
 function toggleControlUrlSelection(id: string) {
   actionForm.value.control_url_id = isControlUrlSelected(id) ? "" : id;
+}
+
+function resetActionValueForInputType(kind: string | null) {
+  if (kind === "analog") {
+    actionForm.value.action_value =
+      typeof actionForm.value.action_value === "number"
+        ? actionForm.value.action_value
+        : 0;
+    return;
+  }
+  if (kind === "digital") {
+    const value = actionForm.value.action_value;
+    actionForm.value.action_value = value === "off" || value === "on" ? value : "on";
+    return;
+  }
+  actionForm.value.action_value =
+    actionForm.value.action_value === "" ? "on" : actionForm.value.action_value;
 }
 
 function resolveControlNodeId(item: ControlUrlOption) {
@@ -1038,6 +1106,10 @@ async function streamWorkflow(id: string | number, authorization: string) {
 async function runFlow() {
   if (!import.meta.client) return;
   if (isRunningFlow.value) return;
+  if (hasMissingActionNodes.value) {
+    message.error("Cannot run because some actions no longer exist.");
+    return;
+  }
   const authorization = authStore.authorizationHeader;
   if (!authorization) {
     message.error("Missing authorization.");
@@ -1072,9 +1144,18 @@ function handleNodeClick(event: { node: Node<NodeData> }) {
   const kind = node.data?.kind;
   if (kind === "action") {
     activeNode.value = node;
+    const controlInputKind = resolveControlInputTypeById(node.data?.control_url_id);
+    let actionValue: "on" | "off" | number | "" =
+      node.data?.action_value ?? "";
+    if (controlInputKind === "analog") {
+      actionValue = typeof actionValue === "number" ? actionValue : 0;
+    } else if (controlInputKind === "digital") {
+      actionValue = actionValue === "off" || actionValue === "on" ? actionValue : "on";
+    }
     actionForm.value = {
       control_url_id: node.data?.control_url_id ?? "",
       duration_seconds: node.data?.duration_seconds ?? 5,
+      action_value: actionValue,
     };
     isActionModalOpen.value = true;
     return;
@@ -1116,15 +1197,36 @@ function closeConstantsModal() {
 
 function updateNodeLabel(node: Node<NodeData>) {
   if (node.data?.kind === "action") {
-    const selected = controlUrlOptions.value.find(
-      (item) => item.id === node.data?.control_url_id,
-    );
-    const name = selected?.name || selected?.url || node.data?.control_url_id || "Action";
+    const controlUrlId = node.data?.control_url_id ?? "";
+    const isMissing = isMissingControlUrl(controlUrlId);
+    const selected = controlUrlOptions.value.find((item) => item.id === controlUrlId);
+    const name = selected?.name || selected?.url || "Action";
     const duration = node.data?.duration_seconds ?? 0;
+    const inputKind = normalizeControlInputType(selected?.input_type);
+    const actionValue = node.data?.action_value;
+    let label = name;
+    if (!isMissing) {
+      if (inputKind === "analog") {
+        const valueText =
+          typeof actionValue === "number" && Number.isFinite(actionValue)
+            ? actionValue
+            : "0";
+        label = `${name} (${valueText})`;
+      } else if (inputKind === "digital") {
+        const state = actionValue === "off" ? "OFF" : "ON";
+        label =
+          state === "ON" && duration > 0
+            ? `${name} (${state}, ${duration}s)`
+            : `${name} (${state})`;
+      } else {
+        label = `${name} (${duration}s)`;
+      }
+    }
     node.data = {
       ...(node.data ?? {}),
-      label: `${name} (${duration}s)`,
+      label: isMissing ? "Action not found" : label,
     };
+    node.class = isMissing ? "scenario-node--missing" : undefined;
     return;
   }
   if (node.data?.kind === "condition") {
@@ -1180,12 +1282,30 @@ function saveActionNode() {
     message.warning("Please select a control URL.");
     return;
   }
+  const inputKind = resolveControlInputTypeById(actionForm.value.control_url_id);
+  let actionValue: "on" | "off" | number | null = null;
+  if (inputKind === "analog") {
+    const numeric = Number(actionForm.value.action_value);
+    if (!Number.isFinite(numeric)) {
+      message.warning("Please enter a numeric value.");
+      return;
+    }
+    actionValue = numeric;
+  } else if (inputKind === "digital") {
+    const state = String(actionForm.value.action_value ?? "").toLowerCase();
+    if (state !== "on" && state !== "off") {
+      message.warning("Please select On or Off.");
+      return;
+    }
+    actionValue = state as "on" | "off";
+  }
   isSavingNode.value = true;
   target.data = {
     ...(target.data ?? {}),
     kind: "action",
     control_url_id: actionForm.value.control_url_id,
     duration_seconds: Number(actionForm.value.duration_seconds || 0),
+    action_value: actionValue ?? undefined,
   };
   updateNodeLabel(target);
   isSavingNode.value = false;
@@ -1243,6 +1363,8 @@ async function fetchControlUrls() {
     controlUrlOptions.value = rows as ControlUrlOption[];
   } catch (error: any) {
     message.error(error?.message ?? "Failed to load control urls.");
+  } finally {
+    hasLoadedControlUrls.value = true;
   }
 }
 
@@ -1312,6 +1434,21 @@ watch(
 );
 
 watch(
+  () => actionForm.value.control_url_id,
+  () => {
+    const kind = selectedControlInputType.value;
+    if (kind !== lastActionInputKind.value) {
+      resetActionValueForInputType(kind);
+      lastActionInputKind.value = kind;
+    }
+  },
+);
+
+watch(hasLoadedControlUrls, () => {
+  nodes.value.forEach((node) => updateNodeLabel(node));
+});
+
+watch(
   metrics,
   (value) => {
     if (!selectedMetricKey.value && value.length > 0) {
@@ -1321,6 +1458,19 @@ watch(
   { immediate: true },
 );
 const hasHydrated = ref(false);
+
+function isMissingControlUrl(controlUrlId?: string | null) {
+  if (!hasLoadedControlUrls.value) return false;
+  if (!controlUrlId) return false;
+  return !controlUrlOptions.value.some((item) => item?.id === controlUrlId);
+}
+
+const hasMissingActionNodes = computed(() =>
+  nodes.value.some(
+    (node) =>
+      node.data?.kind === "action" && isMissingControlUrl(node.data?.control_url_id),
+  ),
+);
 
 function validateConditionBranches() {
   const conditionNodes = nodes.value.filter((node) => node.data?.kind === "condition");
@@ -1351,5 +1501,16 @@ function validateConditionBranches() {
 .scenario-flow {
   height: 420px;
   width: 100%;
+}
+
+:deep(.scenario-flow .scenario-node--missing) {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #991b1b;
+  white-space: pre-line;
+}
+
+:deep(.scenario-flow .scenario-node--missing .vue-flow__node__label) {
+  white-space: pre-line;
 }
 </style>

@@ -3,6 +3,7 @@
     class="bg-white border border-slate-200 rounded h-full flex flex-col"
   >
     <header
+      v-if="props.showHeader"
       class="flex items-center justify-between p-4 border-b border-slate-100"
     >
       <div>
@@ -17,7 +18,10 @@
         View All
       </NuxtLink>
     </header>
-    <div class="flex-1 p-4 pt-0 min-h-[300px]">
+    <div
+      class="flex-1 min-h-[300px]"
+      :class="props.showHeader ? 'p-4 pt-0' : 'p-4'"
+    >
       <div class="relative h-full">
         <ClientOnly v-if="!props.isLoading">
           <ApexChart
@@ -26,6 +30,7 @@
             type="bar"
             :options="chartOptions"
             :series="series"
+            class="distribution-chart"
           />
         </ClientOnly>
         <div
@@ -50,9 +55,11 @@ const props = withDefaults(
     series: { name: string; data: number[] }[];
     categories: string[];
     isLoading?: boolean;
+    showHeader?: boolean;
   }>(),
   {
     isLoading: false,
+    showHeader: true,
   },
 );
 
@@ -145,3 +152,11 @@ const chartOptions = computed(() => ({
   },
 }));
 </script>
+
+<style scoped>
+.distribution-chart,
+.distribution-chart :deep(.apexcharts-canvas),
+.distribution-chart :deep(.apexcharts-svg) {
+  height: 100% !important;
+}
+</style>

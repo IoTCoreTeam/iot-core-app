@@ -411,9 +411,7 @@ async function fetchAnalogSignal(controlUrlId: string) {
     }
     analogSignal.value = payload?.data ?? null;
     hydrateAnalogForm(analogSignal.value);
-    if (analogSignal.value) {
-      message.success("Analog signal loaded.");
-    } else {
+    if (!analogSignal.value) {
       message.info("No analog signal data yet.");
     }
   } catch (error: any) {

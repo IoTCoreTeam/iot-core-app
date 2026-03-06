@@ -35,7 +35,6 @@
         />
       </div>
 
-      <!-- Logs table -->
       <DataBoxCard
         :class="[
           'lg:self-start',
@@ -233,14 +232,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  ref,
-  computed,
-  watch,
-  onMounted,
-  onBeforeUnmount,
-  reactive,
-} from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from "vue";
 import { message } from "ant-design-vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import SystemLogDetailModal from "@/components/Modals/Devices/SystemLogDetailModal.vue";
