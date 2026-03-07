@@ -4,6 +4,7 @@ import type { TimeframeKey } from "@/types/dashboard";
 
 const BASE_URL = (apiConfig.server || "").replace(/\/$/, "");
 const MAX_POINTS = 30;
+const UI_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 const sensorTypeMapping: Record<string, string> = {
   soilMoisture: "soil",
@@ -85,7 +86,7 @@ export function useMetricQuery(props: UseMetricQueryProps) {
 
       map[name] ??= [];
       map[name].push({
-        x: new Date(time).getTime(),
+        x: new Date(time).getTime() - UI_OFFSET_MS,
         y: value,
       });
     }
