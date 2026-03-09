@@ -126,7 +126,7 @@ const emit = defineEmits<{
 const selectValue = computed(() => {
   const pagination = props.pagination;
   if (!pagination) {
-    return "10";
+    return "5";
   }
   if (pagination.total > 0 && pagination.perPage >= pagination.total) {
     return "all";

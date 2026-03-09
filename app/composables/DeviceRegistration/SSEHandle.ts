@@ -14,6 +14,11 @@ export type NodeEventPayload = {
   ip_address?: string | null;
   mac?: string | null;
   mac_address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  gps?: { lat?: number | null; lng?: number | null; latitude?: number | null; longitude?: number | null } | null;
   status?: string | null;
   registered?: boolean | null;
   lastSeen?: string | null;
@@ -25,6 +30,8 @@ export type NodeEventPayload = {
   role?: string | null;
   category?: string | null;
   devices?: ControllerState[] | null;
+  connected_nodes?: string[] | null;
+  connectedNodes?: string[] | null;
 };
 
 export type GatewayEventPayload = {
@@ -54,6 +61,41 @@ function normalizeDeviceType(value?: string | null) {
     return normalized.slice("node-".length);
   }
   return normalized;
+}
+
+function normalizeCoord(value?: unknown, min?: number, max?: number) {
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(num)) return null;
+  if (typeof min === "number" && num < min) return null;
+  if (typeof max === "number" && num > max) return null;
+  return num;
+}
+
+function normalizeConnectedNodes(value?: unknown): string[] | null {
+  if (!value) return null;
+  if (Array.isArray(value)) {
+    const items = value.map((item) => String(item).trim()).filter(Boolean);
+    return items.length > 0 ? items : null;
+  }
+  return null;
+}
+
+function resolveNodeLocation(payload: NodeEventPayload, existing?: DeviceRow) {
+  const lat =
+    normalizeCoord(payload.lat, -90, 90) ??
+    normalizeCoord(payload.latitude, -90, 90) ??
+    normalizeCoord(payload.gps?.lat, -90, 90) ??
+    normalizeCoord(payload.gps?.latitude, -90, 90) ??
+    existing?.lat ??
+    null;
+  const lng =
+    normalizeCoord(payload.lng, -180, 180) ??
+    normalizeCoord(payload.longitude, -180, 180) ??
+    normalizeCoord(payload.gps?.lng, -180, 180) ??
+    normalizeCoord(payload.gps?.longitude, -180, 180) ??
+    existing?.lng ??
+    null;
+  return { lat, lng };
 }
 
 function resolveNodeId(payload: NodeEventPayload): string | null {
@@ -88,6 +130,11 @@ function buildNodeRow(
     payload.externalId ??
     existing?.externalId ??
     null;
+  const location = resolveNodeLocation(payload, existing);
+  const connectedNodes =
+    normalizeConnectedNodes(payload.connected_nodes ?? payload.connectedNodes) ??
+    existing?.connectedNodes ??
+    null;
   return {
     id,
     externalId,
@@ -100,6 +147,8 @@ function buildNodeRow(
       null,
     ip: payload.ip ?? payload.ip_address ?? existing?.ip ?? null,
     mac: payload.mac ?? payload.mac_address ?? existing?.mac ?? null,
+    lat: location.lat,
+    lng: location.lng,
     type: normalizeDeviceType(
       payload.type ??
         payload.node_type ??
@@ -110,6 +159,7 @@ function buildNodeRow(
     registered: payload.registered ?? existing?.registered ?? false,
     lastSeen: normalizeLastSeen(payload, existing),
     devices: payload.devices ?? existing?.devices ?? null,
+    connectedNodes,
   };
 }
 

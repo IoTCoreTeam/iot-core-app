@@ -23,11 +23,14 @@ export type DeviceRow = {
   gatewayId?: string | null;
   ip?: string | null;
   mac?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   type?: string | null;
   status: DeviceRowStatus;
   registered?: boolean;
   lastSeen?: string | null;
   devices?: ControllerState[] | null;
+  connectedNodes?: string[] | null;
 };
 
 export type NodeInfo = {
@@ -38,9 +41,12 @@ export type NodeInfo = {
   gateway_id?: string | null;
   ip_address?: string | null;
   mac_address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   status?: string | null;
   registered?: boolean | null;
   last_seen?: string | null;
+  connected_nodes?: string[] | null;
 };
 
 export type DeviceTab = {

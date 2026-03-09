@@ -31,15 +31,17 @@ export const useHandleMap = ({
   const pendingStyle = {
     color: "#9ca3af",
     weight: 2,
+    fill: false,
     fillColor: "#d1d5db",
-    fillOpacity: 0.35,
+    fillOpacity: 0,
   };
 
   const savedStyle = {
     color: "#3b82f6",
     weight: 2,
+    fill: false,
     fillColor: "#60a5fa",
-    fillOpacity: 0.25,
+    fillOpacity: 0,
   };
 
   const getAuthHeaders = () => {

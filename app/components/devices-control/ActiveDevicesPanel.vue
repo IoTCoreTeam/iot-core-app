@@ -196,4 +196,3 @@ onBeforeUnmount(() => {
   stopDeviceStatusPolling();
 });
 </script>
-

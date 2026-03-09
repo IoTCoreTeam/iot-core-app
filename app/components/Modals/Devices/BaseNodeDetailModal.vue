@@ -76,6 +76,29 @@
           </div>
         </section>
 
+        <section class="space-y-4">
+          <div class="flex items-center justify-between border-b border-gray-200 pb-2">
+            <h4 class="text-xs font-semibold text-gray-700">Connected Nodes</h4>
+            <span class="text-[10px] uppercase tracking-wider text-gray-500">
+              {{ connectedNodes.length }}
+            </span>
+          </div>
+          <div class="rounded-lg border border-gray-200 bg-white px-4 py-3">
+            <div v-if="connectedNodes.length === 0" class="text-gray-500 text-xs">
+              No connected nodes reported.
+            </div>
+            <div v-else class="flex flex-wrap gap-2">
+              <span
+                v-for="nodeId in connectedNodes"
+                :key="nodeId"
+                class="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700"
+              >
+                {{ nodeId }}
+              </span>
+            </div>
+          </div>
+        </section>
+
         <section v-if="hasExtendedSlot" class="space-y-4">
           <div class="flex items-center justify-between border-b border-gray-200 pb-2">
             <h4 class="text-xs font-semibold text-gray-700">{{ extendedTitle }}</h4>
@@ -130,6 +153,12 @@ const emit = defineEmits<{
 const slots = useSlots();
 const hasExtendedSlot = computed(() => Boolean(slots.default));
 const hasFooterSlot = computed(() => Boolean(slots.footer));
+
+const connectedNodes = computed(() => {
+  const nodes = props.node?.connected_nodes;
+  if (!Array.isArray(nodes)) return [];
+  return nodes.map((item) => String(item).trim()).filter(Boolean);
+});
 
 const nodeView = computed(() => {
   const node = props.node as NodeInfo | null;
