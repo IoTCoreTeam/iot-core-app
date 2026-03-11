@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="min-h-[80vh] bg-gray-50 pb-10 p-4">
-    <div class="max-w-8xl mx-auto">
+    <div class="max-w-6xl mx-auto">
       <div class="bg-white rounded overflow-hidden border border-slate-200">
         <div class="bg-white text-white px-6 py-4 pb-0 flex items-center">
           <div class="text-left">

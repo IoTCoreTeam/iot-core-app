@@ -109,9 +109,7 @@
               />
               Remember me
             </label>
-            <a href="#" class="text-slate-300 hover:text-white transition">
-              Forgot Password?
-            </a>
+            
           </div>
 
           <!-- Submit button -->

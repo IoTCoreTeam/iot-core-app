@@ -250,9 +250,9 @@ const userFilterFields: FilterFieldRow[] = [
       type: "select",
       options: [
         { label: "All", value: "" },
-        { label: "Admin", value: "Admin" },
-        { label: "User", value: "User" },
-        { label: "Guest", value: "Guest" },
+        { label: "Admin", value: "admin" },
+        { label: "Engineer", value: "engineer" },
+        { label: "User", value: "user" },
       ],
     },
   ],

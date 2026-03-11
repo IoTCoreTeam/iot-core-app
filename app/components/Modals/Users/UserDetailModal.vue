@@ -65,9 +65,13 @@
               required
             >
               <option value="">Select role</option>
-              <option value="Admin">Admin</option>
-              <option value="User">User</option>
-              <option value="Guest">Guest</option>
+              <option
+                v-for="role in roleOptions"
+                :key="role.value"
+                :value="role.value"
+              >
+                {{ role.label }}
+              </option>
             </select>
           </div>
           <div>
@@ -189,6 +193,11 @@ const form = ref({
 });
 
 const isBusy = computed(() => isLoading.value || isSaving.value);
+const roleOptions = computed(() => [
+  { label: "Admin", value: "admin" },
+  { label: "Engineer", value: "engineer" },
+  { label: "User", value: "user" },
+]);
 
 const formatDate = (value?: string) => {
   if (!value) return "--";
@@ -247,7 +256,7 @@ async function fetchUserDetail() {
     form.value = {
       name: userRecord.name ?? "",
       email: userRecord.email ?? "",
-      role: userRecord.role ?? "",
+      role: "",
       description: userRecord.description ?? "",
       createdAt: userRecord.created_at ?? userRecord.createdAt ?? "",
       updatedAt: userRecord.updated_at ?? userRecord.updatedAt ?? "",

@@ -95,6 +95,7 @@
 
             <!-- Dot thông báo -->
             <span
+              v-if="hasUnreadNotifications"
               class="absolute -top-0.5 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"
             ></span>
           </button>
@@ -152,43 +153,60 @@
 
       <a-drawer
         v-model:open="open"
-        class="custom-class"
-        root-class-name="root-class-name"
-        :root-style="{ color: 'blue' }"
-        style="color: red"
         title="Notifications"
         placement="right"
+        :width="360"
         @after-open-change="afterOpenChange"
       >
-        <div class="space-y-4">
-          <div class="p-3 bg-blue-50 rounded-lg border border-blue-100">
-            <p class="text-xs font-semibold text-blue-800">System Update</p>
-            <p class="text-xs text-blue-600">
-              The system has been updated to version 2.1.0.
-            </p>
+        <div class="flex items-center justify-between pb-3 border-b border-gray-200">
+          <p class="text-xs text-gray-500">
+            {{ unreadCount }} unread notification{{ unreadCount === 1 ? "" : "s" }}
+          </p>
+          <button
+            type="button"
+            class="text-xs text-blue-600 hover:text-blue-700 disabled:opacity-50"
+            :disabled="isMarkingRead || notifications.length === 0"
+            @click="markAllRead"
+          >
+            {{ isMarkingRead ? "Marking..." : "Mark all as read" }}
+          </button>
+        </div>
+
+        <div class="mt-4 space-y-3">
+          <div
+            v-if="isNotificationsLoading"
+            class="text-xs text-gray-500"
+          >
+            Loading notifications...
           </div>
-          <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <p class="text-xs font-semibold text-gray-800">
-              New Device Connected
-            </p>
-            <p class="text-xs text-gray-600">
-              Gateway #12 has been successfully registered.
-            </p>
+          <div
+            v-else-if="notifications.length === 0"
+            class="text-xs text-gray-500"
+          >
+            No notifications yet.
           </div>
-          <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <p class="text-xs font-semibold text-gray-800">
-              Low Battery Warning
+          <div
+            v-for="item in notifications"
+            :key="item.id"
+            class="rounded-lg border px-3 py-2"
+            :class="item.read_at ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-100'"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-xs font-semibold text-gray-800">
+                {{ item.data?.title ?? "Notification" }}
+              </p>
+              <span class="text-[10px] text-gray-400">
+                {{ formatNotificationTime(item.created_at) }}
+              </span>
+            </div>
+            <p class="text-xs text-gray-600 mt-1">
+              {{ item.data?.message ?? "You have a new notification." }}
             </p>
-            <p class="text-xs text-gray-600">
-              Sensor TH-01 battery level is below 15%.
+            <p v-if="item.data?.action" class="text-[10px] text-gray-400 mt-1">
+              {{ item.data.action }}
             </p>
           </div>
         </div>
-        <template #footer>
-          <div class="flex justify-end p-2">
-            <a-button type="link" class="text-xs">Mark all as read</a-button>
-          </div>
-        </template>
       </a-drawer>
 
       <!-- Mobile menu button -->
@@ -268,7 +286,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useAuthStore } from "~~/stores/auth";
 import { apiConfig } from "../../config/api";
 
@@ -276,6 +294,10 @@ const openDropdown = ref<string | null>(null);
 const isMobileMenuOpen = ref(false);
 const isLoggingOut = ref(false);
 const open = ref<boolean>(false);
+const notifications = ref<any[]>([]);
+const unreadCount = ref(0);
+const isNotificationsLoading = ref(false);
+const isMarkingRead = ref(false);
 
 const router = useRouter();
 const route = useRoute();
@@ -283,6 +305,7 @@ const authStore = useAuthStore();
 const AUTH_API = apiConfig.auth;
 
 const userName = computed(() => authStore.user?.name ?? "Account");
+const hasUnreadNotifications = computed(() => unreadCount.value > 0);
 
 function toggleDropdown(name: "internal" | "account") {
   openDropdown.value = openDropdown.value === name ? null : name;
@@ -306,7 +329,9 @@ const showDrawer = () => {
 };
 
 const afterOpenChange = (bool: boolean) => {
-  console.log("open", bool);
+  if (bool) {
+    fetchNotifications();
+  }
 };
 
 watch(
@@ -316,6 +341,12 @@ watch(
     closeMobileMenu();
   },
 );
+
+onMounted(() => {
+  if (authStore.authorizationHeader) {
+    fetchNotifications();
+  }
+});
 
 async function handleLogout() {
   if (!import.meta.client || isLoggingOut.value) return;
@@ -340,5 +371,78 @@ async function handleLogout() {
     closeMobileMenu();
     router.push("/login");
   }
+}
+
+const getAuthHeaders = () => {
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    throw new Error("Missing access token. Please sign in again.");
+  }
+  return {
+    Authorization: authorization,
+  };
+};
+
+async function fetchNotifications() {
+  if (!import.meta.client || isNotificationsLoading.value) return;
+  try {
+    isNotificationsLoading.value = true;
+    const headers = {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    };
+    const res = await fetch(`${AUTH_API}/notifications?limit=15`, {
+      method: "GET",
+      headers,
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.success === false) {
+      throw new Error(payload?.message ?? `Unable to load notifications (${res.status}).`);
+    }
+    notifications.value = Array.isArray(payload?.data?.items)
+      ? payload.data.items
+      : [];
+    unreadCount.value = Number(payload?.data?.unread_count ?? 0);
+  } catch (error) {
+    notifications.value = [];
+    unreadCount.value = 0;
+  } finally {
+    isNotificationsLoading.value = false;
+  }
+}
+
+async function markAllRead() {
+  if (!import.meta.client || isMarkingRead.value) return;
+  try {
+    isMarkingRead.value = true;
+    const headers = {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    };
+    const res = await fetch(`${AUTH_API}/notifications/mark-all-read`, {
+      method: "POST",
+      headers,
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.success === false) {
+      throw new Error(payload?.message ?? `Unable to mark notifications (${res.status}).`);
+    }
+    unreadCount.value = 0;
+    notifications.value = notifications.value.map((item) => ({
+      ...item,
+      read_at: item.read_at ?? new Date().toISOString(),
+    }));
+  } catch (error) {
+    // noop
+  } finally {
+    isMarkingRead.value = false;
+  }
+}
+
+function formatNotificationTime(value?: string) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
 }
 </script>
