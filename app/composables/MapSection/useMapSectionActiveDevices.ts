@@ -132,5 +132,6 @@ export const useMapSectionActiveDevices = () => {
     nodeRows,
     activeDeviceRows,
     isActiveDevicesLoading,
+    clearNodeCache: () => nodeCollectionsStore.clearNodeCache({ nodeRows }),
   };
 };

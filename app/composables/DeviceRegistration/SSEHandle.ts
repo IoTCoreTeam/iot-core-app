@@ -215,8 +215,18 @@ export function createNodeCollectionsStore() {
     syncToRefs(refs);
   }
 
+  function clearNodeCache(refs?: NodeCollectionsRefs) {
+    nodeCache.clear();
+    if (!refs) return;
+    refs.nodeRows.value = [];
+    if (refs.controllerStatesByNode) {
+      refs.controllerStatesByNode.value = {};
+    }
+  }
+
   return {
     hydrateFromRows,
     updateFromGatewayPayload,
+    clearNodeCache,
   };
 }

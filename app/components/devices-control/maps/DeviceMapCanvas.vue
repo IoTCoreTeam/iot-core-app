@@ -86,7 +86,7 @@ const connectionSourceId = "node-connections";
 const connectionLayerId = "node-connections-line";
 const routeSourceId = "nearest-route";
 const routeLayerId = "nearest-route-line";
-const { nodeRows } = useMapSectionActiveDevices();
+const { nodeRows, clearNodeCache } = useMapSectionActiveDevices();
 
 const {
   isAreasLoading,
@@ -173,6 +173,10 @@ function resolveNodeLatLng(row: DeviceRow): { lat: number; lng: number } | null 
   return { lat, lng };
 }
 
+function isOnlineRow(row: DeviceRow) {
+  return (row.status ?? "").toLowerCase() === "online";
+}
+
 function ensureConnectionLineLayer(mapInstance: MapLibreMap) {
   if (mapInstance.getSource(connectionSourceId)) return;
   mapInstance.addSource(connectionSourceId, {
@@ -251,6 +255,7 @@ function syncNodeMarkers() {
   const nextIds = new Set<string>();
 
   nodeRows.value.forEach((row) => {
+    if (!isOnlineRow(row)) return;
     const coords = resolveNodeLatLng(row);
     if (!coords) return;
     nextIds.add(row.id);
@@ -292,6 +297,7 @@ function syncConnectionLines() {
 
   const nodeById = new Map<string, DeviceRow>();
   nodeRows.value.forEach((row) => {
+    if (!isOnlineRow(row)) return;
     if (row?.id) {
       nodeById.set(row.id, row);
     }
@@ -300,6 +306,7 @@ function syncConnectionLines() {
   const features: any[] = [];
 
   nodeRows.value.forEach((row) => {
+    if (!isOnlineRow(row)) return;
     const sourceCoords = resolveNodeLatLng(row);
     if (!sourceCoords) return;
     const connectedNodes = Array.isArray(row.connectedNodes) ? row.connectedNodes : [];
@@ -348,6 +355,7 @@ function syncRoutePath() {
 
   const nodeById = new Map<string, DeviceRow>();
   nodeRows.value.forEach((row) => {
+    if (!isOnlineRow(row)) return;
     if (row?.id) {
       nodeById.set(row.id, row);
     }
@@ -448,6 +456,7 @@ watch(
 );
 
 const reloadMap = async (options?: { silent?: boolean }) => {
+  clearNodeCache();
   const mapInstance = mapRef.value;
   const mapElement = mapEl.value;
   if (!mapElement) return;
@@ -507,6 +516,7 @@ const reloadMap = async (options?: { silent?: boolean }) => {
 };
 
 const handleRefresh = () => {
+  clearNodeCache();
   reloadMap();
 };
 

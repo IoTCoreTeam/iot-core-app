@@ -66,7 +66,7 @@
               ref="mapCanvasRef"
               class="xl:col-span-2 h-full rounded"
               map-height="60vh"
-              :show-controls="false"
+              :show-controls="true"
             />
             <div class="xl:col-span-1 h-full">
               <!-- ActiveDevicesPanel now handles its own data fetching via SSE -->

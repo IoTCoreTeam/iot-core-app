@@ -819,6 +819,7 @@ function resetDeviceFilters() {
 function refreshDevices() {
   if (isDeviceLoading.value) return;
   isDeviceLoading.value = true;
+  nodeCollectionsStore.clearNodeCache({ nodeRows, controllerStatesByNode });
 
   if (deviceRefreshTimeout) {
     clearTimeout(deviceRefreshTimeout);

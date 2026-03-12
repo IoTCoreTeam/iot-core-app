@@ -11,7 +11,7 @@
             :show-header="false"
             :show-view-all="false"
             :show-map-tab="true"
-            :enable-device-sse="false"
+            :enable-device-sse="true"
             default-tab="map"
             :map-is-areas-loading="mapIsAreasLoading"
             :map-managed-areas="mapManagedAreas"
