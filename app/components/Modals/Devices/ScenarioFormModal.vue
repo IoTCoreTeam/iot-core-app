@@ -2,15 +2,15 @@
   <BaseModal
     :model-value="modelValue"
     :title="isEdit ? 'Update Scenario' : 'Add Scenario'"
-    max-width="max-w-3xl"
+    max-width="max-w-lg"
     panel-class="p-6 shadow-xl"
     :close-disabled="isSaving"
     @request-close="handleClose"
   >
     <form class="space-y-4 text-xs text-gray-700" @submit.prevent="handleSubmit">
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div class="space-y-1">
-          <label class="text-xs font-semibold text-gray-700">Scenario name</label>
+      <div class="grid grid-cols-1 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Scenario name</label>
           <input
             v-model="formState.name"
             type="text"
@@ -19,41 +19,20 @@
           />
         </div>
 
-        <div class="space-y-1">
-          <label class="text-xs font-semibold text-gray-700">Status</label>
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Status</label>
           <select
             v-model="formState.status"
             class="w-full rounded border border-gray-300 px-3 py-2 text-xs focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
           >
-            <option value="draft">Draft</option>
-            <option value="active">Active</option>
+            <option value="" disabled>Select status</option>
+            <option value="approved">Approved</option>
             <option value="inactive">Inactive</option>
           </select>
         </div>
       </div>
 
-      <div class="space-y-1">
-        <label class="text-xs font-semibold text-gray-700">Definition (JSON)</label>
-        <textarea
-          v-model="formState.definition"
-          rows="12"
-          readonly
-          class="w-full rounded border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-600 focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
-          placeholder='{"version":1,"nodes":[],"edges":[]}'
-        />
-      </div>
 
-      <div class="space-y-1">
-        <label class="text-xs font-semibold text-gray-700">Control (JSON)</label>
-        <textarea
-          v-model="formState.control_definition"
-          rows="12"
-          readonly
-          class="w-full rounded border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-600 focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
-          placeholder='{"version":1,"nodes":[],"edges":[]}'
-        />
-        <p class="text-[10px] text-gray-400">Paste a valid JSON control definition.</p>
-      </div>
 
       <div class="flex items-center justify-end gap-2 pt-2">
         <button
@@ -104,7 +83,7 @@ const emit = defineEmits<{
 const formState = reactive<ScenarioForm>({
   id: "",
   name: "",
-  status: "draft",
+  status: "",
   definition: "",
   control_definition: "",
 });
@@ -112,7 +91,9 @@ const formState = reactive<ScenarioForm>({
 watch(
   () => props.form,
   (value) => {
-    Object.assign(formState, value);
+    Object.assign(formState, value, {
+      status: value.status === "draft" ? "" : value.status,
+    });
   },
   { immediate: true, deep: true },
 );

@@ -100,9 +100,9 @@
                     type="button"
                     @click="submitPassword"
                     :disabled="passwordLoading"
-                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition"
+                    class="inline-flex items-center gap-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition"
                   >
-                    Save Password
+                    Save
                   </button>
                 </div>
               </form>
@@ -114,7 +114,7 @@
               <button
                 type="button"
                 @click="refresh"
-                class="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-blue-600 border border-blue-200 rounded hover:bg-blue-50 transition"
+                class="inline-flex items-center gap-2 px-3 py-1 text-xs font-medium text-blue-600 border border-blue-200 rounded hover:bg-blue-50 transition"
               >
                 <svg
                   class="w-4 h-4"

@@ -124,7 +124,12 @@
                   <th
                     v-for="column in scenarioTableColumns"
                     :key="column"
-                    class="px-2 py-2 font-normal text-gray-600 text-center align-middle leading-4"
+                    :class="[
+                      'px-2 py-2 font-normal text-gray-600 text-center align-middle leading-4',
+                      column === 'Name' || column === 'Status' || column === 'Workflow State'
+                        ? 'text-left'
+                        : '',
+                    ]"
                   >
                     {{ column }}
                   </th>
@@ -137,11 +142,38 @@
                   :key="row.id"
                   class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100 py-1 text-center"
                 >
-                  <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
+                  <td class="px-2 py-2 text-gray-700 text-left align-middle leading-4">
                     {{ row.name || "-" }}
                   </td>
-                  <td class="px-2 py-2 text-gray-700 text-center align-middle leading-4">
-                    {{ row.status || "-" }}
+                  <td class="px-2 py-2 text-left align-middle leading-4">
+                    <span
+                      v-if="row.status"
+                      :class="[
+                        'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                        row.status === 'approved'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-gray-100 text-gray-600 border border-gray-200',
+                      ]"
+                    >
+                      {{ row.status }}
+                    </span>
+                    <span v-else class="text-gray-400">-</span>
+                  </td>
+                  <td class="px-2 py-2 text-left align-middle leading-4">
+                    <span
+                      :class="[
+                        'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                        getRuntimeStatus(row.id) === 'running'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : getRuntimeStatus(row.id) === 'stopping'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : getRuntimeStatus(row.id) === 'error'
+                              ? 'bg-red-50 text-red-700 border border-red-200'
+                              : 'bg-gray-100 text-gray-600 border border-gray-200',
+                      ]"
+                    >
+                      {{ formatRuntimeStatus(getRuntimeStatus(row.id)) }}
+                    </span>
                   </td>
                   <td class="px-2 py-2 text-gray-600 text-center align-middle leading-4">
                     {{ formatDateTime(row.created_at) }}
@@ -152,6 +184,18 @@
                   <td class="px-2 py-2 text-center align-middle">
                     <div class="inline-flex items-center justify-center gap-2">
                       <button
+                        v-if="getRuntimeStatus(row.id) === 'running' || getRuntimeStatus(row.id) === 'stopping'"
+                        type="button"
+                        class="w-8 h-8 inline-flex items-center justify-center rounded border border-amber-200 text-amber-600 hover:bg-amber-50 cursor-pointer"
+                        @click="handleStopScenario(row)"
+                        title="Stop"
+                        aria-label="Stop scenario"
+                      >
+                        <BootstrapIcon name="stop-fill" class="w-3 h-3" />
+                        <span class="sr-only">Stop</span>
+                      </button>
+                      <button
+                        v-else
                         type="button"
                         class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
                         @click="handleRunScenario(row)"
@@ -161,6 +205,10 @@
                         <BootstrapIcon name="play-fill" class="w-3 h-3" />
                         <span class="sr-only">Run</span>
                       </button>
+                    </div>
+                  </td>
+                  <td class="px-2 py-2 text-center align-middle">
+                    <div class="inline-flex items-center justify-center gap-2">
                       <button
                         type="button"
                         class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
@@ -241,6 +289,7 @@ import {
   fetchWorkflowDetail,
   fetchWorkflows,
   runWorkflow,
+  stopWorkflow,
   updateWorkflow,
 } from "@/composables/Scenario/handleWorkflow";
 
@@ -272,9 +321,11 @@ const emptyText = "No scenarios found.";
 const scenarioTableColumns = [
   "Name",
   "Status",
+  "Workflow State",
   "Created",
   "Updated",
   "Actions",
+  "Manage",
   "Config",
 ];
 
@@ -285,6 +336,7 @@ const searchKeyword = ref("");
 const scenarioRows = ref<ScenarioRow[]>([]);
 const scenarioPagination = ref({ page: 1, perPage: 10, lastPage: 1, total: 0 });
 const activeScenarioConfig = ref<ScenarioRow | null>(null);
+const runtimeStatusById = ref<Record<string, string>>({});
 
 const isScenarioModalOpen = ref(false);
 const isScenarioEditMode = ref(false);
@@ -292,7 +344,7 @@ const isScenarioSaving = ref(false);
 const scenarioForm = reactive({
   id: "" as string | number,
   name: "",
-  status: "draft",
+  status: "",
   definition: "",
   control_definition: "",
 });
@@ -316,8 +368,7 @@ const scenarioFilterFields: FilterFieldRow[] = [
       type: "select",
       options: [
         { label: "All", value: "" },
-        { label: "Draft", value: "draft" },
-        { label: "Active", value: "active" },
+        { label: "Approved", value: "approved" },
         { label: "Inactive", value: "inactive" },
       ],
     },
@@ -375,6 +426,32 @@ const displayedScenarioRows = computed(() => {
 
 function normalizeText(value: string | number | null | undefined) {
   return (value ?? "").toString().trim().toLowerCase();
+}
+
+function getRuntimeStatus(id: string | number) {
+  return runtimeStatusById.value[String(id)] ?? "idle";
+}
+
+function setRuntimeStatus(id: string | number, status: string) {
+  runtimeStatusById.value = {
+    ...runtimeStatusById.value,
+    [String(id)]: status,
+  };
+}
+
+function formatRuntimeStatus(status: string) {
+  switch (status) {
+    case "running":
+      return "Running";
+    case "stopping":
+      return "Stopping";
+    case "stopped":
+      return "Stopped";
+    case "error":
+      return "Error";
+    default:
+      return "Idle";
+  }
 }
 
 function handleFilterModelUpdate(value: Record<string, string>) {
@@ -453,7 +530,7 @@ function openEditScenario(row: ScenarioRow) {
   isScenarioEditMode.value = true;
   scenarioForm.id = row.id;
   scenarioForm.name = row.name ?? "";
-  scenarioForm.status = row.status ?? "draft";
+  scenarioForm.status = normalizeScenarioStatus(row.status);
   scenarioForm.definition = JSON.stringify(row.definition ?? defaultDefinition(), null, 2);
   scenarioForm.control_definition = JSON.stringify(row.control_definition ?? defaultDefinition(), null, 2);
   isScenarioModalOpen.value = true;
@@ -499,10 +576,31 @@ async function handleRunScenario(row: ScenarioRow) {
     return;
   }
   try {
+    setRuntimeStatus(row.id, "running");
     await runWorkflow(row.id, authorization);
-    message.success("Scenario started.");
+    message.success("Scenario ran successfully.");
+    setRuntimeStatus(row.id, "idle");
   } catch (error: any) {
     message.error(error?.message ?? "Failed to run scenario.");
+    setRuntimeStatus(row.id, "error");
+  }
+}
+
+async function handleStopScenario(row: ScenarioRow) {
+  if (!import.meta.client) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+  try {
+    setRuntimeStatus(row.id, "stopping");
+    await stopWorkflow(row.id, authorization);
+    message.success("Scenario stopped.");
+    setRuntimeStatus(row.id, "stopped");
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to stop scenario.");
+    setRuntimeStatus(row.id, "error");
   }
 }
 
@@ -540,7 +638,7 @@ function formatDateTime(value?: string | null) {
 function resetScenarioForm() {
   scenarioForm.id = "";
   scenarioForm.name = "";
-  scenarioForm.status = "draft";
+  scenarioForm.status = "";
   scenarioForm.definition = JSON.stringify(defaultDefinition(), null, 2);
   scenarioForm.control_definition = JSON.stringify(defaultDefinition(), null, 2);
 }
@@ -564,11 +662,22 @@ function defaultDefinition() {
   };
 }
 
+function normalizeScenarioStatus(status: string | null | undefined) {
+  if (!status) return "";
+  if (status === "active") return "approved";
+  if (status === "draft") return "";
+  return status;
+}
+
 async function saveScenario() {
   if (isScenarioSaving.value) return;
   const name = scenarioForm.name.trim();
   if (!name) {
     message.warning("Scenario name is required.");
+    return;
+  }
+  if (!scenarioForm.status) {
+    message.warning("Status is required.");
     return;
   }
   const authorization = authStore.authorizationHeader;
@@ -578,10 +687,8 @@ async function saveScenario() {
   }
 
   let definition: Record<string, unknown>;
-  let controlDefinition: Record<string, unknown>;
   try {
     definition = parseDefinition(scenarioForm.definition);
-    controlDefinition = parseDefinition(scenarioForm.control_definition);
   } catch (error: any) {
     message.error(error?.message ?? "Definition must be valid JSON.");
     return;
@@ -593,7 +700,6 @@ async function saveScenario() {
       name,
       status: scenarioForm.status,
       definition,
-      control_definition: controlDefinition,
     };
     const saved = isScenarioEditMode.value
       ? await updateWorkflow(scenarioForm.id, authorization, payload)

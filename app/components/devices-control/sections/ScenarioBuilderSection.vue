@@ -47,6 +47,17 @@
           </button>
           <span class="text-xs text-gray-400" aria-hidden="true">|</span>
           <button
+            v-if="isRunningFlow"
+            type="button"
+            class="inline-flex items-center gap-2 rounded border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="isStoppingFlow"
+            @click="stopFlow"
+          >
+            <BootstrapIcon name="stop-fill" class="h-3 w-3" />
+            {{ isStoppingFlow ? "Stopping..." : "Stop" }}
+          </button>
+          <button
+            v-else
             type="button"
             class="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             :disabled="isRunningFlow || hasMissingActionNodes"
@@ -413,6 +424,7 @@ import LoadingState from "@/components/common/LoadingState.vue";
 import SingleMetricChart from "@/components/SingleMetricChart.vue";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
+import { stopWorkflow } from "@/composables/Scenario/handleWorkflow";
 import { useMetrics } from "@/composables/useMetrics";
 import type { TimeframeKey } from "@/types/dashboard";
 import {
@@ -559,6 +571,7 @@ const isConditionModalOpen = ref(false);
 const isConstantsModalOpen = ref(false);
 const isSavingNode = ref(false);
 const isRunningFlow = ref(false);
+const isStoppingFlow = ref(false);
 const isFlowVisible = ref(false);
 const activeNode = ref<Node<NodeData> | null>(null);
 const workflowStreamAbortController = ref<AbortController | null>(null);
@@ -1135,7 +1148,32 @@ async function runFlow() {
     }
   } finally {
     isRunningFlow.value = false;
+    isStoppingFlow.value = false;
     workflowStreamAbortController.value = null;
+  }
+}
+
+async function stopFlow() {
+  if (!import.meta.client) return;
+  if (isStoppingFlow.value) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+  isStoppingFlow.value = true;
+  try {
+    await stopWorkflow(props.scenario.id, authorization);
+    if (workflowStreamAbortController.value) {
+      workflowStreamAbortController.value.abort();
+      workflowStreamAbortController.value = null;
+    }
+    message.success("Scenario stopped.");
+  } catch (error: any) {
+    message.error(error?.message ?? "Failed to stop scenario.");
+  } finally {
+    isStoppingFlow.value = false;
+    isRunningFlow.value = false;
   }
 }
 

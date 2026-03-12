@@ -149,6 +149,20 @@ export async function runWorkflow(id: string | number, authorization: string | n
   return result;
 }
 
+export async function stopWorkflow(id: string | number, authorization: string | null) {
+  const base = getBaseUrl();
+  if (!base) throw new Error("API base URL is not configured.");
+  const response = await fetch(`${base}/workflows/${id}/stop`, {
+    method: "POST",
+    headers: buildHeaders(authorization),
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || result?.success === false) {
+    throw new Error(result?.message ?? "Failed to stop workflow.");
+  }
+  return result;
+}
+
 export function buildWorkflowListParams(filters: {
   name?: string;
   status?: string;

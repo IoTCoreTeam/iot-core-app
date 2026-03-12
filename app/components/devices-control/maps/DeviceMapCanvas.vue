@@ -23,6 +23,13 @@
         >
           View
         </button>
+        <button
+          type="button"
+          class="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 shadow-sm hover:bg-gray-50"
+          @click="handleRefresh"
+        >
+          Refresh
+        </button>
       </div>
         <div
           v-if="isLoadingMap"
@@ -445,6 +452,7 @@ const reloadMap = async (options?: { silent?: boolean }) => {
   const mapElement = mapEl.value;
   if (!mapElement) return;
   try {
+    isLoadingMap.value = true;
     const maplibre = maplibreRef.value ?? (await import("maplibre-gl"));
     const MapboxDraw = (await import("@mapbox/mapbox-gl-draw")).default;
     maplibreRef.value = maplibre;
@@ -483,6 +491,10 @@ const reloadMap = async (options?: { silent?: boolean }) => {
       await loadManagedAreas(true);
       syncNodeMarkers();
       syncConnectionLines();
+      syncRoutePath();
+      setTimeout(() => {
+        isLoadingMap.value = false;
+      }, 300);
     });
     if (!options?.silent) {
       message.success("Map reloaded.");
@@ -490,7 +502,12 @@ const reloadMap = async (options?: { silent?: boolean }) => {
   } catch (error) {
     const msg = (error as Error)?.message ?? "Failed to reload.";
     message.error(msg);
+    isLoadingMap.value = false;
   }
+};
+
+const handleRefresh = () => {
+  reloadMap();
 };
 
 onBeforeUnmount(() => {
