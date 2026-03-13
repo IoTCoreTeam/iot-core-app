@@ -75,6 +75,7 @@
                 :map-is-areas-loading="mapIsAreasLoading"
                 :map-managed-areas="mapManagedAreas"
                 :map-focus-area="handleFocusArea"
+                :map-zoom-to-node="handleZoomToNode"
               />
             </div>
         </section>
@@ -157,6 +158,12 @@ const mapIsAreasLoading = computed(() => {
 
 function handleFocusArea(area: any) {
   mapCanvasRef.value?.focusArea?.(area);
+}
+
+function handleZoomToNode(node: any) {
+  if (mapCanvasRef.value && 'zoomToNode' in mapCanvasRef.value) {
+     (mapCanvasRef.value as any).zoomToNode?.(node);
+  }
 }
 
 function handleMetricChange(key: string) {
