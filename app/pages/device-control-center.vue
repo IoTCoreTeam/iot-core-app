@@ -44,6 +44,11 @@ const sections: Section[] = [
     icon: CpuChipIcon,
   },
   {
+    id: "device-registration",
+    label: "Devices Registration",
+    icon: RectangleStackIcon,
+  },
+  {
     id: "map",
     label: "Map Configuration",
     icon: MapIcon,
@@ -52,12 +57,7 @@ const sections: Section[] = [
     id: "scenario",
     label: "Scenario",
     icon: Squares2X2Icon,
-  },
-  {
-    id: "device-registration",
-    label: "Devices Registration",
-    icon: RectangleStackIcon,
-  },
+  },  
 ];
 
 const sectionComponentMap: Record<string, Component> = {

@@ -74,6 +74,7 @@ const emit = defineEmits(["request-close", "after-leave"]);
 
 const slots = useSlots();
 const isVisible = ref(props.modelValue);
+const loadingTasks = ref<Record<string, boolean>>({});
 
 watch(
   () => props.modelValue,
@@ -98,5 +99,30 @@ function handleBackdropClick() {
 function handleAfterLeave() {
   emit("after-leave");
 }
+
+function setTaskLoading(taskKey: string, value: boolean) {
+  loadingTasks.value = {
+    ...loadingTasks.value,
+    [taskKey]: value,
+  };
+}
+
+function isTaskLoading(taskKey: string) {
+  return Boolean(loadingTasks.value[taskKey]);
+}
+
+async function runWithLoading<T>(taskKey: string, task: () => Promise<T>) {
+  setTaskLoading(taskKey, true);
+  try {
+    return await task();
+  } finally {
+    setTaskLoading(taskKey, false);
+  }
+}
+
+defineExpose({
+  runWithLoading,
+  isTaskLoading,
+});
 </script>
 

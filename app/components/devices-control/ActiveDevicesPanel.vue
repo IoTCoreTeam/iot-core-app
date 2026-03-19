@@ -230,6 +230,7 @@ const props = withDefaults(
     mapIsAreasLoading?: boolean;
     mapManagedAreas?: any[];
     mapFocusArea?: (area: any) => void;
+    mapFocusOnListAction?: boolean;
     mapZoomToNode?: (node: DeviceRow) => void;
     panelHeight?: string;
     defaultPerPage?: number;
@@ -242,6 +243,7 @@ const props = withDefaults(
     enableDeviceSse: true,
     enableMapAreasFetch: true,
     mapIsAreasLoading: false,
+    mapFocusOnListAction: true,
     panelHeight: "60vh",
     defaultPerPage: 5,
   },
@@ -435,7 +437,9 @@ function handleZoomToNode(node: DeviceRow) {
 function handleShowAreaNodes(area: any) {
   if (!area) return;
   selectedArea.value = area;
-  props.mapFocusArea?.(area);
+  if (props.mapFocusOnListAction) {
+    props.mapFocusArea?.(area);
+  }
   isAreaNodesModalOpen.value = true;
 }
 

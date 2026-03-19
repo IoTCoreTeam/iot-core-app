@@ -18,6 +18,7 @@
             :map-is-areas-loading="mapIsAreasLoading"
             :map-managed-areas="mapManagedAreas"
             :map-focus-area="handleFocusArea"
+            :map-focus-on-list-action="false"
             :map-zoom-to-node="handleZoomToNode"
           />
         </div>

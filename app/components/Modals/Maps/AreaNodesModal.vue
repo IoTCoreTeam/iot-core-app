@@ -2,8 +2,8 @@
   <BaseModal
     :model-value="isOpen"
     :title="modalTitle"
-    max-width="max-w-5xl"
-    panel-class="p-6 shadow-xl"
+    max-width="max-w-4xl"
+    panel-class="p-6 px-4 shadow-xl"
     @request-close="handleClose"
   >
     <DataBoxCard
@@ -23,11 +23,6 @@
       @next-page="nodesPage = Math.min(nodesLastPage, nodesPage + 1)"
       @change-per-page="(value) => { nodesPerPage = value; nodesPage = 1; }"
     >
-      <template #header>
-        <div></div>
-        <span class="text-xs text-gray-500">{{ nodesTotal }} nodes in area</span>
-      </template>
-
       <template #head>
         <tr class="bg-slate-50 border-b border-gray-200 text-xs text-gray-600">
           <th class="px-4 py-3 text-left font-semibold">ID</th>

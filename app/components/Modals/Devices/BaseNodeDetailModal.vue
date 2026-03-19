@@ -1,5 +1,6 @@
 <template>
   <BaseModal
+    ref="baseModalRef"
     :model-value="modelValue"
     :title="title"
     :max-width="maxWidth"
@@ -95,7 +96,11 @@
           >
             <h4 class="text-xs font-semibold text-gray-700">Assigned Maps</h4>
           </div>
-          <div class="flex flex-col gap-3">
+          <LoadingState
+            v-if="isAssignedMapsLoading"
+            message="Loading assigned maps..."
+          />
+          <div v-else class="flex flex-col gap-3">
             <a-select
               v-model:value="selectedMapIds"
               :options="availableMapOptions"
@@ -103,7 +108,6 @@
               size="middle"
               placeholder="Select maps to assign"
               class="w-full text-xs"
-              :loading="isLoadingMaps"
               @popupScroll="popupScroll"
               :getPopupContainer="(triggerNode) => triggerNode.parentNode"
             ></a-select>
@@ -158,6 +162,7 @@ import { computed, useSlots, ref, watch } from "vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 import BaseModal from "../BaseModal.vue";
 import type { NodeInfo } from "@/types/devices-control";
+import type { SelectProps } from "ant-design-vue";
 import { formatIotDateTime } from "~~/config/iot-time-format";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
@@ -193,13 +198,22 @@ const slots = useSlots();
 const hasExtendedSlot = computed(() => Boolean(slots.default));
 const hasFooterSlot = computed(() => Boolean(slots.footer));
 
+type BaseModalExpose = {
+  runWithLoading: <T>(taskKey: string, task: () => Promise<T>) => Promise<T>;
+  isTaskLoading: (taskKey: string) => boolean;
+};
+
 const authStore = useAuthStore();
-const isLoadingMaps = ref(false);
+const baseModalRef = ref<BaseModalExpose | null>(null);
 const isSavingMaps = ref(false);
 const availableMaps = ref<any[]>([]);
 const selectedMapIds = ref<number[]>([]);
-
-import type { SelectProps } from "ant-design-vue";
+const resolvedNodeExternalId = computed(() =>
+  props.node?.external_id ?? props.node?.id ?? null,
+);
+const isAssignedMapsLoading = computed(() =>
+  baseModalRef.value?.isTaskLoading?.("assigned-maps") ?? false,
+);
 
 const availableMapOptions = computed<SelectProps["options"]>(() => {
   return availableMaps.value.map((map) => ({
@@ -210,10 +224,9 @@ const availableMapOptions = computed<SelectProps["options"]>(() => {
 
 async function fetchAvailableMaps() {
   if (!import.meta.client) return;
-  isLoadingMaps.value = true;
   try {
     const res = await fetch(`${apiConfig.auth}/managed-areas`, {
-      headers: { Authorization: authStore.authorizationHeader! },
+      headers: { Authorization: authStore.authorizationHeader || "" },
     });
     if (!res.ok) throw new Error("Failed to fetch maps");
     const responseData = await res.json();
@@ -231,19 +244,17 @@ async function fetchAvailableMaps() {
     availableMaps.value = mapsArray;
   } catch (error) {
     console.error(error);
-  } finally {
-    isLoadingMaps.value = false;
   }
 }
 
 async function fetchNodeAssignedMaps() {
-  if (!import.meta.client || !props.node?.external_id) return;
-  isLoadingMaps.value = true;
+  const externalId = resolvedNodeExternalId.value;
+  if (!import.meta.client || !externalId) return;
   try {
     const res = await fetch(
-      `${apiConfig.controlModule}/nodes?external_id=${props.node.external_id}`,
+      `${apiConfig.controlModule}/nodes?external_id=${externalId}`,
       {
-        headers: { Authorization: authStore.authorizationHeader! },
+        headers: { Authorization: authStore.authorizationHeader || "" },
       },
     );
     if (!res.ok) throw new Error("Failed to fetch node details");
@@ -262,17 +273,28 @@ async function fetchNodeAssignedMaps() {
     }
   } catch (error) {
     console.error(error);
-  } finally {
-    isLoadingMaps.value = false;
   }
 }
 
+async function loadAssignedMaps() {
+  const runner = baseModalRef.value?.runWithLoading;
+  const loader = async () => {
+    await Promise.all([fetchAvailableMaps(), fetchNodeAssignedMaps()]);
+  };
+  if (!runner) {
+    await loader();
+    return;
+  }
+  await runner("assigned-maps", loader);
+}
+
 async function saveAssignedMaps() {
-  if (!props.node?.external_id) return;
+  const externalId = resolvedNodeExternalId.value;
+  if (!externalId) return;
   isSavingMaps.value = true;
   try {
     const res = await fetch(
-      `${apiConfig.auth}/managed-areas/nodes/${props.node.external_id}`,
+      `${apiConfig.auth}/managed-areas/nodes/${externalId}`,
       {
         method: "POST",
         headers: {
@@ -295,14 +317,22 @@ async function saveAssignedMaps() {
 
 watch(
   () => props.modelValue,
-  (isOpen) => {
+  async (isOpen) => {
     if (isOpen) {
       selectedMapIds.value = [];
-      fetchAvailableMaps();
-      fetchNodeAssignedMaps();
+      await loadAssignedMaps();
     }
   },
   { immediate: true },
+);
+
+watch(
+  () => resolvedNodeExternalId.value,
+  async () => {
+    if (!props.modelValue) return;
+    selectedMapIds.value = [];
+    await loadAssignedMaps();
+  },
 );
 
 const nodeView = computed(() => {
