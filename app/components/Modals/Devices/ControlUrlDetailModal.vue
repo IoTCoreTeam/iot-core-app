@@ -2,7 +2,7 @@
   <BaseModal
     :model-value="modelValue"
     title="Control URL Details"
-    max-width="max-w-5xl"
+    max-width="max-w-4xl"
     panel-class="p-6 shadow-xl"
     @request-close="handleClose"
   >

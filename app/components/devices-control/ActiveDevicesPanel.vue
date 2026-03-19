@@ -10,7 +10,7 @@
     >
       <p class="text-sm font-semibold text-slate-900">Active Devices</p>
       <NuxtLink
-        to="/devices-control/device-control-center"
+        to="/device-control-center"
         class="text-xs font-semibold text-blue-600 hover:text-blue-800"
       >
         View All

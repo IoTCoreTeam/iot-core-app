@@ -64,7 +64,6 @@
               class="w-full py-2 px-3 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs bg-white"
               required
             >
-              <option value="">Select role</option>
               <option
                 v-for="role in roleOptions"
                 :key="role.value"
@@ -199,6 +198,9 @@ const roleOptions = computed(() => [
   { label: "User", value: "user" },
 ]);
 
+const normalizeRole = (value?: string) =>
+  typeof value === "string" ? value.trim().toLowerCase() : "";
+
 const formatDate = (value?: string) => {
   if (!value) return "--";
   const parsed = new Date(value);
@@ -256,7 +258,7 @@ async function fetchUserDetail() {
     form.value = {
       name: userRecord.name ?? "",
       email: userRecord.email ?? "",
-      role: "",
+      role: normalizeRole(userRecord.role),
       description: userRecord.description ?? "",
       createdAt: userRecord.created_at ?? userRecord.createdAt ?? "",
       updatedAt: userRecord.updated_at ?? userRecord.updatedAt ?? "",
@@ -284,11 +286,6 @@ async function submitForm() {
 
   if (!form.value.email.trim()) {
     message.warning("Email is required.");
-    return;
-  }
-
-  if (!form.value.role.trim()) {
-    message.warning("Role is required.");
     return;
   }
 

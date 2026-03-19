@@ -19,7 +19,7 @@
         </NuxtLink>
 
         <NuxtLink
-          to="/devices-control/device-control-center"
+          to="/device-control-center"
           class="flex items-center gap-2 text-gray-700 text-xs font-semibold hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
         >
           <BootstrapIcon name="hdd-network" class="w-3 h-3" />
@@ -248,7 +248,7 @@
             </NuxtLink>
 
             <NuxtLink
-              to="/devices-control/device-control-center"
+              to="/device-control-center"
               class="block px-3 py-2 hover:bg-blue-50"
               @click="closeMobileMenu"
             >
@@ -256,7 +256,7 @@
             </NuxtLink>
 
             <NuxtLink
-              to="/devices-control/device-control-center"
+              to="/system-logs"
               class="block px-3 py-2 hover:bg-blue-50"
               @click="closeMobileMenu"
             >

@@ -125,7 +125,7 @@
             <td class="px-2 py-1">{{ user.id }}</td>
             <td class="px-2 py-1">{{ user.name }}</td>
             <td class="px-2 py-1">{{ user.email }}</td>
-            <td class="px-2 py-1">{{ user.role }}</td>
+            <td class="px-2 py-1">{{ formatRole(user.role) }}</td>
             <td class="px-2 py-1 text-gray-600">
               {{ formatCreatedAt(user.createdAt) }}
             </td>
@@ -286,12 +286,18 @@ const mapUser = (user: any): User => ({
   id: user.id,
   name: user.name,
   email: user.email,
-  role: user.role,
+  role: typeof user.role === "string" ? user.role.trim().toLowerCase() : "",
   password: user.password,
   description: user.description,
   active: Boolean(user.active),
   createdAt: user.created_at ?? user.createdAt ?? "",
 });
+
+const formatRole = (role?: string) => {
+  const normalized = typeof role === "string" ? role.trim().toLowerCase() : "";
+  if (!normalized) return "--";
+  return normalized.replace(/\b\w/g, (char) => char.toUpperCase());
+};
 
 // --- Computed ---
 const filteredUsers = computed<User[]>(() => {
@@ -412,7 +418,7 @@ function exportToExcel() {
         user.id,
         user.name,
         user.email,
-        user.role,
+        formatRole(user.role),
         formatCreatedAt(user.createdAt),
       ]
         .map(escapeValue)
