@@ -129,7 +129,8 @@
                     <th
                       v-for="column in deviceTableColumnDefinitions"
                       :key="column.key"
-                      class="px-2 py-2 font-normal text-gray-600 text-xs tracking-wide text-left"
+                      class="px-2 py-2 font-normal text-gray-600 text-xs tracking-wide"
+                      :class="column.key === 'actions' ? 'text-center' : 'text-left'"
                       :style="{ width: column.width }"
                     >
                       {{ column.label }}
@@ -148,6 +149,7 @@
                         v-for="(column, columnIndex) in deviceTableColumnDefinitions"
                         :key="column.key"
                         class="px-2 py-2 align-middle"
+                        :class="column.key === 'actions' ? 'text-center' : ''"
                         :style="{ width: getColumnWidth(columnIndex) }"
                       >
                         <template v-if="column.key === 'id'">
@@ -155,9 +157,6 @@
                         </template>
                         <template v-else-if="column.key === 'name'">
                           <p class="text-xs text-gray-700 truncate">{{ row.name }}</p>
-                        </template>
-                        <template v-else-if="column.key === 'gatewayId'">
-                          <p class="text-xs truncate">{{ row.gatewayId || "N/A" }}</p>
                         </template>
                         <template v-else-if="column.key === 'type'">
                           <p class="text-xs capitalize">{{ row.type || "N/A" }}</p>
@@ -184,14 +183,13 @@
                             {{ formatRegistrationStatus(row.registered) }}
                           </div>
                         </template>
-                        <template v-else-if="column.key === 'lastSeen'">
-                          <div class="text-xs">{{ formatLastSeen(row.lastSeen) }}</div>
-                        </template>
                         <template v-else-if="column.key === 'actions'">
-                          <div class="inline-flex items-center gap-1">
+                          <div class="flex items-center justify-center gap-1">
                             <button
                               v-if="
-                                activeDeviceTab === 'gateways' &&
+                                (activeDeviceTab === 'gateways' ||
+                                  (activeDeviceTab === 'registed' &&
+                                    row.resourceType === 'gateway')) &&
                                 !isUnactiveStatus(row.status)
                               "
                               type="button"
@@ -203,7 +201,11 @@
                               <span class="sr-only">Details</span>
                             </button>
                             <button
-                              v-if="activeDeviceTab === 'nodes'"
+                              v-if="
+                                activeDeviceTab === 'nodes' ||
+                                (activeDeviceTab === 'registed' &&
+                                  row.resourceType === 'node')
+                              "
                               type="button"
                               :class="infoButtonClass"
                               title="View node details"
@@ -230,7 +232,12 @@
                               <BootstrapIcon name="link-45deg" class="w-3 h-3" />
                               <span class="sr-only">Add Control URL</span>
                             </button>
-                            <template v-if="row.registered === false">
+                            <template
+                              v-if="
+                                activeDeviceTab !== 'registed' &&
+                                row.registered === false
+                              "
+                            >
                               <button
                                 type="button"
                                 class="w-8 h-8 inline-flex items-center justify-center rounded border cursor-pointer"
@@ -248,7 +255,7 @@
                                 <span class="sr-only">Register</span>
                               </button>
                             </template>
-                            <template v-else>
+                            <template v-else-if="activeDeviceTab !== 'registed'">
                               <button
                                 type="button"
                                 class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
@@ -263,6 +270,23 @@
                               >
                                 <BootstrapIcon name="slash-circle" class="w-3 h-3" />
                                 <span class="sr-only">Deactivate</span>
+                              </button>
+                            </template>
+                            <template v-else>
+                              <button
+                                type="button"
+                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
+                                :class="{
+                                  'opacity-50 cursor-not-allowed':
+                                    isDeletingRegisteredDevice(row),
+                                }"
+                                :disabled="isDeletingRegisteredDevice(row)"
+                                :aria-busy="isDeletingRegisteredDevice(row)"
+                                title="Delete Registered Device"
+                                @click.stop="handleDeleteRegisteredDevice(row)"
+                              >
+                                <BootstrapIcon name="trash" class="w-3 h-3" />
+                                <span class="sr-only">Delete</span>
                               </button>
                             </template>
                           </div>
@@ -446,6 +470,7 @@ defineProps<{
 
 const gatewayRows = ref<DeviceRow[]>([]);
 const nodeRows = ref<DeviceRow[]>([]);
+const registeredRows = ref<DeviceRow[]>([]);
 const controllerStatesByNode = ref<Record<string, ControllerState[]>>({});
 const deviceTableKey = ref(0);
 const isGatewayDetailOpen = ref(false);
@@ -476,6 +501,117 @@ const gatewayIdMap = ref<Record<string, string>>({});
 const isGatewayIdMapLoading = ref(false);
 const nodeIdMap = ref<Record<string, string>>({});
 const isNodeIdMapLoading = ref(false);
+const deletingRegisteredDeviceMap = ref<Record<string, boolean>>({});
+
+function getRegisteredDeviceKey(row: DeviceRow) {
+  return `${row.resourceType ?? "unknown"}:${row.id}`;
+}
+
+function isDeletingRegisteredDevice(row: DeviceRow) {
+  return Boolean(deletingRegisteredDeviceMap.value[getRegisteredDeviceKey(row)]);
+}
+
+function setDeletingRegisteredDevice(row: DeviceRow, value: boolean) {
+  deletingRegisteredDeviceMap.value = {
+    ...deletingRegisteredDeviceMap.value,
+    [getRegisteredDeviceKey(row)]: value,
+  };
+}
+
+function normalizeIndexRows(payload: any) {
+  return Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload)
+      ? payload
+      : [];
+}
+
+async function fetchAllPages(endpoint: string, authorization: string) {
+  const allRows: any[] = [];
+  let page = 1;
+  let lastPage = 1;
+
+  do {
+    const separator = endpoint.includes("?") ? "&" : "?";
+    const pagedEndpoint = `${endpoint}${separator}per_page=200&page=${page}`;
+    const response = await fetch(pagedEndpoint, {
+      headers: {
+        Authorization: authorization,
+        Accept: "application/json",
+      },
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message ?? "Failed to load registered devices.");
+    }
+
+    allRows.push(...normalizeIndexRows(payload));
+    lastPage = Number(payload?.last_page ?? payload?.meta?.last_page ?? 1);
+    page += 1;
+  } while (page <= lastPage);
+
+  return allRows;
+}
+
+function mapRegisteredGatewayRow(row: any): DeviceRow {
+  const externalId = row?.external_id ? String(row.external_id) : String(row?.id ?? "");
+  return {
+    id: externalId,
+    externalId,
+    resourceType: "gateway",
+    name: row?.name ?? `Gateway ${externalId}`,
+    ip: row?.ip_address ?? null,
+    mac: row?.mac_address ?? null,
+    type: "gateway",
+    status: row?.status === "online" ? "online" : "offline",
+    registered: true,
+    lastSeen: row?.last_seen ?? null,
+  };
+}
+
+function mapRegisteredNodeRow(row: any): DeviceRow {
+  const externalId = row?.external_id ? String(row.external_id) : String(row?.id ?? "");
+  return {
+    id: externalId,
+    externalId,
+    resourceType: "node",
+    name: row?.name ?? `Node ${externalId}`,
+    gatewayId: row?.gateway?.external_id ?? row?.gateway_id ?? null,
+    ip: row?.ip_address ?? null,
+    mac: row?.mac_address ?? null,
+    type: row?.type ?? null,
+    status: row?.status === "online" ? "online" : "offline",
+    registered: true,
+    lastSeen: row?.last_seen ?? null,
+  };
+}
+
+async function loadRegisteredDevices() {
+  if (!import.meta.client) return;
+  if (!apiConfig.controlModule) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) return;
+
+  isDeviceLoading.value = true;
+  try {
+    const base = apiConfig.controlModule.replace(/\/$/, "");
+    const [gatewayPayload, nodePayload] = await Promise.all([
+      fetchAllPages(`${base}/gateways`, authorization),
+      fetchAllPages(`${base}/nodes?include=gateway`, authorization),
+    ]);
+    const mappedGateways = gatewayPayload.map(mapRegisteredGatewayRow);
+    const mappedNodes = nodePayload.map(mapRegisteredNodeRow);
+    registeredRows.value = [...mappedGateways, ...mappedNodes].sort((a, b) =>
+      a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: "base" }),
+    );
+  } catch (error: any) {
+    console.error("Failed to load registered devices", error);
+    registeredRows.value = [];
+    message.error(error?.message ?? "Failed to load registered devices.");
+  } finally {
+    isDeviceLoading.value = false;
+  }
+}
 
 async function loadGatewayIdMap() {
   if (!import.meta.client) return;
@@ -591,6 +727,58 @@ async function handleDeactivateSensor(row: DeviceRow) {
   }
 }
 
+async function handleDeleteRegisteredDevice(row: DeviceRow) {
+  if (!apiConfig.controlModule) {
+    message.warning("Control module endpoint is not configured.");
+    return;
+  }
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.warning("Missing authentication token.");
+    return;
+  }
+  if (!row?.id) {
+    message.warning("Missing device id.");
+    return;
+  }
+  if (isDeletingRegisteredDevice(row)) {
+    return;
+  }
+
+  const base = apiConfig.controlModule.replace(/\/$/, "");
+  const encodedId = encodeURIComponent(row.id);
+  const endpoint =
+    row.resourceType === "gateway"
+      ? `${base}/gateways/${encodedId}`
+      : `${base}/nodes/${encodedId}/deactivate`;
+  const method = row.resourceType === "gateway" ? "DELETE" : "POST";
+
+  setDeletingRegisteredDevice(row, true);
+  try {
+    const response = await fetch(endpoint, {
+      method,
+      headers: {
+        Authorization: authorization,
+        Accept: "application/json",
+      },
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message ?? "Failed to delete registered device.");
+    }
+
+    message.success(payload?.message ?? "Registered device deleted.");
+    registeredRows.value = registeredRows.value.filter(
+      (item) => getRegisteredDeviceKey(item) !== getRegisteredDeviceKey(row),
+    );
+  } catch (error: any) {
+    console.error("Failed to delete registered device", error);
+    message.error(error?.message ?? "Unable to delete registered device.");
+  } finally {
+    setDeletingRegisteredDevice(row, false);
+  }
+}
+
 async function handleEnroll(row: DeviceRow) {
   if (activeDeviceTab.value !== "gateways" && !row.gatewayId) {
     message.warning("Gateway ID is missing for this node.");
@@ -673,7 +861,12 @@ function handleReapprove(row: DeviceRow) {
 }
 
 function openGatewayDetail(row: DeviceRow) {
-  if (activeDeviceTab.value !== "gateways") return;
+  if (
+    activeDeviceTab.value !== "gateways" &&
+    !(activeDeviceTab.value === "registed" && row.resourceType === "gateway")
+  ) {
+    return;
+  }
   selectedGateway.value = row;
   isGatewayDetailOpen.value = true;
 }
@@ -711,6 +904,7 @@ let deviceRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
 const deviceTabs = computed<DeviceTab[]>(() => [
   { key: "gateways", label: "Gateways", rows: gatewayRows.value },
   { key: "nodes", label: "Nodes", rows: nodeRows.value },
+  { key: "registed", label: "Registed Device", rows: registeredRows.value },
 ]);
 
 const defaultDeviceTab = computed(() => deviceTabs.value[0]!);
@@ -725,18 +919,28 @@ const gatewayTableColumns: Array<{ key: string; label: string; width: string }> 
   { key: "mac", label: "MAC", width: "16%" },
   { key: "status", label: "Status", width: "10%" },
   { key: "registered", label: "Registered", width: "10%" },
-  { key: "lastSeen", label: "Last Seen", width: "16%" },
-  { key: "actions", label: "Actions", width: "8%" },
+  { key: "actions", label: "Actions", width: "12%" },
 ];
 const nodeTableColumns: Array<{ key: string; label: string; width: string }> = [
   { key: "id", label: "ID", width: "auto" },
   { key: "name", label: "Name", width: "auto" },
   { key: "type", label: "Type", width: "auto" },
-  { key: "gatewayId", label: "Gateway ID", width: "auto" },
   { key: "mac", label: "MAC", width: "auto" },
   { key: "status", label: "Status", width: "auto" },
   { key: "registered", label: "Registered", width: "auto" },
-  { key: "lastSeen", label: "Last Seen", width: "auto" },
+  { key: "actions", label: "Actions", width: "auto" },
+];
+const registedDeviceTableColumns: Array<{
+  key: string;
+  label: string;
+  width: string;
+}> = [
+  { key: "id", label: "ID", width: "auto" },
+  { key: "name", label: "Name", width: "auto" },
+  { key: "type", label: "Type", width: "auto" },
+  { key: "ip", label: "IP", width: "auto" },
+  { key: "mac", label: "MAC", width: "auto" },
+  { key: "status", label: "Status", width: "auto" },
   { key: "actions", label: "Actions", width: "auto" },
 ];
 const {
@@ -759,9 +963,11 @@ const {
   getGatewayIdFromRow,
   controllerStatesByNode,
 });
-const deviceTableColumnDefinitions = computed(() =>
-  activeDeviceTab.value === "gateways" ? gatewayTableColumns : nodeTableColumns,
-);
+const deviceTableColumnDefinitions = computed(() => {
+  if (activeDeviceTab.value === "gateways") return gatewayTableColumns;
+  if (activeDeviceTab.value === "nodes") return nodeTableColumns;
+  return registedDeviceTableColumns;
+});
 const deviceTableColumns = computed(() =>
   deviceTableColumnDefinitions.value.map((column) => column.label),
 );
@@ -801,7 +1007,11 @@ const displayedDeviceRows = computed<DeviceRow[]>(() => {
 });
 const connectedGatewayNodes = computed<DeviceRow[]>(() => {
   if (!selectedGateway.value) return [];
-  return nodeRows.value.filter(
+  const sourceRows =
+    activeDeviceTab.value === "registed" ? registeredRows.value : nodeRows.value;
+  return sourceRows.filter(
+    (row) => row.resourceType !== "gateway",
+  ).filter(
     (node) => node.gatewayId === selectedGateway.value?.id,
   );
 });
@@ -818,6 +1028,10 @@ function resetDeviceFilters() {
 
 function refreshDevices() {
   if (isDeviceLoading.value) return;
+  if (activeDeviceTab.value === "registed") {
+    loadRegisteredDevices();
+    return;
+  }
   isDeviceLoading.value = true;
   nodeCollectionsStore.clearNodeCache({ nodeRows, controllerStatesByNode });
 
@@ -1042,6 +1256,7 @@ function disconnectGatewaySse() {
 onMounted(() => {
   if (!import.meta.client) return;
   loadGatewayIdMap();
+  loadRegisteredDevices();
   connectGatewaySse();
   startDeviceStatusPolling();
   fetchMetrics();

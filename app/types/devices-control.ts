@@ -1,6 +1,6 @@
 import type { Component } from "vue";
 
-export type DeviceTabKey = "gateways" | "nodes";
+export type DeviceTabKey = "gateways" | "nodes" | "registed";
 
 export type DeviceRowStatus = "online" | "offline";
 
@@ -19,6 +19,7 @@ export type ControllerState = {
 export type DeviceRow = {
   id: string;
   externalId?: string | null;
+  resourceType?: "gateway" | "node" | null;
   name: string;
   gatewayId?: string | null;
   ip?: string | null;
