@@ -1,11 +1,4 @@
 <template>
-  <SingleMetricChart
-    class="mb-4 w-full"
-    container-height="50vh"
-    :selected-metric-key="selectedMetricKey"
-    :selected-timeframe="selectedTimeframe"
-    @update:selected-metric-key="handleMetricChange"
-  />
   <section class="bg-white rounded border border-slate-200 p-4">
     <div class="border-b border-gray-200 pb-3">
       <div class="flex flex-wrap items-start justify-between gap-3">
@@ -423,12 +416,10 @@ import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import BaseModal from "@/components/Modals/BaseModal.vue";
 import LoadingState from "@/components/common/LoadingState.vue";
-import SingleMetricChart from "@/components/SingleMetricChart.vue";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
 import { stopWorkflow } from "@/composables/Scenario/handleWorkflow";
 import { useMetrics } from "@/composables/useMetrics";
-import type { TimeframeKey } from "@/types/dashboard";
 import { useWorkflowSteps } from "@/composables/Scenario/useWorkflowSteps";
 import {
   canConnectFromNode,
@@ -451,7 +442,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "back"): void;
-  (e: "save", payload: { nodes: Node<NodeData>[]; edges: Edge[]; controlDefinition: any }): void;
+  (e: "save", payload: { nodes: any[]; edges: Edge[]; controlDefinition: any }): void;
 }>();
 
 const palette = [
@@ -533,8 +524,6 @@ const controlUrlLabelMap = computed(() => {
   });
   return map;
 });
-const selectedMetricKey = ref<string>("");
-const selectedTimeframe = ref<TimeframeKey>("second");
 const authStore = useAuthStore();
 const controlModuleBase = computed(() =>
   (apiConfig.controlModule || "").replace(/\/$/, ""),
@@ -806,7 +795,11 @@ function saveFlow() {
     return;
   }
   const controlDefinition = formatControlDefinition(nodes.value, edges.value);
-  emit("save", { nodes: nodes.value, edges: edges.value, controlDefinition });
+  emit("save", {
+    nodes: nodes.value as any[],
+    edges: edges.value as Edge[],
+    controlDefinition,
+  });
   markCanvasAsSaved();
 }
 
@@ -1050,10 +1043,6 @@ function updateNodeLabel(node: Node<NodeData>) {
 
 // Device status SSE logic removed per UI-only step tracking requirements.
 
-function handleMetricChange(value: string) {
-  selectedMetricKey.value = value;
-}
-
 function applyDefinition(definition?: { nodes?: Node<NodeData>[]; edges?: Edge[] } | null) {
   if (!definition || !Array.isArray(definition.nodes)) {
     return;
@@ -1257,15 +1246,6 @@ watch(hasLoadedControlUrls, () => {
   nodes.value.forEach((node) => updateNodeLabel(node));
 });
 
-watch(
-  metrics,
-  (value) => {
-    if (!selectedMetricKey.value && value.length > 0) {
-      selectedMetricKey.value = value[0]?.key ?? "";
-    }
-  },
-  { immediate: true },
-);
 const hasHydrated = ref(false);
 
 function isMissingControlUrl(controlUrlId?: string | null) {

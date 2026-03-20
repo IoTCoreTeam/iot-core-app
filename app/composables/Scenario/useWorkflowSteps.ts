@@ -11,14 +11,14 @@ export type WorkflowStep = {
   controlUrlId?: string | null;
 };
 
-type WorkflowNodeData = {
+type WorkflowNodeDataBase = {
   label?: string;
-  kind?: "start" | "action" | "condition" | "end" | string;
+  kind?: string;
   control_url_id?: string | null;
 };
 
-export function useWorkflowSteps(params: {
-  nodes: Ref<Node<WorkflowNodeData>[]>;
+export function useWorkflowSteps<TNodeData extends WorkflowNodeDataBase>(params: {
+  nodes: Ref<Node<TNodeData>[]>;
   resolveControlUrlLabel: (controlUrlId: string) => string | null;
 }) {
   const workflowSteps = ref<WorkflowStep[]>([]);

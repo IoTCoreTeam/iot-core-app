@@ -19,6 +19,14 @@
         </NuxtLink>
 
         <NuxtLink
+          to="/data-center"
+          class="flex items-center gap-2 text-gray-700 text-xs font-semibold hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
+        >
+          <BootstrapIcon name="database" class="w-3 h-3" />
+          Data Center
+        </NuxtLink>
+
+        <NuxtLink
           to="/device-control-center"
           class="flex items-center gap-2 text-gray-700 text-xs font-semibold hover:text-blue-700 transition-colors border-b-2 border-transparent py-1 hover:border-blue-500"
         >
@@ -245,6 +253,14 @@
               @click="closeMobileMenu"
             >
               Dashboard
+            </NuxtLink>
+
+            <NuxtLink
+              to="/data-center"
+              class="block px-3 py-2 hover:bg-blue-50"
+              @click="closeMobileMenu"
+            >
+              Data Center
             </NuxtLink>
 
             <NuxtLink

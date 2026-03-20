@@ -47,9 +47,9 @@
           @change-per-page="(value) => { areasPerPage = value; areasPage = 1; }"
         >
           <template #head>
-            <tr class="bg-slate-50 border-b border-gray-200 text-xs text-gray-600">
-              <th class="px-2 py-2 font-normal text-start">Name</th>
-              <th class="px-2 py-2 font-normal text-center">Actions</th>
+            <tr class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500">
+              <th class="px-2 py-2 font-semibold text-start">Name</th>
+              <th class="px-2 py-2 font-semibold text-center">Actions</th>
             </tr>
           </template>
 
