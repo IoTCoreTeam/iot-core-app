@@ -1,5 +1,5 @@
 <template>
-  <section class="w-full">
+  <section v-if="hasPinnedSensors" class="w-full">
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
       <article
         v-for="widget in widgets"
@@ -81,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { apiConfig } from "~~/config/api";
 import { useMetrics } from "@/composables/useMetrics";
 import type { DashboardMetric } from "@/types/dashboard";
@@ -91,6 +91,10 @@ import {
   normalizeSensorType,
   type SensorQueryRow,
 } from "@/composables/metrics/sensorPayload";
+import {
+  PINNED_SENSOR_IDS_UPDATED_EVENT,
+  readPinnedSensorIds,
+} from "~~/config/pinned-sensors";
 
 interface MetricWidgetItem {
   key: string;
@@ -113,6 +117,21 @@ const BASE_URL = (apiConfig.server || "").replace(/\/$/, "");
 const isLoading = ref(false);
 const isRefreshing = ref(false);
 const hasLoadedOnce = ref(false);
+const pinnedSensorIds = ref<string[]>([]);
+
+const { metrics } = useMetrics();
+const widgets = ref<MetricWidgetItem[]>([]);
+const targetSensorMetrics = computed(() =>
+  Array.from(
+    new Set(
+      metrics.value
+        .map((metric) => normalizeSensorType(metric.key))
+        .filter((metric) => Boolean(metric)),
+    ),
+  ),
+);
+
+const hasPinnedSensors = computed(() => pinnedSensorIds.value.length > 0);
 
 const formatTimestamp = (value?: string) => {
   return formatIotDateTime(value, {
@@ -128,30 +147,47 @@ const formatTimestamp = (value?: string) => {
   });
 };
 
-const buildDefaultWidget = (metric: DashboardMetric): MetricWidgetItem => ({
-  key: metric.key,
-  title: metric.title,
-  subtitle: metric.subtitle,
-  icon: metric.icon,
-  unit: metric.unit ?? "",
-  value: "--",
-  change: null,
-  min: metric.min,
-  max: metric.max,
-  trend: metric.trend,
-  timestamp: "-",
-  sensorId: "-",
-  nodeId: "-",
-  gatewayId: "-",
-});
+const getMetricMetaFromRow = (row: SensorQueryRow) => {
+  const rawMetric = normalizeSensorType(String((row as any)?.metric ?? ""));
+  if (!rawMetric) return null;
 
-const { metrics } = useMetrics();
-const widgets = ref<MetricWidgetItem[]>([]);
+  return (
+    metrics.value.find(
+      (metric) => normalizeSensorType(metric.key) === rawMetric,
+    ) ?? null
+  );
+};
 
-const fetchLatestByMetric = async (metricKey: string) => {
+const getMetricMetaByType = (metricType: string) =>
+  metrics.value.find(
+    (metric) => normalizeSensorType(metric.key) === normalizeSensorType(metricType),
+  ) ?? null;
+
+const buildPinnedDefaultWidget = (
+  nodeId: string,
+  metricType: string,
+): MetricWidgetItem => {
+  const metricMeta = getMetricMetaByType(metricType);
+  const key = `${nodeId}::${metricType}`;
+  return {
+    key,
+    title: metricMeta?.title ?? "Pinned Metric",
+    subtitle: nodeId,
+    icon: "pin-angle",
+    unit: "",
+    value: "--",
+    change: null,
+    timestamp: "-",
+    sensorId: "-",
+    nodeId,
+    gatewayId: "-",
+  };
+};
+
+const fetchLatestByNodeAndMetric = async (nodeId: string, metricType: string) => {
   const params = new URLSearchParams();
-  const mappedType = normalizeSensorType(metricKey);
-  params.set("sensor_type", mappedType);
+  params.set("node_id", nodeId);
+  params.set("sensor_type", metricType);
   params.set("limit", "1");
   params.set("page", "1");
 
@@ -159,13 +195,27 @@ const fetchLatestByMetric = async (metricKey: string) => {
   if (!res.ok) {
     throw new Error(`API error ${res.status}`);
   }
-  const data = await res.json();
+
+  const data = await res.json().catch(() => []);
   if (!Array.isArray(data) || data.length === 0) return null;
   return data[0] as SensorQueryRow;
 };
 
+const loadPinnedSensorIds = () => {
+  pinnedSensorIds.value = readPinnedSensorIds().slice(0, 1);
+  if (!pinnedSensorIds.value.length) {
+    widgets.value = [];
+    hasLoadedOnce.value = false;
+  }
+};
+
 const loadLatestMetrics = async () => {
   if (!BASE_URL) return;
+  if (!pinnedSensorIds.value.length) {
+    widgets.value = [];
+    return;
+  }
+
   if (!hasLoadedOnce.value) {
     isLoading.value = true;
   } else {
@@ -173,38 +223,47 @@ const loadLatestMetrics = async () => {
   }
 
   try {
+    const requests = pinnedSensorIds.value.flatMap((nodeId) =>
+      targetSensorMetrics.value.map((metricType) => ({ nodeId, metricType })),
+    );
+
     const results = await Promise.all(
-      metrics.value.map(async (metric) => {
-        const row = await fetchLatestByMetric(metric.key);
-        if (!row) return buildDefaultWidget(metric);
+      requests.map(async ({ nodeId, metricType }) => {
+        const row = await fetchLatestByNodeAndMetric(nodeId, metricType);
+        if (!row) return buildPinnedDefaultWidget(nodeId, metricType);
 
         const normalized = normalizeSensorLatestRow(row);
-        const unit = normalized.unit || metric.unit || "";
+        const metricMeta = getMetricMetaFromRow(row) ?? getMetricMetaByType(metricType);
+        const key = `${nodeId}::${metricType}`;
 
         return {
-          key: metric.key,
-          title: metric.title,
-          subtitle: metric.subtitle,
-          icon: metric.icon,
-          unit,
+          key,
+          title: metricMeta?.title ?? "Pinned Metric",
+          subtitle: nodeId,
+          icon: metricMeta?.icon ?? "pin-angle",
+          unit: normalized.unit || metricMeta?.unit || "",
           value: normalized.value ?? normalized.rawValue ?? "--",
           change: null,
-          min: metric.min,
-          max: metric.max,
-          trend: metric.trend,
+          min: metricMeta?.min,
+          max: metricMeta?.max,
+          trend: metricMeta?.trend,
           timestamp: formatTimestamp(normalized.timestamp),
-          sensorId: normalized.sensorId,
-          nodeId: normalized.nodeId,
+          sensorId: normalized.sensorId || "-",
+          nodeId: normalized.nodeId || nodeId,
           gatewayId: normalized.gatewayId,
         } as MetricWidgetItem;
-      })
+      }),
     );
 
     widgets.value = results;
     hasLoadedOnce.value = true;
   } catch (error) {
-    console.error("Failed to load metric widgets:", error);
-    widgets.value = metrics.value.map(buildDefaultWidget);
+    console.error("Failed to load pinned metric widgets:", error);
+    widgets.value = pinnedSensorIds.value.flatMap((nodeId) =>
+      targetSensorMetrics.value.map((metricType) =>
+        buildPinnedDefaultWidget(nodeId, metricType),
+      ),
+    );
   } finally {
     isLoading.value = false;
     isRefreshing.value = false;
@@ -277,24 +336,52 @@ const chartAreaPoints = (widget: MetricWidgetItem) => {
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
 
 const startPolling = () => {
-  if (pollingTimer) return;
+  if (pollingTimer || !hasPinnedSensors.value) return;
   pollingTimer = setInterval(loadLatestMetrics, 10000);
 };
+
+const stopPolling = () => {
+  if (!pollingTimer) return;
+  clearInterval(pollingTimer);
+  pollingTimer = null;
+};
+
+const handlePinnedSensorUpdate = () => {
+  loadPinnedSensorIds();
+  if (!hasPinnedSensors.value) {
+    stopPolling();
+    return;
+  }
+
+  loadLatestMetrics();
+  startPolling();
+};
+
+onMounted(() => {
+  loadPinnedSensorIds();
+  if (hasPinnedSensors.value) {
+    loadLatestMetrics();
+    startPolling();
+  }
+
+  window.addEventListener(PINNED_SENSOR_IDS_UPDATED_EVENT, handlePinnedSensorUpdate);
+  window.addEventListener("storage", handlePinnedSensorUpdate);
+});
 
 watch(
   metrics,
   (value) => {
-    if (value.length === 0) return;
+    if (!value.length || !hasPinnedSensors.value) return;
     loadLatestMetrics();
-    startPolling();
   },
   { immediate: true },
 );
 
 onBeforeUnmount(() => {
-  if (pollingTimer) {
-    clearInterval(pollingTimer);
-    pollingTimer = null;
+  stopPolling();
+  if (import.meta.client) {
+    window.removeEventListener(PINNED_SENSOR_IDS_UPDATED_EVENT, handlePinnedSensorUpdate);
+    window.removeEventListener("storage", handlePinnedSensorUpdate);
   }
 });
 </script>

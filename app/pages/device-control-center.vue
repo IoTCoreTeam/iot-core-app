@@ -26,6 +26,7 @@ import {
   MapIcon,
   Squares2X2Icon,
   RectangleStackIcon,
+  ClipboardDocumentListIcon,
 } from "@heroicons/vue/24/outline";
 
 import DevicesControlSidebar from "@/components/devices-control/layouts/DevicesControlSidebar.vue";
@@ -33,6 +34,7 @@ import DeviceRegistration from "@/components/devices-control/sections/DeviceRegi
 import MapSection from "@/components/devices-control/sections/MapSection.vue";
 import ScenarioSection from "@/components/devices-control/sections/ScenarioSection.vue";
 import DeviceControlSection from "@/components/devices-control/sections/DeviceControlSection.vue";
+import ControlLogSection from "@/components/devices-control/sections/ControlLogSection.vue";
 import type { Section } from "@/types/devices-control";
 
 const ACTIVE_SECTION_STORAGE_KEY = "device-control-center-active-section";
@@ -57,7 +59,12 @@ const sections: Section[] = [
     id: "scenario",
     label: "Scenario",
     icon: Squares2X2Icon,
-  },  
+  },
+  {
+    id: "control-log",
+    label: "Control Log",
+    icon: ClipboardDocumentListIcon,
+  },
 ];
 
 const sectionComponentMap: Record<string, Component> = {
@@ -65,6 +72,7 @@ const sectionComponentMap: Record<string, Component> = {
   map: MapSection,
   "device-control": DeviceControlSection,
   scenario: ScenarioSection,
+  "control-log": ControlLogSection,
 };
 const defaultSection = sections[0];
 

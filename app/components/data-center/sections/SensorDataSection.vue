@@ -1,145 +1,302 @@
 <template>
-  <section class="w-full py-4">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <div
-        :class="[
-          'bg-white rounded border border-slate-200 overflow-hidden w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
-          { hidden: !isFilterVisible },
-        ]"
-      >
-        <div class="bg-slate-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
-            <p class="text-xs text-gray-500">Refine sensor readings.</p>
-          </div>
-          <button
-            type="button"
-            class="text-xs text-gray-500 hover:text-gray-700 lg:hidden"
-            @click="toggleFilters"
+  <section class="w-full">
+    <a-tabs v-model:activeKey="activeTab" class="px-4 custom-tabs text-xs">
+      <a-tab-pane key="sensor-data" tab="Sensor Data">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div
+            :class="[
+              'bg-white rounded border border-slate-200 overflow-hidden w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
+              { hidden: !isSensorDataFilterVisible },
+            ]"
           >
-            Close
-          </button>
-        </div>
-        <AdvancedFilterPanel
-          :fields="sensorFilterFields"
-          :model-value="sensorFilters"
-          :is-loading="isLoading"
-          apply-label="Apply"
-          reset-label="Reset"
-          @update:modelValue="handleFilterModelUpdate"
-          @apply="applyFilters"
-          @reset="resetFilters"
-        />
-      </div>
-
-      <div
-        :class="[
-          'flex flex-col gap-4',
-          isFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
-        ]"
-      >
-        <DataBoxCard
-          class="sensor-data-table-card"
-          :is-loading="isLoading"
-          :columns="tableColumns.length"
-          :has-data="displayedRows.length > 0"
-          :pagination="pagination"
-          loading-text="Loading sensor readings..."
-          @prev-page="prevPage"
-          @next-page="nextPage"
-          @change-per-page="changePerPage"
-        >
-          <template #header>
-            <div class="flex items-center gap-2">
-              <h3 class="text-gray-700 text-xs">Sensor Data</h3>
-              <button
-                type="button"
-                class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
-                @click="toggleFilters"
-              >
-                {{ isFilterVisible ? "Hide Filters" : "Show Filters" }}
-              </button>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <div class="relative">
-                <input
-                  v-model="searchKeyword"
-                  type="text"
-                  placeholder="Search gateway/node/sensor..."
-                  class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-60 text-xs cursor-text"
-                />
-                <BootstrapIcon
-                  name="search"
-                  class="absolute left-1 top-1.5 w-3 h-3 text-gray-400"
-                />
+            <div class="bg-slate-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
+                <p class="text-xs text-gray-500">Refine sensor readings.</p>
               </div>
               <button
                 type="button"
-                class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
-                :disabled="isLoading"
-                @click="refreshRows"
+                class="text-xs text-gray-500 hover:text-gray-700 lg:hidden"
+                @click="toggleSensorDataFilters"
               >
-                <BootstrapIcon
-                  name="arrow-clockwise"
-                  class="w-3 h-3 mr-1"
-                  :class="{ 'animate-spin': isLoading }"
-                />
-                {{ isLoading ? "Refreshing..." : "Refresh" }}
+                Close
               </button>
             </div>
-          </template>
+            <AdvancedFilterPanel
+              :fields="sensorDataFilterFields"
+              :model-value="sensorDataFilters"
+              :is-loading="isSensorDataLoading"
+              apply-label="Apply"
+              reset-label="Reset"
+              @update:modelValue="handleSensorDataFilterModelUpdate"
+              @apply="applySensorDataFilters"
+              @reset="resetSensorDataFilters"
+            />
+          </div>
 
-          <template #head>
-            <tr class="bg-slate-50 border-b border-gray-200 text-xs text-gray-600 text-center">
-              <th
-                v-for="column in tableColumns"
-                :key="column"
-                :class="[
-                  'w-[14.2857%] px-2 py-2 font-normal text-gray-600 text-center align-middle leading-4',
-                  column === 'Gateway' ||
-                  column === 'Node' ||
-                  column === 'Sensor' ||
-                  column === 'Metric' ||
-                  column === 'Timestamp'
-                    ? 'text-left'
-                    : '',
-                ]"
-              >
-                {{ column }}
-              </th>
-            </tr>
-          </template>
-
-          <template #default>
-            <tr
-              v-for="row in displayedRows"
-              :key="rowKey(row)"
-              class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100 py-1 text-center"
+          <div
+            :class="[
+              'flex flex-col gap-4',
+              isSensorDataFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
+            ]"
+          >
+            <DataBoxCard
+              class="sensor-data-table-card"
+              :is-loading="isSensorDataLoading"
+              :columns="sensorDataTableColumns.length"
+              :has-data="displayedSensorDataRows.length > 0"
+              :pagination="sensorDataPagination"
+              loading-text="Loading sensor readings..."
+              @prev-page="prevSensorDataPage"
+              @next-page="nextSensorDataPage"
+              @change-per-page="changeSensorDataPerPage"
             >
-              <td class="w-[14.2857%] px-2 py-2 text-gray-700 text-left align-middle leading-4">{{ row.gateway_id || "-" }}</td>
-              <td class="w-[14.2857%] px-2 py-2 text-gray-700 text-left align-middle leading-4">{{ row.node_id || "-" }}</td>
-              <td class="w-[14.2857%] px-2 py-2 text-gray-700 text-left align-middle leading-4">{{ row.sensor_id || "-" }}</td>
-              <td class="w-[14.2857%] px-2 py-2 text-gray-700 text-left align-middle leading-4">{{ row.metric || "-" }}</td>
-              <td class="w-[14.2857%] px-2 py-2 text-gray-700 align-middle leading-4">{{ formatValue(row.value) }}</td>
-              <td class="w-[14.2857%] px-2 py-2 text-gray-700 align-middle leading-4">{{ row.unit || "-" }}</td>
-              <td class="w-[14.2857%] px-2 py-2 text-gray-700 text-left align-middle leading-4">
-                {{ formatDateTime(row.timestamp) }}
-              </td>
-            </tr>
-          </template>
+              <template #header>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-gray-700 text-xs">Sensor Data</h3>
+                  <button
+                    type="button"
+                    class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
+                    @click="toggleSensorDataFilters"
+                  >
+                    {{ isSensorDataFilterVisible ? "Hide Filters" : "Show Filters" }}
+                  </button>
+                </div>
 
-          <template #empty>No sensor readings found.</template>
-          <template #footer>
-            <span>Showing {{ displayedRows.length }} entries on this page.</span>
-            <span>
-              Total filtered:
-              <span class="text-gray-600 font-medium">{{ pagination.total }}</span>
-            </span>
-          </template>
-        </DataBoxCard>
-      </div>
-    </div>
+                <div class="flex items-center gap-2">
+                  <div class="relative">
+                    <input
+                      v-model="sensorDataSearchKeyword"
+                      type="text"
+                      placeholder="Search gateway/node/sensor..."
+                      class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-60 text-xs cursor-text"
+                    />
+                    <BootstrapIcon
+                      name="search"
+                      class="absolute left-1 top-1.5 w-3 h-3 text-gray-400"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                    :disabled="isSensorDataLoading"
+                    @click="refreshSensorDataRows"
+                  >
+                    <BootstrapIcon
+                      name="arrow-clockwise"
+                      class="w-3 h-3 mr-1"
+                      :class="{ 'animate-spin': isSensorDataLoading }"
+                    />
+                    {{ isSensorDataLoading ? "Refreshing..." : "Refresh" }}
+                  </button>
+                </div>
+              </template>
+
+              <template #head>
+                <tr class="bg-slate-50 border-b border-gray-200 text-xs text-gray-600 text-center">
+                  <th
+                    v-for="column in sensorDataTableColumns"
+                    :key="column"
+                    :class="[
+                      'w-[14.2857%] px-2 py-2 font-normal text-gray-600 text-center align-middle leading-4',
+                      column === 'Gateway' ||
+                      column === 'Node' ||
+                      column === 'Sensor' ||
+                      column === 'Metric' ||
+                      column === 'Timestamp'
+                        ? 'text-left'
+                        : '',
+                    ]"
+                  >
+                    {{ column }}
+                  </th>
+                </tr>
+              </template>
+
+              <template #default>
+                <tr
+                  v-for="row in displayedSensorDataRows"
+                  :key="sensorDataRowKey(row)"
+                  class="hover:bg-gray-50 transition-colors text-xs align-top border-b border-gray-100 py-1 text-center"
+                >
+                  <td class="w-[14.2857%] px-2 py-2 text-gray-700 text-left align-middle leading-4">{{ row.gateway_id || "-" }}</td>
+                  <td class="w-[14.2857%] px-2 py-2 text-gray-700 text-left align-middle leading-4">{{ row.node_id || "-" }}</td>
+                  <td class="w-[14.2857%] px-2 py-2 text-gray-700 text-left align-middle leading-4">{{ row.sensor_id || "-" }}</td>
+                  <td class="w-[14.2857%] px-2 py-2 text-gray-700 text-left align-middle leading-4">{{ row.metric || "-" }}</td>
+                  <td class="w-[14.2857%] px-2 py-2 text-gray-700 align-middle leading-4">{{ formatValue(row.value) }}</td>
+                  <td class="w-[14.2857%] px-2 py-2 text-gray-700 align-middle leading-4">{{ row.unit || "-" }}</td>
+                  <td class="w-[14.2857%] px-2 py-2 text-gray-700 text-left align-middle leading-4">
+                    {{ formatDateTime(row.timestamp) }}
+                  </td>
+                </tr>
+              </template>
+
+              <template #empty>No sensor readings found.</template>
+              <template #footer>
+                <span>Showing {{ displayedSensorDataRows.length }} entries on this page.</span>
+                <span>
+                  Total filtered:
+                  <span class="text-gray-600 font-medium">{{ sensorDataPagination.total }}</span>
+                </span>
+              </template>
+            </DataBoxCard>
+          </div>
+        </div>
+      </a-tab-pane>
+
+      <a-tab-pane key="sensor-device" tab="Sensor Device">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div
+            :class="[
+              'bg-white rounded border border-slate-200 overflow-hidden w-full lg:w-64 shrink-0 h-fit lg:sticky lg:top-4',
+              { hidden: !isSensorDeviceFilterVisible },
+            ]"
+          >
+            <div class="bg-slate-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h4 class="text-xs font-semibold text-gray-700">Filters</h4>
+                <p class="text-xs text-gray-500">Refine sensor devices.</p>
+              </div>
+              <button
+                type="button"
+                class="text-xs text-gray-500 hover:text-gray-700 lg:hidden"
+                @click="toggleSensorDeviceFilters"
+              >
+                Close
+              </button>
+            </div>
+            <AdvancedFilterPanel
+              :fields="sensorDeviceFilterFields"
+              :model-value="sensorDeviceFilters"
+              :is-loading="isSensorDeviceLoading"
+              apply-label="Apply"
+              reset-label="Reset"
+              @update:modelValue="handleSensorDeviceFilterModelUpdate"
+              @apply="applySensorDeviceFilters"
+              @reset="resetSensorDeviceFilters"
+            />
+          </div>
+
+          <div
+            :class="[
+              'flex flex-col gap-4',
+              isSensorDeviceFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
+            ]"
+          >
+            <DataBoxCard
+              class="sensor-device-table-card"
+              :is-loading="isSensorDeviceLoading"
+              :columns="sensorDeviceTableColumns.length"
+              :has-data="displayedSensorDeviceRows.length > 0"
+              :pagination="sensorDevicePagination"
+              loading-text="Loading sensor devices..."
+              @prev-page="prevSensorDevicePage"
+              @next-page="nextSensorDevicePage"
+              @change-per-page="changeSensorDevicePerPage"
+            >
+              <template #header>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-gray-700 text-xs">Sensor Device</h3>
+                  <button
+                    type="button"
+                    class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
+                    @click="toggleSensorDeviceFilters"
+                  >
+                    {{ isSensorDeviceFilterVisible ? "Hide Filters" : "Show Filters" }}
+                  </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <div class="relative">
+                    <input
+                      v-model="sensorDeviceSearchKeyword"
+                      type="text"
+                      placeholder="Search sensor device..."
+                      class="pl-5 pr-1 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-60 text-xs cursor-text"
+                    />
+                    <BootstrapIcon
+                      name="search"
+                      class="absolute left-1 top-1.5 w-3 h-3 text-gray-400"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    class="inline-flex items-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded px-3 py-1 text-xs border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                    :disabled="isSensorDeviceLoading"
+                    @click="refreshSensorDeviceRows"
+                  >
+                    <BootstrapIcon
+                      name="arrow-clockwise"
+                      class="w-3 h-3 mr-1"
+                      :class="{ 'animate-spin': isSensorDeviceLoading }"
+                    />
+                    {{ isSensorDeviceLoading ? "Refreshing..." : "Refresh" }}
+                  </button>
+                </div>
+              </template>
+
+              <template #head>
+                <tr class="bg-slate-50 border-b border-gray-200 text-xs text-gray-600 text-left">
+                  <th
+                    v-for="column in sensorDeviceTableColumns"
+                    :key="column.key"
+                    class="px-2 py-3 font-normal text-gray-600"
+                    :style="{ width: column.width }"
+                  >
+                    {{ column.label }}
+                  </th>
+                </tr>
+              </template>
+
+              <template #default>
+                <tr
+                  v-for="row in displayedSensorDeviceRows"
+                  :key="row.id"
+                  :class="[
+                    'transition-colors text-xs border-b border-gray-100',
+                    isSoftDeletedSensorDevice(row) ? 'bg-red-200 hover:bg-red-300' : 'hover:bg-gray-50',
+                  ]"
+                >
+                  <td class="p-2 text-gray-700">{{ row.external_id || "-" }}</td>
+                  <td class="p-2 text-gray-700">{{ row.name || "-" }}</td>
+                  <td class="p-2 text-gray-700">{{ resolveGatewayDisplayId(row) }}</td>
+                  <td class="p-2 text-gray-700">{{ row.mac_address || "-" }}</td>
+                  <td class="p-2 text-gray-700">{{ row.ip_address || "-" }}</td>
+                  <td class="p-2 text-gray-700">{{ formatDateTime(row.created_at) }}</td>
+                  <td class="p-2 text-center">
+                    <button
+                      type="button"
+                      class="inline-flex h-7 w-7 items-center justify-center rounded border transition-colors"
+                      :class="
+                        isPinnedSensor(row)
+                          ? 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
+                          : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                      "
+                      :title="isPinnedSensor(row) ? 'Unpin sensor' : 'Pin sensor'"
+                      @click.stop="toggleSensorPin(row)"
+                    >
+                      <BootstrapIcon
+                        :name="isPinnedSensor(row) ? 'pin-angle-fill' : 'pin-angle'"
+                        class="w-3 h-3"
+                      />
+                    </button>
+                  </td>
+                </tr>
+              </template>
+
+              <template #empty>No sensor devices found.</template>
+              <template #footer>
+                <span>Showing {{ displayedSensorDeviceRows.length }} entries on this page.</span>
+                <span>
+                  Total filtered:
+                  <span class="text-gray-600 font-medium">{{ sensorDevicePagination.total }}</span>
+                </span>
+              </template>
+            </DataBoxCard>
+          </div>
+        </div>
+      </a-tab-pane>
+    </a-tabs>
   </section>
 </template>
 
@@ -148,6 +305,11 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { apiConfig } from "~~/config/api";
 import { formatIotDateTime } from "~~/config/iot-time-format";
 import { useMetrics } from "@/composables/useMetrics";
+import { useAuthStore } from "~~/stores/auth";
+import {
+  readPinnedSensorIds,
+  writePinnedSensorIds,
+} from "~~/config/pinned-sensors";
 import AdvancedFilterPanel, {
   type FilterFieldRow,
 } from "@/components/common/AdvancedFilterPanel.vue";
@@ -174,16 +336,35 @@ type SensorFilterState = {
   timestamp_to: string;
 };
 
+type SensorDeviceRow = {
+  id: string;
+  external_id?: string | null;
+  name?: string | null;
+  gateway_id?: string | null;
+  mac_address?: string | null;
+  ip_address?: string | null;
+  type?: string | null;
+  created_at?: string | null;
+  deleted_at?: string | null;
+};
+
+type SensorDeviceFilterState = {
+  external_id: string;
+  name: string;
+  gateway_external_id: string;
+  mac_address: string;
+  ip_address: string;
+};
+
 const IOT_OFFSET_MS = 7 * 60 * 60 * 1000;
-const BASE_URL = (apiConfig.server || "").replace(/\/$/, "");
+const SERVER_BASE_URL = (apiConfig.server || "").replace(/\/$/, "");
+const CONTROL_MODULE_BASE_URL = (apiConfig.controlModule || "").replace(/\/$/, "");
 
+const authStore = useAuthStore();
 const { metrics } = useMetrics();
+const activeTab = ref<"sensor-data" | "sensor-device">("sensor-data");
 
-const isLoading = ref(false);
-const isFilterVisible = ref(true);
-const searchKeyword = ref("");
-
-const tableColumns = [
+const sensorDataTableColumns = [
   "Gateway",
   "Node",
   "Sensor",
@@ -193,10 +374,13 @@ const tableColumns = [
   "Timestamp",
 ];
 
-const rows = ref<SensorReadingRow[]>([]);
-const pagination = ref({ page: 1, perPage: 20, lastPage: 1, total: 0 });
+const sensorDataRows = ref<SensorReadingRow[]>([]);
+const sensorDataSearchKeyword = ref("");
+const isSensorDataLoading = ref(false);
+const isSensorDataFilterVisible = ref(true);
+const sensorDataPagination = ref({ page: 1, perPage: 20, lastPage: 1, total: 0 });
 
-const sensorFilters = reactive<SensorFilterState>({
+const sensorDataFilters = reactive<SensorFilterState>({
   gateway_id: "",
   node_id: "",
   sensor_id: "",
@@ -204,10 +388,9 @@ const sensorFilters = reactive<SensorFilterState>({
   timestamp_from: "",
   timestamp_to: "",
 });
+const appliedSensorDataFilters = ref<SensorFilterState>({ ...sensorDataFilters });
 
-const appliedFilters = ref<SensorFilterState>({ ...sensorFilters });
-
-const sensorFilterFields = computed<FilterFieldRow[]>(() => [
+const sensorDataFilterFields = computed<FilterFieldRow[]>(() => [
   [{ key: "gateway_id", label: "Gateway ID", type: "text", placeholder: "GW_001" }],
   [{ key: "node_id", label: "Node ID", type: "text", placeholder: "node-sensor-001" }],
   [{ key: "sensor_id", label: "Sensor ID", type: "text", placeholder: "sensor-env-01-temp" }],
@@ -231,11 +414,11 @@ const sensorFilterFields = computed<FilterFieldRow[]>(() => [
   ],
 ]);
 
-const filteredRows = computed(() => {
-  const filters = appliedFilters.value;
-  const keyword = normalizeText(searchKeyword.value);
+const filteredSensorDataRows = computed(() => {
+  const filters = appliedSensorDataFilters.value;
+  const keyword = normalizeText(sensorDataSearchKeyword.value);
 
-  return rows.value.filter((row) => {
+  return sensorDataRows.value.filter((row) => {
     if (filters.gateway_id && !normalizeText(row.gateway_id).includes(normalizeText(filters.gateway_id))) {
       return false;
     }
@@ -273,14 +456,99 @@ const filteredRows = computed(() => {
 
       if (!haystack.includes(keyword)) return false;
     }
+
     return true;
   });
 });
 
-const displayedRows = computed(() => {
-  const start = (pagination.value.page - 1) * pagination.value.perPage;
-  const end = start + pagination.value.perPage;
-  return filteredRows.value.slice(start, end);
+const displayedSensorDataRows = computed(() => {
+  const start = (sensorDataPagination.value.page - 1) * sensorDataPagination.value.perPage;
+  const end = start + sensorDataPagination.value.perPage;
+  return filteredSensorDataRows.value.slice(start, end);
+});
+
+const sensorDeviceRows = ref<SensorDeviceRow[]>([]);
+const sensorDeviceSearchKeyword = ref("");
+const isSensorDeviceLoading = ref(false);
+const isSensorDeviceFilterVisible = ref(true);
+const sensorDevicePagination = ref({ page: 1, perPage: 10, lastPage: 1, total: 0 });
+
+const sensorDeviceTableColumns: Array<{ key: keyof SensorDeviceRow | "created_at" | "actions"; label: string; width: string }> = [
+  { key: "external_id", label: "Sensor ID", width: "18%" },
+  { key: "name", label: "Name", width: "17%" },
+  { key: "gateway_id", label: "Gateway ID", width: "18%" },
+  { key: "mac_address", label: "MAC", width: "15%" },
+  { key: "ip_address", label: "IP", width: "12%" },
+  { key: "created_at", label: "Created At", width: "14%" },
+  { key: "actions", label: "Actions", width: "6%" },
+];
+
+const sensorDeviceFilters = reactive<SensorDeviceFilterState>({
+  external_id: "",
+  name: "",
+  gateway_external_id: "",
+  mac_address: "",
+  ip_address: "",
+});
+const appliedSensorDeviceFilters = ref<SensorDeviceFilterState>({ ...sensorDeviceFilters });
+const gatewayExternalIdMap = ref<Record<string, string>>({});
+const pinnedSensorIds = ref<string[]>([]);
+
+const sensorDeviceFilterFields = computed<FilterFieldRow[]>(() => [
+  [{ key: "external_id", label: "Sensor ID", type: "text", placeholder: "node_sensor_01" }],
+  [{ key: "name", label: "Name", type: "text", placeholder: "Environment Sensor" }],
+  [{ key: "gateway_external_id", label: "Gateway ID", type: "text", placeholder: "GW_001" }],
+  [{ key: "mac_address", label: "MAC", type: "text", placeholder: "00:11:22:33:44:55" }],
+  [{ key: "ip_address", label: "IP", type: "text", placeholder: "192.168.1.21" }],
+]);
+
+const filteredSensorDeviceRows = computed(() => {
+  const filters = appliedSensorDeviceFilters.value;
+  const keyword = normalizeText(sensorDeviceSearchKeyword.value);
+
+  return sensorDeviceRows.value.filter((row) => {
+    if (filters.external_id && !normalizeText(row.external_id).includes(normalizeText(filters.external_id))) {
+      return false;
+    }
+    if (filters.name && !normalizeText(row.name).includes(normalizeText(filters.name))) {
+      return false;
+    }
+    if (
+      filters.gateway_external_id &&
+      !normalizeText(resolveGatewayDisplayId(row)).includes(normalizeText(filters.gateway_external_id))
+    ) {
+      return false;
+    }
+    if (filters.mac_address && !normalizeText(row.mac_address).includes(normalizeText(filters.mac_address))) {
+      return false;
+    }
+    if (filters.ip_address && !normalizeText(row.ip_address).includes(normalizeText(filters.ip_address))) {
+      return false;
+    }
+
+    if (keyword) {
+      const haystack = [
+        row.external_id,
+        row.name,
+        resolveGatewayDisplayId(row),
+        row.gateway_id,
+        row.mac_address,
+        row.ip_address,
+      ]
+        .map((value) => normalizeText(value))
+        .join(" ");
+
+      if (!haystack.includes(keyword)) return false;
+    }
+
+    return true;
+  });
+});
+
+const displayedSensorDeviceRows = computed(() => {
+  const start = (sensorDevicePagination.value.page - 1) * sensorDevicePagination.value.perPage;
+  const end = start + sensorDevicePagination.value.perPage;
+  return filteredSensorDeviceRows.value.slice(start, end);
 });
 
 function normalizeText(value: unknown) {
@@ -299,67 +567,6 @@ function toIotComparable(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.getTime() - IOT_OFFSET_MS;
-}
-
-function handleFilterModelUpdate(value: Record<string, string>) {
-  Object.assign(sensorFilters, value);
-}
-
-function applyFilters(payload?: Record<string, string>) {
-  appliedFilters.value = {
-    ...sensorFilters,
-    ...(payload ?? {}),
-  };
-  pagination.value.page = 1;
-  fetchRows();
-}
-
-function resetFilters() {
-  sensorFilters.gateway_id = "";
-  sensorFilters.node_id = "";
-  sensorFilters.sensor_id = "";
-  sensorFilters.metric = "";
-  sensorFilters.timestamp_from = "";
-  sensorFilters.timestamp_to = "";
-  appliedFilters.value = { ...sensorFilters };
-  pagination.value.page = 1;
-  fetchRows();
-}
-
-function toggleFilters() {
-  isFilterVisible.value = !isFilterVisible.value;
-}
-
-function refreshRows() {
-  if (isLoading.value) return;
-  fetchRows();
-}
-
-function prevPage() {
-  if (pagination.value.page > 1) {
-    pagination.value.page -= 1;
-  }
-}
-
-function nextPage() {
-  if (pagination.value.page < pagination.value.lastPage) {
-    pagination.value.page += 1;
-  }
-}
-
-function changePerPage(value: number) {
-  if (value <= 0) return;
-  pagination.value.perPage = value;
-}
-
-function recalculatePagination() {
-  const total = filteredRows.value.length;
-  pagination.value.total = total;
-  const lastPage = Math.max(1, Math.ceil(total / pagination.value.perPage));
-  pagination.value.lastPage = lastPage;
-  if (pagination.value.page > lastPage) {
-    pagination.value.page = lastPage;
-  }
 }
 
 function formatDateTime(value?: string | null) {
@@ -383,31 +590,229 @@ function formatObjectId(value: SensorReadingRow["_id"]) {
   return String(value);
 }
 
-function rowKey(row: SensorReadingRow) {
+function sensorDataRowKey(row: SensorReadingRow) {
   const objectId = formatObjectId(row._id);
   return `${objectId}-${row.sensor_id ?? ""}-${row.timestamp ?? ""}`;
 }
 
-async function fetchRows() {
-  if (!import.meta.client || !BASE_URL) return;
+function normalizeIndexRows(payload: any) {
+  return Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload)
+      ? payload
+      : [];
+}
 
-  isLoading.value = true;
+async function fetchAllPages(endpoint: string, authorization: string) {
+  const allRows: any[] = [];
+  let page = 1;
+  let lastPage = 1;
+
+  do {
+    const separator = endpoint.includes("?") ? "&" : "?";
+    const pagedEndpoint = `${endpoint}${separator}per_page=200&page=${page}`;
+    const response = await fetch(pagedEndpoint, {
+      headers: {
+        Authorization: authorization,
+        Accept: "application/json",
+      },
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message ?? "Failed to load rows.");
+    }
+
+    allRows.push(...normalizeIndexRows(payload));
+    lastPage = Number(payload?.last_page ?? payload?.meta?.last_page ?? 1);
+    page += 1;
+  } while (page <= lastPage);
+
+  return allRows;
+}
+
+function handleSensorDataFilterModelUpdate(value: Record<string, string>) {
+  Object.assign(sensorDataFilters, value);
+}
+
+function applySensorDataFilters(payload?: Record<string, string>) {
+  appliedSensorDataFilters.value = {
+    ...sensorDataFilters,
+    ...(payload ?? {}),
+  };
+  sensorDataPagination.value.page = 1;
+  fetchSensorDataRows();
+}
+
+function resetSensorDataFilters() {
+  sensorDataFilters.gateway_id = "";
+  sensorDataFilters.node_id = "";
+  sensorDataFilters.sensor_id = "";
+  sensorDataFilters.metric = "";
+  sensorDataFilters.timestamp_from = "";
+  sensorDataFilters.timestamp_to = "";
+  appliedSensorDataFilters.value = { ...sensorDataFilters };
+  sensorDataPagination.value.page = 1;
+  fetchSensorDataRows();
+}
+
+function toggleSensorDataFilters() {
+  isSensorDataFilterVisible.value = !isSensorDataFilterVisible.value;
+}
+
+function refreshSensorDataRows() {
+  if (isSensorDataLoading.value) return;
+  fetchSensorDataRows();
+}
+
+function prevSensorDataPage() {
+  if (sensorDataPagination.value.page > 1) {
+    sensorDataPagination.value.page -= 1;
+  }
+}
+
+function nextSensorDataPage() {
+  if (sensorDataPagination.value.page < sensorDataPagination.value.lastPage) {
+    sensorDataPagination.value.page += 1;
+  }
+}
+
+function changeSensorDataPerPage(value: number) {
+  if (value <= 0) return;
+  sensorDataPagination.value.perPage = value;
+}
+
+function recalculateSensorDataPagination() {
+  const total = filteredSensorDataRows.value.length;
+  sensorDataPagination.value.total = total;
+  const lastPage = Math.max(1, Math.ceil(total / sensorDataPagination.value.perPage));
+  sensorDataPagination.value.lastPage = lastPage;
+  if (sensorDataPagination.value.page > lastPage) {
+    sensorDataPagination.value.page = lastPage;
+  }
+}
+
+function handleSensorDeviceFilterModelUpdate(value: Record<string, string>) {
+  Object.assign(sensorDeviceFilters, value);
+}
+
+function applySensorDeviceFilters(payload?: Record<string, string>) {
+  appliedSensorDeviceFilters.value = {
+    ...sensorDeviceFilters,
+    ...(payload ?? {}),
+  };
+  sensorDevicePagination.value.page = 1;
+}
+
+function resetSensorDeviceFilters() {
+  sensorDeviceFilters.external_id = "";
+  sensorDeviceFilters.name = "";
+  sensorDeviceFilters.gateway_external_id = "";
+  sensorDeviceFilters.mac_address = "";
+  sensorDeviceFilters.ip_address = "";
+  appliedSensorDeviceFilters.value = { ...sensorDeviceFilters };
+  sensorDevicePagination.value.page = 1;
+}
+
+function toggleSensorDeviceFilters() {
+  isSensorDeviceFilterVisible.value = !isSensorDeviceFilterVisible.value;
+}
+
+function refreshSensorDeviceRows() {
+  if (isSensorDeviceLoading.value) return;
+  fetchSensorDeviceRows();
+}
+
+function prevSensorDevicePage() {
+  if (sensorDevicePagination.value.page > 1) {
+    sensorDevicePagination.value.page -= 1;
+  }
+}
+
+function nextSensorDevicePage() {
+  if (sensorDevicePagination.value.page < sensorDevicePagination.value.lastPage) {
+    sensorDevicePagination.value.page += 1;
+  }
+}
+
+function changeSensorDevicePerPage(value: number) {
+  if (value <= 0) return;
+  sensorDevicePagination.value.perPage = value;
+}
+
+function recalculateSensorDevicePagination() {
+  const total = filteredSensorDeviceRows.value.length;
+  sensorDevicePagination.value.total = total;
+  const lastPage = Math.max(1, Math.ceil(total / sensorDevicePagination.value.perPage));
+  sensorDevicePagination.value.lastPage = lastPage;
+  if (sensorDevicePagination.value.page > lastPage) {
+    sensorDevicePagination.value.page = lastPage;
+  }
+}
+
+function mapSensorDeviceRow(row: any): SensorDeviceRow {
+  return {
+    id: String(row?.id ?? row?.external_id ?? ""),
+    external_id: row?.external_id ?? null,
+    name: row?.name ?? null,
+    gateway_id: row?.gateway_id ?? null,
+    mac_address: row?.mac_address ?? null,
+    ip_address: row?.ip_address ?? null,
+    type: row?.type ?? null,
+    created_at: row?.created_at ?? null,
+    deleted_at: row?.deleted_at ?? null,
+  };
+}
+
+function resolveGatewayDisplayId(row: SensorDeviceRow) {
+  const gatewayUuid = String(row.gateway_id ?? "");
+  if (!gatewayUuid) return "-";
+  return gatewayExternalIdMap.value[gatewayUuid] ?? gatewayUuid;
+}
+
+function isSoftDeletedSensorDevice(row: SensorDeviceRow) {
+  return Boolean(row.deleted_at);
+}
+
+function getSensorPinKey(row: SensorDeviceRow) {
+  return String(row.external_id ?? "").trim();
+}
+
+function isPinnedSensor(row: SensorDeviceRow) {
+  const sensorId = getSensorPinKey(row);
+  if (!sensorId) return false;
+  return pinnedSensorIds.value.includes(sensorId);
+}
+
+function toggleSensorPin(row: SensorDeviceRow) {
+  const sensorId = getSensorPinKey(row);
+  if (!sensorId) return;
+
+  const next = isPinnedSensor(row)
+    ? []
+    : [sensorId];
+  pinnedSensorIds.value = writePinnedSensorIds(next);
+}
+
+async function fetchSensorDataRows() {
+  if (!import.meta.client || !SERVER_BASE_URL) return;
+
+  isSensorDataLoading.value = true;
   try {
     const params = new URLSearchParams();
     params.set("limit", "500");
     params.set("page", "1");
 
-    if (appliedFilters.value.metric) params.set("sensor_type", appliedFilters.value.metric);
-    if (appliedFilters.value.gateway_id) params.set("gateway_id", appliedFilters.value.gateway_id);
-    if (appliedFilters.value.node_id) params.set("node_id", appliedFilters.value.node_id);
-    if (appliedFilters.value.sensor_id) params.set("sensor_id", appliedFilters.value.sensor_id);
+    if (appliedSensorDataFilters.value.metric) params.set("sensor_type", appliedSensorDataFilters.value.metric);
+    if (appliedSensorDataFilters.value.gateway_id) params.set("gateway_id", appliedSensorDataFilters.value.gateway_id);
+    if (appliedSensorDataFilters.value.node_id) params.set("node_id", appliedSensorDataFilters.value.node_id);
+    if (appliedSensorDataFilters.value.sensor_id) params.set("sensor_id", appliedSensorDataFilters.value.sensor_id);
 
-    const fromIso = fromLocalInputToIso(appliedFilters.value.timestamp_from);
-    const toIso = fromLocalInputToIso(appliedFilters.value.timestamp_to);
+    const fromIso = fromLocalInputToIso(appliedSensorDataFilters.value.timestamp_from);
+    const toIso = fromLocalInputToIso(appliedSensorDataFilters.value.timestamp_to);
     if (fromIso) params.set("timestamp_from", fromIso);
     if (toIso) params.set("timestamp_to", toIso);
 
-    const response = await fetch(`${BASE_URL}/v1/sensors/query?${params.toString()}`, {
+    const response = await fetch(`${SERVER_BASE_URL}/v1/sensors/query?${params.toString()}`, {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -419,45 +824,130 @@ async function fetchRows() {
       throw new Error(`Failed to fetch sensor data (${response.status}).`);
     }
 
-    rows.value = Array.isArray(payload) ? (payload as SensorReadingRow[]) : [];
-    recalculatePagination();
+    sensorDataRows.value = Array.isArray(payload) ? (payload as SensorReadingRow[]) : [];
+    recalculateSensorDataPagination();
   } catch (error) {
     console.error("Failed to fetch sensor readings:", error);
-    rows.value = [];
-    recalculatePagination();
+    sensorDataRows.value = [];
+    recalculateSensorDataPagination();
   } finally {
-    isLoading.value = false;
+    isSensorDataLoading.value = false;
+  }
+}
+
+async function fetchSensorDeviceRows() {
+  if (!import.meta.client || !CONTROL_MODULE_BASE_URL) return;
+
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    sensorDeviceRows.value = [];
+    recalculateSensorDevicePagination();
+    return;
+  }
+
+  isSensorDeviceLoading.value = true;
+  try {
+    const nodesEndpoint = `${CONTROL_MODULE_BASE_URL}/nodes?type=sensor&include=all`;
+    const gatewaysEndpoint = `${CONTROL_MODULE_BASE_URL}/gateways?include=all`;
+    const [rows, gatewayRows] = await Promise.all([
+      fetchAllPages(nodesEndpoint, authorization),
+      fetchAllPages(gatewaysEndpoint, authorization),
+    ]);
+
+    const nextGatewayMap: Record<string, string> = {};
+    gatewayRows.forEach((gateway: any) => {
+      if (gateway?.id) {
+        nextGatewayMap[String(gateway.id)] = String(gateway?.external_id ?? gateway.id);
+      }
+    });
+    gatewayExternalIdMap.value = nextGatewayMap;
+
+    sensorDeviceRows.value = rows
+      .map(mapSensorDeviceRow)
+      .filter((row) => normalizeText(row.type) === "sensor")
+      .sort((a, b) => {
+        const aDeleted = isSoftDeletedSensorDevice(a);
+        const bDeleted = isSoftDeletedSensorDevice(b);
+        if (aDeleted !== bDeleted) {
+          return aDeleted ? 1 : -1;
+        }
+
+        return String(a.external_id ?? "").localeCompare(String(b.external_id ?? ""), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+      });
+
+    recalculateSensorDevicePagination();
+  } catch (error) {
+    console.error("Failed to fetch sensor devices:", error);
+    gatewayExternalIdMap.value = {};
+    sensorDeviceRows.value = [];
+    recalculateSensorDevicePagination();
+  } finally {
+    isSensorDeviceLoading.value = false;
   }
 }
 
 onMounted(() => {
-  fetchRows();
+  pinnedSensorIds.value = writePinnedSensorIds(readPinnedSensorIds().slice(0, 1));
+  fetchSensorDataRows();
+  fetchSensorDeviceRows();
 });
 
 watch(
-  filteredRows,
+  filteredSensorDataRows,
   () => {
-    recalculatePagination();
+    recalculateSensorDataPagination();
   },
   { immediate: true },
 );
 
 watch(
-  () => pagination.value.perPage,
+  filteredSensorDeviceRows,
   () => {
-    pagination.value.page = 1;
-    recalculatePagination();
+    recalculateSensorDevicePagination();
+  },
+  { immediate: true },
+);
+
+watch(
+  () => sensorDataPagination.value.perPage,
+  () => {
+    sensorDataPagination.value.page = 1;
+    recalculateSensorDataPagination();
   },
 );
 
-watch(searchKeyword, () => {
-  pagination.value.page = 1;
+watch(
+  () => sensorDevicePagination.value.perPage,
+  () => {
+    sensorDevicePagination.value.page = 1;
+    recalculateSensorDevicePagination();
+  },
+);
+
+watch(sensorDataSearchKeyword, () => {
+  sensorDataPagination.value.page = 1;
 });
 
+watch(sensorDeviceSearchKeyword, () => {
+  sensorDevicePagination.value.page = 1;
+});
+
+watch(
+  () => authStore.authorizationHeader,
+  (authorization, previousAuthorization) => {
+    if (authorization && authorization !== previousAuthorization) {
+      fetchSensorDeviceRows();
+    }
+  },
+);
 </script>
 
 <style scoped>
-.sensor-data-table-card :deep(table) {
+.sensor-data-table-card :deep(table),
+.sensor-device-table-card :deep(table) {
   table-layout: fixed;
 }
 </style>

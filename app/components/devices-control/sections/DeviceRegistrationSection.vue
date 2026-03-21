@@ -252,7 +252,7 @@
                                 @click.stop="handleNodeEnrollClick(row)"
                               >
                                 <BootstrapIcon name="plus-lg" class="w-3 h-3" />
-                                <span clascs="sr-only">Register</span>
+                                <span class="sr-only">Register</span>
                               </button>
                             </template>
                             <template v-else-if="activeDeviceTab !== 'registered'">

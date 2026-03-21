@@ -16,46 +16,39 @@
 <script setup lang="ts">
 import { computed, ref, type Component } from "vue";
 import {
-  CircleStackIcon,
+  BeakerIcon,
+  ChartPieIcon,
+  ClipboardDocumentCheckIcon,
   CpuChipIcon,
-  ServerStackIcon,
-  Squares2X2Icon,
-  TableCellsIcon,
 } from "@heroicons/vue/24/outline";
 
 import DataCenterSidebar from "@/components/data-center/layouts/DataCenterSidebar.vue";
 import DataOverviewSection from "@/components/data-center/sections/DataOverviewSection.vue";
 import DeviceDataSection from "@/components/data-center/sections/DeviceDataSection.vue";
 import SensorDataSection from "@/components/data-center/sections/SensorDataSection.vue";
-import SystemLogsSection from "@/components/data-center/sections/SystemLogsSection.vue";
-import ReportsSection from "@/components/data-center/sections/ReportsSection.vue";
+import ControlLogSection from "@/components/devices-control/sections/ControlLogSection.vue";
 import type { DataCenterSection } from "@/types/data-center";
 
 const sections: DataCenterSection[] = [
   {
     id: "data-overview",
     label: "Overview",
-    icon: CircleStackIcon,
+    icon: ChartPieIcon,
   },
   {
     id: "device-data",
     label: "Device Data",
-    icon: ServerStackIcon,
+    icon: CpuChipIcon,
   },
   {
     id: "sensor-data",
     label: "Sensor Data",
-    icon: TableCellsIcon,
+    icon: BeakerIcon,
   },
   {
-    id: "system-logs",
-    label: "System Logs",
-    icon: CpuChipIcon,
-  },
-  {
-    id: "reports",
-    label: "Reports",
-    icon: Squares2X2Icon,
+    id: "control-log",
+    label: "Control Log",
+    icon: ClipboardDocumentCheckIcon,
   },
 ];
 
@@ -65,8 +58,7 @@ const sectionComponentMap: Record<string, Component> = {
   "data-overview": DataOverviewSection,
   "device-data": DeviceDataSection,
   "sensor-data": SensorDataSection,
-  "system-logs": SystemLogsSection,
-  reports: ReportsSection,
+  "control-log": ControlLogSection,
 };
 
 const activeSectionComponent = computed<Component | undefined>(
