@@ -401,7 +401,6 @@ import LoadingState from "@/components/common/LoadingState.vue";
 import WorkflowProgressPanel from "@/components/devices-control/sections/WorkflowProgressPanel.vue";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
-import { runWorkflow, stopWorkflow } from "@/composables/Scenario/handleWorkflow";
 import { useMetrics } from "@/composables/useMetrics";
 import {
   canConnectFromNode,
@@ -411,6 +410,19 @@ import {
   validateFlow,
 } from "@/composables/Scenario/flowConstants";
 import { formatControlDefinition } from "@/composables/Scenario/formatControlDefinition";
+import {
+  type ScenarioDefinition,
+  type ScenarioNodeData,
+} from "@/composables/Scenario/scenarioBuilderTypes";
+import {
+  normalizeControlInputType,
+  useScenarioControlUrls,
+} from "@/composables/Scenario/useScenarioControlUrls";
+import {
+  createDefaultStartNode,
+  useScenarioNodePresentation,
+} from "@/composables/Scenario/useScenarioNodePresentation";
+import { useScenarioWorkflowRuntime } from "@/composables/Scenario/useScenarioWorkflowRuntime";
 
 type ScenarioRow = {
   id: string | number;
@@ -419,7 +431,7 @@ type ScenarioRow = {
 
 const props = defineProps<{
   scenario: ScenarioRow;
-  definition?: { nodes?: Node<NodeData>[]; edges?: Edge[] } | null;
+  definition?: ScenarioDefinition;
 }>();
 
 const emit = defineEmits<{
@@ -456,300 +468,38 @@ const palette = [
 ] as const;
 
 type NodeData = {
-  label?: string;
-  kind?: "start" | "action" | "condition" | "end";
-  control_url_id?: string;
-  duration_seconds?: number;
-  action_value?: string | number;
-  metric_key?: string;
-  operator?: string;
-  value?: number;
-};
-
-type ControlUrlOption = {
-  id: string;
-  name?: string | null;
-  url?: string | null;
-  input_type?: string | null;
-  node?: {
-    id?: string | null;
-    external_id?: string | null;
-    name?: string | null;
-    gateway?: {
-      id?: string | null;
-      external_id?: string | null;
-      name?: string | null;
-    } | null;
-  } | null;
+  label?: ScenarioNodeData["label"];
+  kind?: ScenarioNodeData["kind"];
+  control_url_id?: ScenarioNodeData["control_url_id"];
+  duration_seconds?: ScenarioNodeData["duration_seconds"];
+  action_value?: ScenarioNodeData["action_value"];
+  metric_key?: ScenarioNodeData["metric_key"];
+  operator?: ScenarioNodeData["operator"];
+  value?: ScenarioNodeData["value"];
 };
 
 const { addNodes, addEdges, project } = useVueFlow();
 
 const nodes = ref<Node<NodeData>[]>([
-  {
-    id: "start-node",
-    type: "default",
-    position: { x: 100, y: 80 },
-    data: { label: "Start", kind: "start" },
-  },
+  createDefaultStartNode() as Node<NodeData>,
 ]);
 
 const edges = ref<Edge[]>([]);
 const { metrics: metricsRef } = useMetrics();
 const metrics = computed(() => metricsRef.value);
 const metricNodesByKey = ref<Record<string, string[]>>({});
-const controlUrlLabelMap = computed(() => {
-  const map = new Map<string, string>();
-  controlUrlOptions.value.forEach((item) => {
-    if (item?.id) {
-      map.set(item.id, item.name || item.url || item.id);
-    }
-  });
-  return map;
-});
 const authStore = useAuthStore();
+const authorizationHeader = computed(() => authStore.authorizationHeader);
 const controlModuleBase = computed(() =>
   (apiConfig.controlModule || "").replace(/\/$/, ""),
 );
-const controlUrlOptions = ref<ControlUrlOption[]>([]);
-const hasLoadedControlUrls = ref(false);
+const queueStreamBase = computed(() => (apiConfig.server || "").replace(/\/$/, ""));
 const isActionModalOpen = ref(false);
 const isConditionModalOpen = ref(false);
 const isConstantsModalOpen = ref(false);
 const isSavingNode = ref(false);
-const isStoppingFlow = ref(false);
 const isFlowVisible = ref(false);
 const activeNode = ref<Node<NodeData> | null>(null);
-const workflowSteps = ref<
-  {
-    key: string;
-    title: string;
-    status: "wait" | "process" | "finish" | "error";
-    description?: string;
-  }[]
->([]);
-const currentWorkflowStep = ref(0);
-const workflowErrorMessage = ref<string | null>(null);
-const workflowOverallStatus = computed(() => {
-  if (workflowSteps.value.some((step) => step.status === "error")) {
-    return "error";
-  }
-  return "process";
-});
-const queueStream = ref<EventSource | null>(null);
-const queueStreamBase = computed(() => (apiConfig.server || "").replace(/\/$/, ""));
-const currentWorkflowRunId = ref<string | null>(null);
-
-function pushWorkflowStep(step: {
-  title: string;
-  status: "wait" | "process" | "finish" | "error";
-  description?: string;
-}) {
-  workflowSteps.value.push({
-    key: `step-${Date.now()}-${workflowSteps.value.length}`,
-    title: step.title,
-    status: step.status,
-    description: step.description,
-  });
-  if (workflowSteps.value.length > 80) {
-    workflowSteps.value.splice(0, workflowSteps.value.length - 80);
-  }
-  currentWorkflowStep.value = Math.max(0, workflowSteps.value.length - 1);
-}
-
-function resetWorkflowSteps() {
-  workflowSteps.value = [];
-  pushWorkflowStep({
-    title: "Command Tracking",
-    status: "process",
-    description: "Listening for real-time command status updates.",
-  });
-  currentWorkflowStep.value = 0;
-  workflowErrorMessage.value = null;
-}
-
-function resolvePayloadRunId(payload: any) {
-  const runId = payload?.run_id ?? payload?.job?.run_id ?? null;
-  const text = String(runId ?? "").trim();
-  return text || null;
-}
-
-function resolvePayloadWorkflowId(payload: any) {
-  const workflowId = payload?.workflow_id ?? payload?.job?.workflow_id ?? null;
-  const text = String(workflowId ?? "").trim();
-  return text || null;
-}
-
-function shouldHandleWorkflowPayload(payload: any) {
-  const payloadWorkflowId = resolvePayloadWorkflowId(payload);
-  const activeWorkflowId = String(props.scenario.id ?? "").trim();
-  if (payloadWorkflowId && activeWorkflowId && payloadWorkflowId !== activeWorkflowId) {
-    return false;
-  }
-
-  const activeRunId = String(currentWorkflowRunId.value ?? "").trim();
-  if (!activeRunId) {
-    return true;
-  }
-
-  const payloadRunId = resolvePayloadRunId(payload);
-  if (!payloadRunId) {
-    return !payloadWorkflowId || payloadWorkflowId === activeWorkflowId;
-  }
-  return payloadRunId === activeRunId;
-}
-
-function formatStepTime(value?: string | null) {
-  if (!value) return "--:--:--";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "--:--:--";
-  return date.toLocaleTimeString("vi-VN", {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
-function handleQueueStatus(payload: any) {
-  if (!shouldHandleWorkflowPayload(payload)) {
-    return;
-  }
-  const status = String(payload?.status ?? "");
-  const job = payload?.job ?? {};
-  const timeText = formatStepTime(payload?.ts);
-  const controlTarget = [job?.gateway_id, job?.node_id, job?.device]
-    .filter(Boolean)
-    .join(" / ");
-  const stateRaw = String(job?.state ?? "").trim().toUpperCase();
-  const stateText = stateRaw || "RUN";
-  const durationSeconds =
-    Number.isFinite(Number(job?.delayMs)) && Number(job?.delayMs) > 0
-      ? Math.round(Number(job.delayMs) / 1000)
-      : null;
-  const commandMeta =
-    durationSeconds && durationSeconds > 0
-      ? `(${stateText}, ${durationSeconds}s)`
-      : `(${stateText})`;
-  const targetText = controlTarget
-    ? `${controlTarget} ${commandMeta}`
-    : `Control command ${commandMeta}`;
-  switch (status) {
-    case "dispatched":
-      pushWorkflowStep({
-        title: `Command Started (${timeText})`,
-        status: "process",
-        description: targetText,
-      });
-      break;
-    case "completed":
-      pushWorkflowStep({
-        title: `Command Finished (${timeText})`,
-        status: "finish",
-        description: targetText,
-      });
-      break;
-    case "failed":
-      workflowErrorMessage.value = payload?.error ?? "Command failed.";
-      pushWorkflowStep({
-        title: `Command Finished (${timeText})`,
-        status: "error",
-        description: `${targetText} - failed: ${workflowErrorMessage.value}`,
-      });
-      break;
-    default:
-      break;
-  }
-}
-
-function handleWorkflowStatus(payload: any) {
-  if (!shouldHandleWorkflowPayload(payload)) {
-    return;
-  }
-  const status = String(payload?.status ?? "").trim();
-  const timeText = formatStepTime(payload?.ts);
-  const runId = resolvePayloadRunId(payload);
-  if (runId) {
-    currentWorkflowRunId.value = runId;
-  }
-
-  switch (status) {
-    case "workflow_started":
-      emitRuntimeState("running");
-      pushWorkflowStep({
-        title: `Workflow Started (${timeText})`,
-        status: "finish",
-        description: "Workflow execution has started.",
-      });
-      break;
-    case "workflow_completed":
-      emitRuntimeState("idle");
-      pushWorkflowStep({
-        title: `Workflow Completed (${timeText})`,
-        status: "finish",
-        description: "Workflow execution completed.",
-      });
-      break;
-    case "workflow_stopped":
-      emitRuntimeState("idle");
-      pushWorkflowStep({
-        title: `Workflow Stopped (${timeText})`,
-        status: "finish",
-        description: "Workflow was stopped.",
-      });
-      break;
-    case "workflow_failed":
-      emitRuntimeState("error");
-      workflowErrorMessage.value = payload?.error ?? "Workflow failed.";
-      pushWorkflowStep({
-        title: `Workflow Failed (${timeText})`,
-        status: "error",
-        description: workflowErrorMessage.value,
-      });
-      break;
-    default:
-      break;
-  }
-}
-
-function disconnectQueueStream() {
-  if (queueStream.value) {
-    queueStream.value.close();
-    queueStream.value = null;
-  }
-}
-
-function connectQueueStream() {
-  if (!import.meta.client) return;
-  if (!queueStreamBase.value) return;
-  if (!authStore.authorizationHeader) return;
-  disconnectQueueStream();
-  const endpoint = `${queueStreamBase.value}/events/control-queue`;
-  const source = new EventSource(endpoint);
-  source.addEventListener("ready", () => {
-    pushWorkflowStep({
-      title: "Tracking Connected",
-      status: "finish",
-      description: "Command status will update automatically.",
-    });
-  });
-  source.addEventListener("control-queue-status", (event) => {
-    const payload = JSON.parse((event as MessageEvent).data ?? "{}");
-    handleQueueStatus(payload);
-  });
-  source.addEventListener("workflow-status", (event) => {
-    const payload = JSON.parse((event as MessageEvent).data ?? "{}");
-    handleWorkflowStatus(payload);
-  });
-  source.onerror = () => {
-    pushWorkflowStep({
-      title: "Tracking Disconnected",
-      status: "error",
-      description: "Unable to receive new status from server.",
-    });
-  };
-  queueStream.value = source;
-}
 const actionForm = ref({
   control_url_id: "",
   duration_seconds: 5,
@@ -763,23 +513,10 @@ const conditionForm = ref({
 const isMetricNodesLoading = ref(false);
 const lastActionInputKind = ref<string | null>(null);
 const isCanvasDirty = ref(false);
-const workflowRuntimeState = ref<"idle" | "queued" | "running" | "stopping" | "error">("idle");
 const runDevicePreparationMode = ref<"turn_off_all" | "keep_current">("turn_off_all");
 const shouldTurnOffDevicesBeforeRun = computed(
   () => runDevicePreparationMode.value === "turn_off_all",
 );
-const isFlowActive = computed(
-  () =>
-    workflowRuntimeState.value === "queued" ||
-    workflowRuntimeState.value === "running" ||
-    workflowRuntimeState.value === "stopping",
-);
-const runButtonLabel = computed(() => {
-  if (workflowRuntimeState.value === "queued") return "Queued...";
-  if (workflowRuntimeState.value === "running") return "Running...";
-  if (workflowRuntimeState.value === "stopping") return "Stopping...";
-  return "Run";
-});
 
 function markCanvasAsDirty() {
   isCanvasDirty.value = true;
@@ -789,28 +526,53 @@ function markCanvasAsSaved() {
   isCanvasDirty.value = false;
 }
 
-function emitRuntimeState(state: "idle" | "queued" | "running" | "stopping" | "error") {
-  workflowRuntimeState.value = state;
-  emit("runtime-state", {
-    workflowId: String(props.scenario.id),
-    state,
-    runId: currentWorkflowRunId.value,
-  });
-}
+const {
+  controlUrlOptions,
+  fetchControlUrls,
+  hasLoadedControlUrls,
+  resolveControlGatewayId,
+  resolveControlInputTypeById,
+  resolveControlNodeId,
+} = useScenarioControlUrls({
+  controlModuleBase,
+  authorizationHeader,
+});
 
-function normalizeControlInputType(value?: string | null) {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (!normalized) return null;
-  if (normalized.includes("analog")) return "analog";
-  if (normalized.includes("digital") || normalized.includes("relay")) return "digital";
-  return normalized;
-}
+const {
+  applyDefinition,
+  hasMissingActionNodes,
+  updateNodeLabel,
+  validateConditionBranches,
+} = useScenarioNodePresentation({
+  controlUrlOptions,
+  hasLoadedControlUrls,
+  metrics,
+  nodes: nodes as any,
+  edges,
+  onSaved: markCanvasAsSaved,
+});
 
-function resolveControlInputTypeById(controlUrlId?: string | null) {
-  if (!controlUrlId) return null;
-  const selected = controlUrlOptions.value.find((item) => item.id === controlUrlId);
-  return normalizeControlInputType(selected?.input_type);
-}
+const {
+  connectQueueStream,
+  currentWorkflowStep,
+  disconnectQueueStream,
+  isFlowActive,
+  isStoppingFlow,
+  resetWorkflowSteps,
+  runButtonLabel,
+  runFlow,
+  stopFlow,
+  workflowErrorMessage,
+  workflowOverallStatus,
+  workflowSteps,
+} = useScenarioWorkflowRuntime({
+  authorizationHeader,
+  hasMissingActionNodes,
+  queueStreamBase,
+  scenarioId: computed(() => props.scenario.id),
+  shouldTurnOffDevicesBeforeRun,
+  onRuntimeStateChange: (payload) => emit("runtime-state", payload),
+});
 
 const selectedControlUrl = computed(() =>
   controlUrlOptions.value.find((item) => item.id === actionForm.value.control_url_id),
@@ -846,14 +608,6 @@ function resetActionValueForInputType(kind: string | null) {
   }
   actionForm.value.action_value =
     actionForm.value.action_value === "" ? "on" : actionForm.value.action_value;
-}
-
-function resolveControlNodeId(item: ControlUrlOption) {
-  return item?.node?.external_id || item?.node?.id || "—";
-}
-
-function resolveControlGatewayId(item: ControlUrlOption) {
-  return item?.node?.gateway?.external_id || item?.node?.gateway?.id || "—";
 }
 
 function isMetricSelected(key: string) {
@@ -993,14 +747,7 @@ function handleEdgesChange(changes: EdgeChange[]) {
 }
 
 function resetFlow() {
-  nodes.value = [
-    {
-      id: "start-node",
-      type: "default",
-      position: { x: 100, y: 80 },
-      data: { label: "Start", kind: "start" },
-    },
-  ];
+  nodes.value = [createDefaultStartNode() as Node<NodeData>];
   edges.value = [];
   markCanvasAsDirty();
 }
@@ -1023,68 +770,6 @@ function saveFlow() {
     controlDefinition,
   });
   markCanvasAsSaved();
-}
-
-async function runFlow() {
-  if (!import.meta.client) return;
-  if (isFlowActive.value) return;
-  if (hasMissingActionNodes.value) {
-    message.error("Cannot run because some actions no longer exist.");
-    return;
-  }
-  const authorization = authStore.authorizationHeader;
-  if (!authorization) {
-    message.error("Missing authorization.");
-    return;
-  }
-  resetWorkflowSteps();
-  currentWorkflowRunId.value = null;
-  emitRuntimeState("queued");
-  message.info("Scenario is starting...");
-  try {
-    const result = await runWorkflow(props.scenario.id, authorization, {
-      turn_off_devices_before_run: shouldTurnOffDevicesBeforeRun.value,
-    });
-    const runId = String(result?.data?.run_id ?? result?.run_id ?? "").trim();
-    currentWorkflowRunId.value = runId || null;
-    pushWorkflowStep({
-      title: "Workflow Queued",
-      status: "finish",
-      description: shouldTurnOffDevicesBeforeRun.value
-        ? "Workflow is queued (devices will be turned off first)."
-        : "Workflow is queued (keep current device states).",
-    });
-    message.success("Scenario queued successfully.");
-  } catch (error: any) {
-    emitRuntimeState("error");
-    workflowErrorMessage.value = error?.message ?? "Failed to run scenario.";
-    message.error(workflowErrorMessage.value);
-  } finally {
-    isStoppingFlow.value = false;
-  }
-}
-
-async function stopFlow() {
-  if (!import.meta.client) return;
-  if (isStoppingFlow.value) return;
-  const authorization = authStore.authorizationHeader;
-  if (!authorization) {
-    message.error("Missing authorization.");
-    return;
-  }
-  isStoppingFlow.value = true;
-  emitRuntimeState("stopping");
-  try {
-    await stopWorkflow(props.scenario.id, authorization);
-    currentWorkflowRunId.value = null;
-    emitRuntimeState("idle");
-    message.success("Scenario stopped.");
-  } catch (error: any) {
-    emitRuntimeState("error");
-    message.error(error?.message ?? "Failed to stop scenario.");
-  } finally {
-    isStoppingFlow.value = false;
-  }
 }
 
 function handleNodeClick(event: { node: Node<NodeData> }) {
@@ -1146,82 +831,7 @@ function closeConstantsModal() {
   isConstantsModalOpen.value = false;
 }
 
-function updateNodeLabel(node: Node<NodeData>) {
-  if (node.data?.kind === "action") {
-    const controlUrlId = node.data?.control_url_id ?? "";
-    const isMissing = isMissingControlUrl(controlUrlId);
-    const selected = controlUrlOptions.value.find((item) => item.id === controlUrlId);
-    const name = selected?.name || selected?.url || "Action";
-    const duration = node.data?.duration_seconds ?? 0;
-    const inputKind = normalizeControlInputType(selected?.input_type);
-    const actionValue = node.data?.action_value;
-    let label = name;
-    if (!isMissing) {
-      if (inputKind === "analog") {
-        const valueText =
-          typeof actionValue === "number" && Number.isFinite(actionValue)
-            ? actionValue
-            : "0";
-        label = `${name} (${valueText})`;
-      } else if (inputKind === "digital") {
-        const state = actionValue === "off" ? "OFF" : "ON";
-        label =
-          state === "ON" && duration > 0
-            ? `${name} (${state}, ${duration}s)`
-            : `${name} (${state})`;
-      } else {
-        label = `${name} (${duration}s)`;
-      }
-    }
-    node.data = {
-      ...(node.data ?? {}),
-      label: isMissing ? "Action not found" : label,
-    };
-    node.class = isMissing ? "scenario-node--missing" : undefined;
-    return;
-  }
-  if (node.data?.kind === "condition") {
-    const metric = metrics.value.find((item) => item.key === node.data?.metric_key);
-    const metricName = metric?.title ?? node.data?.metric_key ?? "Metric";
-    const operator = node.data?.operator ?? ">";
-    const value = node.data?.value ?? 0;
-    node.data = {
-      ...(node.data ?? {}),
-      label: `${metricName} ${operator} ${value}`,
-    };
-    return;
-  }
-}
-
 // Device status SSE logic removed per UI-only step tracking requirements.
-
-function applyDefinition(definition?: { nodes?: Node<NodeData>[]; edges?: Edge[] } | null) {
-  if (!definition || !Array.isArray(definition.nodes)) {
-    return;
-  }
-  if (!definition.nodes.length) {
-    nodes.value = [
-      {
-        id: "start-node",
-        type: "default",
-        position: { x: 100, y: 80 },
-        data: { label: "Start", kind: "start" },
-      },
-    ];
-    edges.value = [];
-    markCanvasAsSaved();
-    return;
-  }
-  nodes.value = definition.nodes.map((node) => ({
-    ...node,
-    type: node.type || "default",
-  }));
-  edges.value = Array.isArray(definition.edges)
-    ? definition.edges.map((edge) => ({ ...edge }))
-    : [];
-  nodes.value.forEach((node) => updateNodeLabel(node));
-  markCanvasAsSaved();
-}
 
 function saveActionNode() {
   if (isSavingNode.value) return;
@@ -1286,38 +896,6 @@ function saveConditionNode() {
   activeNode.value = null;
 }
 
-
-async function fetchControlUrls() {
-  if (!controlModuleBase.value) return;
-  const authorization = authStore.authorizationHeader;
-  if (!authorization) {
-    message.error("Missing authorization.");
-    return;
-  }
-  try {
-    const endpoint = `${controlModuleBase.value}/control-urls?per_page=200&include=gateway`;
-    const response = await fetch(endpoint, {
-      headers: {
-        Authorization: authorization,
-        Accept: "application/json",
-      },
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(payload?.message ?? "Failed to load control urls.");
-    }
-    const rows = Array.isArray(payload?.data)
-      ? payload.data
-      : Array.isArray(payload)
-        ? payload
-        : [];
-    controlUrlOptions.value = rows as ControlUrlOption[];
-  } catch (error: any) {
-    message.error(error?.message ?? "Failed to load control urls.");
-  } finally {
-    hasLoadedControlUrls.value = true;
-  }
-}
 
 async function fetchMetricNodes() {
   const base = (apiConfig.server || "").replace(/\/$/, "");
@@ -1398,7 +976,7 @@ watch(hasLoadedControlUrls, () => {
 });
 
 watch(
-  () => authStore.authorizationHeader,
+  authorizationHeader,
   (authorization) => {
     if (!authorization) {
       disconnectQueueStream();
@@ -1409,43 +987,6 @@ watch(
 );
 
 const hasHydrated = ref(false);
-
-function isMissingControlUrl(controlUrlId?: string | null) {
-  if (!hasLoadedControlUrls.value) return false;
-  if (!controlUrlId) return false;
-  return !controlUrlOptions.value.some((item) => item?.id === controlUrlId);
-}
-
-const hasMissingActionNodes = computed(() =>
-  nodes.value.some(
-    (node) =>
-      node.data?.kind === "action" && isMissingControlUrl(node.data?.control_url_id),
-  ),
-);
-
-function validateConditionBranches() {
-  const conditionNodes = nodes.value.filter((node) => node.data?.kind === "condition");
-  if (!conditionNodes.length) {
-    return { ok: true };
-  }
-
-  for (const node of conditionNodes) {
-    const outgoing = edges.value.filter((edge) => edge.source === node.id);
-    const branches = new Set(
-      outgoing
-        .map((edge) => edge.data?.branch ?? edge.label)
-        .filter((value) => value === "true" || value === "false"),
-    );
-    if (!branches.has("true") || !branches.has("false")) {
-      return {
-        ok: false,
-        message: "Each Condition node must have both True and False branches.",
-      };
-    }
-  }
-
-  return { ok: true };
-}
 </script>
 
 <style scoped>
@@ -1466,3 +1007,4 @@ function validateConditionBranches() {
 }
 
 </style>
+
