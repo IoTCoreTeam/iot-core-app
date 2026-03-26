@@ -1,6 +1,48 @@
 <template>
   <section class="min-h-screen">
     <div class="pt-4 px-0">
+      <div v-if="activeScenarioConfig" class="mb-4 w-full">
+        <div v-if="metrics.length" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <article
+            v-for="metric in metrics"
+            :key="metric.key"
+            class="relative overflow-hidden rounded border border-gray-200 bg-white p-4 transition-opacity duration-300"
+          >
+            <div class="flex items-center gap-3">
+              <div class="flex h-9 w-9 items-center justify-center rounded-md bg-gray-100 text-gray-700">
+                <BootstrapIcon :name="metric.icon as any" class="h-3.5 w-3.5" />
+              </div>
+              <div class="min-w-0">
+                <p class="truncate text-[10px] uppercase tracking-wide text-gray-500">
+                  {{ metric.subtitle }}
+                </p>
+                <h4 class="truncate text-sm font-semibold leading-tight text-gray-800">
+                  {{ metric.title }}
+                </h4>
+              </div>
+            </div>
+
+            <div class="mt-3 flex items-baseline gap-2">
+              <span class="text-2xl font-bold text-gray-900">
+                {{ formatMetricValue(metric.value) }}
+              </span>
+              <span class="text-sm text-gray-500">
+                {{ metric.unit }}
+              </span>
+            </div>
+            <div class="mt-3 flex items-center justify-between text-[10px] text-gray-500">
+              <span>Sensor: {{ metric.key || "-" }}</span>
+              <span>{{ formatMetricTimestamp() }}</span>
+            </div>
+          </article>
+        </div>
+        <div
+          v-else-if="isMetricsLoading"
+          class="rounded border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500"
+        >
+          Loading metrics...
+        </div>
+      </div>
       <ScenarioBuilderSection
         v-if="activeScenarioConfig"
         :key="`builder-${activeScenarioConfig.id}`"
@@ -296,6 +338,7 @@ import {
   stopWorkflow,
   updateWorkflow,
 } from "@/composables/Scenario/handleWorkflow";
+import { useMetrics } from "@/composables/useMetrics";
 
 defineProps<{
   section: Section;
@@ -321,6 +364,8 @@ type ScenarioFilterState = {
 const title = "Scenarios";
 const loadingText = "Loading scenarios...";
 const emptyText = "No scenarios found.";
+const { metrics: metricsRef, isLoading: isMetricsLoading } = useMetrics();
+const metrics = computed(() => metricsRef.value);
 
 const scenarioTableColumns = [
   "Name",
@@ -719,6 +764,20 @@ function recalculateScenarioPagination() {
 
 function formatDateTime(value?: string | null) {
   return formatIotDateTime(value, { fallback: "-" });
+}
+
+function formatMetricValue(value: number | string | null | undefined) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Number(value.toFixed(1)).toString();
+  }
+  if (value === null || value === undefined || value === "") {
+    return "--";
+  }
+  return String(value);
+}
+
+function formatMetricTimestamp() {
+  return formatIotDateTime(new Date().toISOString(), { fallback: "-" });
 }
 
 function resetScenarioForm() {

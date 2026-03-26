@@ -135,12 +135,24 @@ export async function deleteWorkflow(id: string | number, authorization: string 
   return result;
 }
 
-export async function runWorkflow(id: string | number, authorization: string | null) {
+export async function runWorkflow(
+  id: string | number,
+  authorization: string | null,
+  options?: {
+    turn_off_devices_before_run?: boolean;
+  },
+) {
   const base = getBaseUrl();
   if (!base) throw new Error("API base URL is not configured.");
   const response = await fetch(`${base}/workflows/${id}/run`, {
     method: "POST",
-    headers: buildHeaders(authorization),
+    headers: {
+      ...buildHeaders(authorization),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      turn_off_devices_before_run: options?.turn_off_devices_before_run ?? true,
+    }),
   });
   const result = await response.json().catch(() => null);
   if (!response.ok || result?.success === false) {

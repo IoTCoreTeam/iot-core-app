@@ -51,16 +51,25 @@
             <BootstrapIcon name="stop-fill" class="h-3 w-3" />
             {{ isStoppingFlow ? "Stopping..." : "Stop" }}
           </button>
-          <button
-            v-else
-            type="button"
-            class="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="isFlowActive || hasMissingActionNodes"
-            @click="runFlow"
-          >
-            <BootstrapIcon name="play-fill" class="h-3 w-3" />
-            {{ runButtonLabel }}
-          </button>
+          <template v-else>
+            <select
+              v-model="runDevicePreparationMode"
+              class="h-7 rounded border border-gray-300 bg-white px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="isFlowActive"
+            >
+              <option value="turn_off_all">Turn off all devices first</option>
+              <option value="keep_current">Keep current device states</option>
+            </select>
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="isFlowActive || hasMissingActionNodes"
+              @click="runFlow"
+            >
+              <BootstrapIcon name="play-fill" class="h-3 w-3" />
+              {{ runButtonLabel }}
+            </button>
+          </template>
         </div>
       </div>
       <div class="mt-3 w-full">
@@ -755,6 +764,10 @@ const isMetricNodesLoading = ref(false);
 const lastActionInputKind = ref<string | null>(null);
 const isCanvasDirty = ref(false);
 const workflowRuntimeState = ref<"idle" | "queued" | "running" | "stopping" | "error">("idle");
+const runDevicePreparationMode = ref<"turn_off_all" | "keep_current">("turn_off_all");
+const shouldTurnOffDevicesBeforeRun = computed(
+  () => runDevicePreparationMode.value === "turn_off_all",
+);
 const isFlowActive = computed(
   () =>
     workflowRuntimeState.value === "queued" ||
@@ -1029,13 +1042,17 @@ async function runFlow() {
   emitRuntimeState("queued");
   message.info("Scenario is starting...");
   try {
-    const result = await runWorkflow(props.scenario.id, authorization);
+    const result = await runWorkflow(props.scenario.id, authorization, {
+      turn_off_devices_before_run: shouldTurnOffDevicesBeforeRun.value,
+    });
     const runId = String(result?.data?.run_id ?? result?.run_id ?? "").trim();
     currentWorkflowRunId.value = runId || null;
     pushWorkflowStep({
       title: "Workflow Queued",
       status: "finish",
-      description: "Workflow is queued.",
+      description: shouldTurnOffDevicesBeforeRun.value
+        ? "Workflow is queued (devices will be turned off first)."
+        : "Workflow is queued (keep current device states).",
     });
     message.success("Scenario queued successfully.");
   } catch (error: any) {
