@@ -12,6 +12,11 @@ type UseCommandSetupTabOptions = {
   includeSoftDeleted?: boolean;
 };
 
+type GeneratedField = {
+  key: string;
+  valueText: string;
+};
+
 export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
   const authStore = useAuthStore();
   const commandSetupRows = ref<DeviceRow[]>([]);
@@ -22,6 +27,9 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
   const commandSetupForm = ref({
     control_url_id: "",
     name: "",
+    commandInputType: "generated" as "generated" | "raw",
+    commandMode: "digital" as "digital" | "analog",
+    generatedFields: [{ key: "", valueText: "" }] as GeneratedField[],
     commandText: "",
   });
   const deletingCommandSetupMap = ref<Record<string, boolean>>({});
@@ -41,10 +49,7 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
 
   function mapCommandSetupRow(row: any): DeviceRow {
     const id = row?.id ? String(row.id) : "";
-    const type =
-      row?.type === "analog_signal" || row?.type === "json_command"
-        ? row.type
-        : null;
+    const type = "json_command" as const;
     const controlUrl = row?.control_url ?? null;
     const controlUrlId =
       row?.control_url_id
@@ -52,41 +57,17 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
         : controlUrl?.id
           ? String(controlUrl.id)
           : "";
-    const commandPayload = row?.command ?? null;
+    const commandPayload = row?.command ?? row?.command_payload ?? null;
     const commandText =
       commandPayload === null || commandPayload === undefined
         ? null
         : typeof commandPayload === "string"
           ? commandPayload
           : JSON.stringify(commandPayload);
-    const analogDetail =
-      type === "analog_signal"
-        ? {
-            minValue: row?.min_value ?? null,
-            maxValue: row?.max_value ?? null,
-            unit: row?.unit ?? null,
-            signalType: row?.signal_type ?? null,
-            resolutionBits:
-              row?.resolution_bits !== null && row?.resolution_bits !== undefined
-                ? Number(row.resolution_bits)
-                : null,
-          }
-        : null;
-    const fallbackCommandText = analogDetail
-      ? JSON.stringify({
-          min_value: analogDetail.minValue,
-          max_value: analogDetail.maxValue,
-          unit: analogDetail.unit,
-          signal_type: analogDetail.signalType,
-          resolution_bits: analogDetail.resolutionBits,
-        })
-      : null;
 
     const deletedAt =
       row?.deleted_at ??
       controlUrl?.deleted_at ??
-      controlUrl?.node_deleted_at ??
-      controlUrl?.gateway_deleted_at ??
       null;
 
     return {
@@ -96,6 +77,10 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
       registered: true,
       controlUrlId,
       nodeId:
+        row?.node_extended_id ??
+        row?.node_external_id ??
+        controlUrl?.node?.extended_id ??
+        controlUrl?.node?.external_id ??
         controlUrl?.node_external_id ??
         controlUrl?.node_id ??
         controlUrl?.controller_id ??
@@ -104,7 +89,7 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
       inputType: controlUrl?.input_type ?? null,
       url: controlUrl?.url ?? null,
       gatewayId: controlUrl?.gateway_external_id ?? null,
-      command: commandText ?? fallbackCommandText,
+      command: commandText,
       commandType: type,
       createdAt: row?.created_at ?? null,
       updatedAt: row?.updated_at ?? null,
@@ -112,7 +97,14 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
       controlUrlMeta: {
         id: controlUrl?.id ? String(controlUrl.id) : controlUrlId || null,
         nodeId: controlUrl?.node_id ? String(controlUrl.node_id) : null,
-        nodeExternalId: controlUrl?.node_external_id ? String(controlUrl.node_external_id) : null,
+        nodeExternalId:
+          controlUrl?.node?.extended_id
+            ? String(controlUrl.node.extended_id)
+            : controlUrl?.node?.external_id
+              ? String(controlUrl.node.external_id)
+              : controlUrl?.node_external_id
+                ? String(controlUrl.node_external_id)
+                : null,
         gatewayId: controlUrl?.gateway_external_id ? String(controlUrl.gateway_external_id) : null,
         controllerId: controlUrl?.controller_id ? String(controlUrl.controller_id) : null,
         name: controlUrl?.name ? String(controlUrl.name) : null,
@@ -123,11 +115,6 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
         type,
         name: row?.name ?? null,
         command: commandPayload,
-        minValue: analogDetail?.minValue ?? null,
-        maxValue: analogDetail?.maxValue ?? null,
-        unit: analogDetail?.unit ?? null,
-        signalType: analogDetail?.signalType ?? null,
-        resolutionBits: analogDetail?.resolutionBits ?? null,
       },
     };
   }
@@ -170,18 +157,16 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
 
     return withLoading(async () => {
       try {
-        const includeParams = options.includeSoftDeleted ? "?include=all" : "";
+        const listEndpoint = options.includeSoftDeleted
+          ? `${base}/commands?type=json_command&include=all`
+          : `${base}/control-json-commands`;
         const commandSetupPayload = await fetchAllPages(
-          `${base}/commands${includeParams}`,
+          listEndpoint,
           authorization,
         );
-        const rows = options.includeSoftDeleted
-          ? commandSetupPayload
-          : commandSetupPayload.filter(
-              (row: any) =>
-                row?.deleted_at == null &&
-                (!row?.control_url || row?.control_url?.deleted_at == null),
-            );
+        const rows = commandSetupPayload.filter(
+          (row: any) => (row?.type ?? "json_command") === "json_command",
+        );
         commandSetupRows.value = rows.map(mapCommandSetupRow).sort(sortByLatestThenId);
       } catch (error: any) {
         console.error("Failed to load command setups", error);
@@ -212,6 +197,12 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
         authorization,
       );
       controlUrlOptions.value = controlUrlPayload
+        .filter(
+          (row: any) =>
+            String(row?.input_type ?? "")
+              .trim()
+              .toLowerCase() === "json_command",
+        )
         .map((row: any) => {
           const id = row?.id ? String(row.id) : "";
           const name = row?.name ? String(row.name) : `Control URL ${id}`;
@@ -232,6 +223,9 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
     commandSetupForm.value = {
       control_url_id: "",
       name: "",
+      commandInputType: "generated",
+      commandMode: "digital",
+      generatedFields: [{ key: "", valueText: "" }],
       commandText: "",
     };
     editingCommandSetupId.value = null;
@@ -244,8 +238,107 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
 
   async function openCommandSetupModal() {
     resetCommandSetupForm();
+    syncGeneratedCommandText();
     await loadControlUrlOptions();
+    if (!controlUrlOptions.value.length) {
+      message.warning("No control URL with input_type=json_command found.");
+    }
     isCommandSetupModalOpen.value = true;
+  }
+
+  function parseGeneratedFieldValue(valueText: string): unknown {
+    const normalized = valueText.trim();
+    if (normalized === "") return "";
+
+    const lowered = normalized.toLowerCase();
+    if (lowered === "true") return true;
+    if (lowered === "false") return false;
+    if (lowered === "null") return null;
+
+    const numberValue = Number(normalized);
+    if (!Number.isNaN(numberValue)) {
+      return Number.isInteger(numberValue) ? Math.trunc(numberValue) : numberValue;
+    }
+
+    if (
+      (normalized.startsWith("{") && normalized.endsWith("}")) ||
+      (normalized.startsWith("[") && normalized.endsWith("]"))
+    ) {
+      try {
+        return JSON.parse(normalized);
+      } catch {
+        // keep string literal
+      }
+    }
+
+    return normalized;
+  }
+
+  function stringifyGeneratedFieldValue(value: unknown): string {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  function buildGeneratedCommandObject(): Record<string, unknown> {
+    const command: Record<string, unknown> = {
+      mode: commandSetupForm.value.commandMode,
+    };
+
+    for (const field of commandSetupForm.value.generatedFields) {
+      const fieldKey = field.key.trim();
+      if (fieldKey === "" || fieldKey === "mode" || fieldKey === "value") {
+        continue;
+      }
+      command[fieldKey] = parseGeneratedFieldValue(field.valueText);
+    }
+
+    return command;
+  }
+
+  function syncGeneratedCommandText() {
+    commandSetupForm.value.commandText = JSON.stringify(
+      buildGeneratedCommandObject(),
+      null,
+      2,
+    );
+  }
+
+  function handleGeneratedModeChanged() {
+    syncGeneratedCommandText();
+  }
+
+  function handleGeneratedDraftChanged() {
+    syncGeneratedCommandText();
+  }
+
+  function addGeneratedFieldInput() {
+    commandSetupForm.value.generatedFields.push({ key: "", valueText: "" });
+  }
+
+  function removeGeneratedFieldInput(index: number) {
+    if (
+      index < 0 ||
+      index >= commandSetupForm.value.generatedFields.length
+    ) {
+      return;
+    }
+    commandSetupForm.value.generatedFields.splice(index, 1);
+    if (!commandSetupForm.value.generatedFields.length) {
+      commandSetupForm.value.generatedFields.push({ key: "", valueText: "" });
+    }
+    syncGeneratedCommandText();
+  }
+
+  function handleCommandInputTypeChanged() {
+    if (commandSetupForm.value.commandInputType === "generated") {
+      syncGeneratedCommandText();
+    }
   }
 
   function serializeCommandForForm(value: unknown) {
@@ -274,11 +367,40 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
 
     await loadControlUrlOptions();
     editingCommandSetupId.value = row.id;
+    const sourceCommand = row.commandDetail?.command;
+    const serializedCommand = serializeCommandForForm(sourceCommand ?? row.command);
+    const isObjectCommand =
+      sourceCommand !== null &&
+      typeof sourceCommand === "object" &&
+      !Array.isArray(sourceCommand);
+    const commandMode = isObjectCommand
+      ? String((sourceCommand as Record<string, unknown>).mode ?? "")
+          .trim()
+          .toLowerCase()
+      : "";
+    const canUseGenerated = isObjectCommand && (commandMode === "digital" || commandMode === "analog");
+    const customEntries = isObjectCommand
+      ? Object.entries(sourceCommand as Record<string, unknown>).filter(
+          ([key]) => key !== "mode" && key !== "value",
+        )
+      : [];
+
     commandSetupForm.value = {
       control_url_id: row.controlUrlId ?? row.controlUrlMeta?.id ?? "",
       name: row.name ?? "",
-      commandText: serializeCommandForForm(row.commandDetail?.command ?? row.command),
+      commandInputType: canUseGenerated ? "generated" : "raw",
+      commandMode: commandMode === "analog" ? "analog" : "digital",
+      generatedFields: customEntries.length
+        ? customEntries.map(([key, value]) => ({
+            key,
+            valueText: stringifyGeneratedFieldValue(value),
+          }))
+        : [{ key: "", valueText: "" }],
+      commandText: serializedCommand,
     };
+    if (canUseGenerated) {
+      syncGeneratedCommandText();
+    }
     isCommandSetupModalOpen.value = true;
   }
 
@@ -302,12 +424,37 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
       message.warning("Please input command name.");
       return;
     }
+    let parsedCommand: Record<string, unknown>;
+    if (commandSetupForm.value.commandInputType === "generated") {
+      parsedCommand = buildGeneratedCommandObject();
+      syncGeneratedCommandText();
+    } else {
+      if (!commandSetupForm.value.commandText.trim()) {
+        message.warning("Please input command JSON.");
+        return;
+      }
 
-    let parsedCommand: any = commandSetupForm.value.commandText;
-    try {
-      parsedCommand = JSON.parse(commandSetupForm.value.commandText);
-    } catch {
-      // Keep raw value when text is not valid JSON.
+      let parsedJson: unknown;
+      try {
+        parsedJson = JSON.parse(commandSetupForm.value.commandText);
+      } catch {
+        message.warning("Command must be valid JSON.");
+        return;
+      }
+      if (
+        parsedJson === null ||
+        typeof parsedJson !== "object" ||
+        Array.isArray(parsedJson)
+      ) {
+        message.warning("Command must be a JSON object.");
+        return;
+      }
+
+      const mode = commandSetupForm.value.commandMode;
+      parsedCommand = {
+        ...(parsedJson as Record<string, unknown>),
+        mode,
+      };
     }
 
     isSavingCommandSetup.value = true;
@@ -316,6 +463,11 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
       const endpoint = isEditMode
         ? `${base}/control-json-commands/${encodeURIComponent(editingCommandSetupId.value ?? "")}`
         : `${base}/control-json-commands`;
+      const requestBody: Record<string, unknown> = {
+        control_url_id: commandSetupForm.value.control_url_id,
+        name: commandSetupForm.value.name.trim(),
+        command: parsedCommand,
+      };
       const response = await fetch(endpoint, {
         method: isEditMode ? "PUT" : "POST",
         headers: {
@@ -323,11 +475,7 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          control_url_id: commandSetupForm.value.control_url_id,
-          name: commandSetupForm.value.name.trim(),
-          command: parsedCommand,
-        }),
+        body: JSON.stringify(requestBody),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
@@ -418,6 +566,12 @@ export function useCommandSetupTab(options: UseCommandSetupTabOptions = {}) {
     isEditingCommandSetup,
     controlUrlOptions,
     commandSetupForm,
+    handleGeneratedModeChanged,
+    handleGeneratedDraftChanged,
+    addGeneratedFieldInput,
+    removeGeneratedFieldInput,
+    handleCommandInputTypeChanged,
+    syncGeneratedCommandText,
     loadCommandSetups,
     openCommandSetupModal,
     openEditCommandSetupModal,

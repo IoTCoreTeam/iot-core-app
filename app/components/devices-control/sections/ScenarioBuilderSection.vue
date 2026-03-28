@@ -357,20 +357,33 @@
     :model-value="isConstantsModalOpen"
     title="Scenario Constants"
     max-width="max-w-lg"
-    panel-class="p-6 shadow-xl"
+    panel-class="p-5 shadow-xl"
     @request-close="closeConstantsModal"
   >
-    <div class="space-y-3 text-xs text-gray-700">
-      <p class="text-xs text-gray-600">
-        These rules define how the flow builder behaves:
+    <div class="space-y-3 text-xs text-slate-700">
+      <p class="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-700">
+        These constants define builder guardrails and save validation.
       </p>
-      <ol class="list-decimal pl-4 space-y-2 text-xs text-gray-600">
-        <li>Only one Start node and one End node are allowed.</li>
-        <li>Each non-condition node can connect to only one other node.</li>
-        <li>A Condition node can connect to at most two nodes.</li>
-        <li>If one branch is labeled True, the other branch is automatically False.</li>
-        <li>The flow must have a valid path from Start to End before saving.</li>
-      </ol>
+      <div class="rounded border border-slate-200 p-3">
+        <p class="font-semibold text-slate-800">Start / End uniqueness</p>
+        <p class="mt-1 text-slate-600">Only one Start node and one End node are allowed in a flow.</p>
+      </div>
+      <div class="rounded border border-slate-200 p-3">
+        <p class="font-semibold text-slate-800">Non-condition fan-out</p>
+        <p class="mt-1 text-slate-600">Each non-condition node can connect to only one next node.</p>
+      </div>
+      <div class="rounded border border-slate-200 p-3">
+        <p class="font-semibold text-slate-800">Condition branching</p>
+        <p class="mt-1 text-slate-600">A Condition node can connect to at most two outgoing branches.</p>
+      </div>
+      <div class="rounded border border-slate-200 p-3">
+        <p class="font-semibold text-slate-800">True / False labels</p>
+        <p class="mt-1 text-slate-600">If one branch is labeled True, the remaining branch is assigned False automatically.</p>
+      </div>
+      <div class="rounded border border-slate-200 p-3">
+        <p class="font-semibold text-slate-800">Save requirement</p>
+        <p class="mt-1 text-slate-600">The flow must contain a valid path from Start to End before saving.</p>
+      </div>
     </div>
   </BaseModal>
 </template>

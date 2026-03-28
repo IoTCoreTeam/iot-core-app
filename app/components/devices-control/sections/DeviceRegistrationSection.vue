@@ -634,73 +634,21 @@
         </div>
       </template>
     </BaseModal>
-    <BaseModal
+    <AddCommandSetupModal
       :model-value="isCommandSetupModalOpen"
-      :title="isEditingCommandSetup ? 'Edit Command Setup' : 'Add Command Setup'"
-      max-width="max-w-2xl"
-      panel-class="p-5 shadow-xl"
+      :is-editing="isEditingCommandSetup"
+      :is-saving="isSavingCommandSetup"
+      :control-url-options="controlUrlOptions"
+      :form="commandSetupForm"
       @request-close="closeCommandSetupModal"
       @after-leave="resetCommandSetupForm"
-    >
-      <div class="space-y-3 text-xs">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div class="flex flex-col gap-1">
-            <label class="text-gray-600 font-medium">Control URL</label>
-            <select
-              v-model="commandSetupForm.control_url_id"
-              class="border border-gray-300 rounded px-2 py-1.5 bg-white focus:ring-1 focus:ring-gray-400 focus:border-gray-400"
-            >
-              <option value="">Select control URL</option>
-              <option
-                v-for="option in controlUrlOptions"
-                :key="option.id"
-                :value="option.id"
-              >
-                {{ option.label }}
-              </option>
-            </select>
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-gray-600 font-medium">Name</label>
-            <input
-              v-model="commandSetupForm.name"
-              type="text"
-              placeholder="e.g. Pump Start"
-              class="border border-gray-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-gray-400 focus:border-gray-400"
-            />
-          </div>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-gray-600 font-medium">JSON Command</label>
-          <textarea
-            v-model="commandSetupForm.commandText"
-            rows="9"
-            placeholder='{\n  "action": "on",\n  "value": 1\n}'
-            class="max-h-[40vh] overflow-y-auto border border-gray-300 rounded px-2 py-2 font-mono text-xs focus:ring-1 focus:ring-gray-400 focus:border-gray-400"
-          />
-        </div>
-      </div>
-      <template #footer>
-        <div class="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
-            :disabled="isSavingCommandSetup"
-            @click="closeCommandSetupModal"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-            :disabled="isSavingCommandSetup"
-            @click="handleCreateCommandSetup"
-          >
-            {{ isSavingCommandSetup ? "Saving..." : isEditingCommandSetup ? "Update" : "Save" }}
-          </button>
-        </div>
-      </template>
-    </BaseModal>
+      @save="handleCreateCommandSetup"
+      @draft-changed="handleGeneratedDraftChanged"
+      @add-generated-field-input="addGeneratedFieldInput"
+      @remove-generated-field-input="removeGeneratedFieldInput"
+      @mode-changed="handleGeneratedModeChanged"
+      @input-type-changed="handleCommandInputTypeChanged"
+    />
   </section>
 </template>
 
@@ -745,6 +693,7 @@ import GatewayDetailModal from "@/components/Modals/Devices/GatewayDetailModal.v
 import BaseNodeDetailModal from "@/components/Modals/Devices/BaseNodeDetailModal.vue";
 import CommandDetailModal from "@/components/Modals/Devices/CommandDetailModal.vue";
 import RegisteredControlUrlDetailModal from "@/components/Modals/Devices/RegisteredControlUrlDetailModal.vue";
+import AddCommandSetupModal from "@/components/Modals/Devices/AddCommandSetupModal.vue";
 import BaseModal from "@/components/Modals/BaseModal.vue";
 
 defineProps<{
@@ -815,6 +764,11 @@ const {
   closeCommandSetupModal,
   resetCommandSetupForm,
   handleCreateCommandSetup,
+  handleGeneratedModeChanged,
+  handleGeneratedDraftChanged,
+  addGeneratedFieldInput,
+  removeGeneratedFieldInput,
+  handleCommandInputTypeChanged,
   isDeletingCommandSetup,
   canEditCommandSetup,
   canDeleteCommandSetup,
