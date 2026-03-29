@@ -40,9 +40,14 @@ export function useScenarioNodePresentation(params: {
       const controlUrlId = node.data?.control_url_id ?? "";
       const isMissing = isMissingControlUrl(controlUrlId);
       const selected = params.controlUrlOptions.value.find((item) => item.id === controlUrlId);
-      const name = selected?.name || "Action";
+      const inputType = normalizeControlInputType(selected?.input_type);
+      const jsonCommandName =
+        inputType === "json_command"
+          ? selected?.json_commands?.find((item) => String(item?.name ?? "").trim().length > 0)?.name
+          : null;
+      const name = jsonCommandName || selected?.name || "Action";
       const duration = node.data?.duration_seconds ?? 0;
-      const inputKind = normalizeControlInputType(selected?.input_type);
+      const inputKind = inputType;
       const actionValue = node.data?.action_value;
       let label = name;
       if (!isMissing) {

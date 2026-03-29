@@ -21,13 +21,21 @@ export type ControlUrlOption = {
   name?: string | null;
   url?: string | null;
   input_type?: string | null;
+  json_commands?: Array<{
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  }> | null;
   node?: {
     id?: string | null;
     external_id?: string | null;
+    extended_id?: string | null;
     name?: string | null;
     gateway?: {
       id?: string | null;
       external_id?: string | null;
+      extended_id?: string | null;
       name?: string | null;
     } | null;
   } | null;

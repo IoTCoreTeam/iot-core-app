@@ -174,7 +174,7 @@
               >
                 <td class="px-3 py-2">
                   <div class="font-medium text-gray-700">
-                    {{ item.name || item.id }}
+                    {{ item.input_type === "json_command" ? (item.json_commands?.[0]?.name || item.name || item.id) : (item.name || item.id) }}
                   </div>
                   <div class="text-[11px] text-gray-400">{{ item.url || "—" }}</div>
                 </td>
@@ -428,7 +428,6 @@ import {
   type ScenarioNodeData,
 } from "@/composables/Scenario/scenarioBuilderTypes";
 import {
-  normalizeControlInputType,
   useScenarioControlUrls,
 } from "@/composables/Scenario/useScenarioControlUrls";
 import {
@@ -592,7 +591,7 @@ const selectedControlUrl = computed(() =>
 );
 
 const selectedControlInputType = computed(() =>
-  normalizeControlInputType(selectedControlUrl.value?.input_type),
+  resolveControlInputTypeById(actionForm.value.control_url_id),
 );
 
 const isSelectedDigital = computed(() => selectedControlInputType.value === "digital");
@@ -1020,4 +1019,6 @@ const hasHydrated = ref(false);
 }
 
 </style>
+
+
 

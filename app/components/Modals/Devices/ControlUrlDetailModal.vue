@@ -1,7 +1,7 @@
 <template>
   <BaseModal
     :model-value="modelValue"
-    title="Control URL Details"
+    :title="modalTitle"
     max-width="max-w-4xl"
     panel-class="p-6 shadow-xl"
     @request-close="handleClose"
@@ -174,6 +174,48 @@
           </div>
         </section>
 
+        <section v-if="isJsonCommand" class="space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-gray-200">
+            <h4 class="text-xs font-semibold text-gray-700">JSON Commands</h4>
+          </div>
+
+          <div
+            v-if="jsonCommands.length === 0"
+            class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-500 text-center"
+          >
+            No JSON command configured.
+          </div>
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="command in jsonCommands"
+              :key="command.id ?? `${command.control_url_id}-${command.name}`"
+              class="rounded-lg border border-gray-200 bg-white overflow-hidden"
+            >
+              <table class="w-full text-xs">
+                <tbody>
+                  <tr class="border-b border-gray-100">
+                    <td class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]">
+                      Name
+                    </td>
+                    <td class="px-4 py-3 text-gray-900 break-all">
+                      {{ formatValue(command.name) }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px] align-top">
+                      Command
+                    </td>
+                    <td class="px-4 py-3 text-gray-900 break-all">
+                      <pre class="whitespace-pre-wrap break-all text-xs">{{ formatCommandPayload(command.command) }}</pre>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <section class="space-y-4">
           <div class="flex items-center justify-between pb-3 border-b border-gray-200">
             <h4 class="text-xs font-semibold text-gray-700">Control URL</h4>
@@ -237,6 +279,30 @@ type ControlUrlItem = {
   name?: string | null;
   url?: string | null;
   input_type?: string | null;
+  json_commands?: Array<{
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  }> | null;
+  jsonCommands?: Array<{
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  }> | null;
+  json_command?: {
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  } | null;
+  jsonCommand?: {
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  } | null;
   analog_signal?: ControlAnalogSignal | null;
   analogSignal?: ControlAnalogSignal | null;
   node?: {
@@ -284,9 +350,38 @@ const isAnalog = computed(() => {
   return raw.includes("analog");
 });
 
+const isJsonCommand = computed(() => {
+  const raw = String(props.controlUrl?.input_type ?? "").trim().toLowerCase();
+  return raw === "json_command";
+});
+
+const modalTitle = computed(() =>
+  isJsonCommand.value ? "Control JSON Command" : "Control URL Details",
+);
+
+const jsonCommands = computed(() => {
+  const item = props.controlUrl;
+  if (!item) return [];
+  if (Array.isArray(item.json_commands)) return item.json_commands;
+  if (Array.isArray(item.jsonCommands)) return item.jsonCommands;
+  if (item.json_command) return [item.json_command];
+  if (item.jsonCommand) return [item.jsonCommand];
+  return [];
+});
+
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "N/A";
   return String(value);
+}
+
+function formatCommandPayload(value: unknown) {
+  if (value === null || value === undefined || value === "") return "N/A";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }
 
 function resolveAnalogSignal(item: ControlUrlItem | null) {
