@@ -18,7 +18,6 @@
         :key="widget.id"
         class="group relative rounded border border-slate-200 bg-white p-6 transition-all duration-200"
       >
-        <!-- Status Indicator -->
         <div class="absolute top-4 right-4 flex items-center gap-2">
           <button
             type="button"
@@ -169,6 +168,30 @@ type ControlUrlItem = {
   name?: string | null;
   url?: string | null;
   input_type?: string | null;
+  json_commands?: Array<{
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  }> | null;
+  jsonCommands?: Array<{
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  }> | null;
+  json_command?: {
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  } | null;
+  jsonCommand?: {
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  } | null;
   analog_signal?: {
     id?: string | null;
     control_url_id?: string | null;
@@ -211,6 +234,7 @@ type ControlWidget = {
   nodeName: string;
   controllerName: string;
   isOn: boolean;
+  resolvedInputType: "digital" | "analog" | null;
   raw: ControlUrlItem;
 };
 
@@ -265,9 +289,67 @@ const widgets = computed<ControlWidget[]>(() =>
     nodeName: item.node?.name ?? item.node?.external_id ?? "N/A",
     controllerName: item.name ?? item.url ?? "N/A",
     isOn: false,
+    resolvedInputType: resolveWidgetInputType(item),
     raw: item,
   })),
 );
+
+function normalizeInputType(value?: string | null) {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized.length ? normalized : null;
+}
+
+function parseJsonObject(value: unknown) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function resolveJsonCommandList(item: ControlUrlItem) {
+  const list = item.json_commands ?? item.jsonCommands;
+  if (Array.isArray(list)) {
+    return list;
+  }
+  const single = item.json_command ?? item.jsonCommand;
+  return single ? [single] : [];
+}
+
+function resolveJsonMode(item: ControlUrlItem): "digital" | "analog" | null {
+  const commands = resolveJsonCommandList(item);
+  for (const command of commands) {
+    const payload = parseJsonObject(command?.command);
+    const modeValue = String(payload?.mode ?? "").trim().toLowerCase();
+    if (modeValue === "digital" || modeValue === "analog") {
+      return modeValue;
+    }
+  }
+  return null;
+}
+
+function resolveWidgetInputType(item: ControlUrlItem): "digital" | "analog" | null {
+  const inputType = normalizeInputType(item.input_type);
+  if (inputType === "digital" || inputType === "analog") {
+    return inputType;
+  }
+  if (inputType === "json_command") {
+    return resolveJsonMode(item);
+  }
+  return null;
+}
 
 function isWidgetOn(widget: ControlWidget) {
   const sseState = resolveSseState(widget);
@@ -401,11 +483,11 @@ async function toggleWidget(widget: ControlWidget) {
 }
 
 function isDigitalInput(widget: ControlWidget) {
-  return String(widget.raw.input_type ?? "").toLowerCase() === "digital";
+  return widget.resolvedInputType === "digital";
 }
 
 function isAnalogInput(widget: ControlWidget) {
-  return String(widget.raw.input_type ?? "").toLowerCase() === "analog";
+  return widget.resolvedInputType === "analog";
 }
 
 function resolveAnalogSignal(widget: ControlWidget) {

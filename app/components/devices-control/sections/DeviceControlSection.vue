@@ -204,6 +204,30 @@ type ControlUrlItem = {
   name?: string | null;
   url?: string | null;
   input_type?: string | null;
+  json_commands?: Array<{
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  }> | null;
+  jsonCommands?: Array<{
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  }> | null;
+  json_command?: {
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  } | null;
+  jsonCommand?: {
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  } | null;
   analog_signal?: {
     id?: string | null;
     control_url_id?: string | null;
@@ -285,6 +309,53 @@ function normalizeActionType(value?: string | null) {
   return normalized;
 }
 
+function parseJsonObject(value: unknown) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function resolveJsonMode(item: ControlUrlItem) {
+  const list = Array.isArray(item.json_commands)
+    ? item.json_commands
+    : Array.isArray(item.jsonCommands)
+      ? item.jsonCommands
+      : (item.json_command ?? item.jsonCommand)
+        ? [item.json_command ?? item.jsonCommand]
+        : [];
+
+  for (const row of list) {
+    const command = parseJsonObject(row?.command);
+    const mode = String(command?.mode ?? "").trim().toLowerCase();
+    if (mode === "digital" || mode === "analog") {
+      return mode;
+    }
+  }
+
+  return null;
+}
+
+function resolveActionType(item: ControlUrlItem) {
+  const inputType = String(item.input_type ?? "").trim().toLowerCase();
+  if (inputType === "json_command") {
+    return resolveJsonMode(item) ?? undefined;
+  }
+  return normalizeActionType(item.input_type) ?? undefined;
+}
+
 async function fetchControlUrls() {
   if (!apiConfig.controlModule) return;
   const authorization = authStore.authorizationHeader;
@@ -295,7 +366,7 @@ async function fetchControlUrls() {
   isLoadingControlUrls.value = true;
   controlUrlLoadError.value = null;
   try {
-    const endpoint = `${apiConfig.controlModule.replace(/\/$/, "")}/control-urls?include=gateway,analog_signal&per_page=100`;
+    const endpoint = `${apiConfig.controlModule.replace(/\/$/, "")}/control-urls?include=gateway,analog_signal,json_commands&per_page=100`;
     const response = await fetch(endpoint, {
       headers: {
         Authorization: authorization,
@@ -335,11 +406,11 @@ async function handleExecuteControlUrl(widget: { id: string; raw: ControlUrlItem
   if (!authorization) throw new Error("Missing authorization.");
   const url = widget.raw.url ?? "";
   if (!url) throw new Error("Missing control URL.");
-  const actionType = normalizeActionType(widget.raw.input_type);
+  const actionType = resolveActionType(widget.raw);
   await executeControlUrl(authorization, widget.id, {
     url,
     state: nextState ? "on" : "off",
-    action_type: actionType ?? undefined,
+    action_type: actionType,
   });
 }
 
@@ -348,11 +419,11 @@ async function handleExecuteAnalog(widget: { id: string; raw: ControlUrlItem }, 
   if (!authorization) throw new Error("Missing authorization.");
   const url = widget.raw.url ?? "";
   if (!url) throw new Error("Missing control URL.");
-  const actionType = normalizeActionType(widget.raw.input_type);
+  const actionType = resolveActionType(widget.raw);
   await executeControlUrl(authorization, widget.id, {
     url,
     value,
-    action_type: actionType ?? undefined,
+    action_type: actionType,
   });
 }
 
