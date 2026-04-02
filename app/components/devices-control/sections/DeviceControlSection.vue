@@ -7,7 +7,7 @@
           class="px-4 device-control-tabs text-xs"
           size="small"
         >
-        <a-tab-pane key="map" tab="Map">
+          <a-tab-pane key="map" tab="Map">
             <div class="h-[60vh] min-h-[60vh]">
               <DeviceMapCanvas ref="mapCanvasRef" class="w-full h-full" map-height="100%" />
             </div>
@@ -81,24 +81,13 @@
                       {{ row.name || "-" }}
                     </td>
                     <td class="px-2 py-2 text-left align-middle">
-                      <span
-                        :class="[
-                          'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-                          getRuntimeStatus(row.id) === 'running'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : getRuntimeStatus(row.id) === 'stopping'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : getRuntimeStatus(row.id) === 'error'
-                                ? 'bg-red-50 text-red-700 border border-red-200'
-                                : 'bg-gray-100 text-gray-600 border border-gray-200',
-                        ]"
-                      >
-                        {{ formatRuntimeStatus(getRuntimeStatus(row.id)) }}
+                      <span :class="getWorkflowRuntimeStateMeta(getRuntimeStatus(row.id)).className">
+                        {{ getWorkflowRuntimeStateMeta(getRuntimeStatus(row.id)).label }}
                       </span>
                     </td>
                     <td class="px-2 py-2 text-center align-middle">
                       <button
-                        v-if="getRuntimeStatus(row.id) === 'running' || getRuntimeStatus(row.id) === 'stopping'"
+                        v-if="isWorkflowBusyStatus(getRuntimeStatus(row.id))"
                         type="button"
                         class="w-8 h-8 inline-flex items-center justify-center rounded border border-amber-200 text-amber-600 hover:bg-amber-50 cursor-pointer"
                         @click="handleStopScenario(row)"
@@ -175,6 +164,10 @@ import {
   stopWorkflow,
   type WorkflowRow,
 } from "@/composables/Scenario/handleWorkflow";
+import {
+  getWorkflowRuntimeStateMeta,
+  isWorkflowBusyStatus,
+} from "@/composables/useWorkflowRuntimeState";
 
 defineProps<{
   section: Section;
@@ -186,6 +179,7 @@ const selectedMetricKey = ref<string>("");
 const selectedTimeframe = ref<TimeframeKey>("second");
 const { executeControlUrl } = useControlUrlActions();
 const runtimeStatusById = ref<Record<string, string>>({});
+const runToWorkflowId = ref<Record<string, string>>({});
 const scenarioRows = ref<WorkflowRow[]>([]);
 const isScenarioLoading = ref(false);
 const scenarioPagination = ref({ page: 1, perPage: 5, lastPage: 1, total: 0 });
@@ -195,6 +189,8 @@ const controlUrlLoadError = ref<string | null>(null);
 const controllerStatesByNode = ref<Record<string, ControllerState[]>>({});
 const nodeRows = ref<DeviceRow[]>([]);
 const isSseConnected = ref(false);
+const workflowStatusStream = ref<EventSource | null>(null);
+const queueStreamBase = computed(() => (apiConfig.server || "").replace(/\/$/, ""));
 let gatewayEventSource: EventSource | null = null;
 const nodeCollectionsStore = createNodeCollectionsStore();
 
@@ -280,7 +276,7 @@ type MapCanvasExpose = {
 };
 
 const mapCanvasRef = ref<MapCanvasExpose | null>(null);
-const activeVisualTab = ref<"chart" | "map">("chart");
+const activeVisualTab = ref<"chart" | "map">("map");
 const activeInfoTab = ref<"panel" | "databox">("panel");
 
 const mapManagedAreas = computed(() => {
@@ -610,19 +606,63 @@ function setRuntimeStatus(id: string | number, status: string) {
   };
 }
 
-function formatRuntimeStatus(status: string) {
-  switch (status) {
-    case "running":
-      return "Running";
-    case "stopping":
-      return "Stopping";
-    case "stopped":
-      return "Stopped";
-    case "error":
-      return "Error";
-    default:
-      return "Idle";
+function resolvePayloadWorkflowId(payload: any) {
+  const value = String(payload?.workflow_id ?? "").trim();
+  if (value) return value;
+  const runId = String(payload?.run_id ?? "").trim();
+  if (runId) {
+    return runToWorkflowId.value[runId] ?? "";
   }
+  return "";
+}
+
+function applyWorkflowStatusPayload(payload: any) {
+  const workflowId = resolvePayloadWorkflowId(payload);
+  if (!workflowId) return;
+
+  const runId = String(payload?.run_id ?? "").trim();
+  if (runId) {
+    runToWorkflowId.value = {
+      ...runToWorkflowId.value,
+      [runId]: workflowId,
+    };
+  }
+
+  const status = String(payload?.status ?? "").trim();
+  if (status === "workflow_started") {
+    setRuntimeStatus(workflowId, "running");
+    return;
+  }
+  if (status === "workflow_completed" || status === "workflow_stopped") {
+    setRuntimeStatus(workflowId, "idle");
+    return;
+  }
+  if (status === "workflow_failed") {
+    setRuntimeStatus(workflowId, "error");
+  }
+}
+
+function disconnectWorkflowStatusStream() {
+  if (!workflowStatusStream.value) return;
+  workflowStatusStream.value.close();
+  workflowStatusStream.value = null;
+}
+
+function connectWorkflowStatusStream() {
+  if (!import.meta.client) return;
+  if (!queueStreamBase.value) return;
+  if (!authStore.authorizationHeader) return;
+
+  disconnectWorkflowStatusStream();
+  const source = new EventSource(`${queueStreamBase.value}/events/control-queue`);
+  source.addEventListener("workflow-status", (event) => {
+    const payload = JSON.parse((event as MessageEvent).data ?? "{}");
+    applyWorkflowStatusPayload(payload);
+  });
+  source.onerror = () => {
+    // keep UI stable, browser EventSource will retry automatically.
+  };
+  workflowStatusStream.value = source;
 }
 
 function recalculateScenarioPagination() {
@@ -678,10 +718,15 @@ async function handleRunScenario(row: WorkflowRow) {
     return;
   }
   try {
-    setRuntimeStatus(row.id, "running");
-    await runWorkflow(row.id, authorization);
-    message.success("Scenario ran successfully.");
-    setRuntimeStatus(row.id, "idle");
+    setRuntimeStatus(row.id, "queued");
+    const result = await runWorkflow(row.id, authorization);
+    const runId = String(result?.data?.run_id ?? result?.run_id ?? "").trim();
+    if (runId) {
+      runToWorkflowId.value = {
+        ...runToWorkflowId.value,
+        [runId]: String(row.id),
+      };
+    }
   } catch (error: any) {
     message.error(error?.message ?? "Failed to run scenario.");
     setRuntimeStatus(row.id, "error");
@@ -707,6 +752,7 @@ async function handleStopScenario(row: WorkflowRow) {
 
 onMounted(() => {
   connectGatewaySse();
+  connectWorkflowStatusStream();
   fetchScenarioRows();
   fetchControlUrls();
 });
@@ -723,7 +769,19 @@ watch(
 
 onBeforeUnmount(() => {
   disconnectGatewaySse();
+  disconnectWorkflowStatusStream();
 });
+
+watch(
+  () => authStore.authorizationHeader,
+  (authorization) => {
+    if (!authorization) {
+      disconnectWorkflowStatusStream();
+      return;
+    }
+    connectWorkflowStatusStream();
+  },
+);
 </script>
 
 <style scoped>

@@ -102,7 +102,7 @@
                       Created At
                     </td>
                     <td class="px-4 py-3 text-gray-900">
-                      {{ formatValue(row.createdAt) }}
+                      {{ formatDateTime(row.createdAt) }}
                     </td>
                   </tr>
                   <tr class="border-b border-gray-100">
@@ -110,7 +110,7 @@
                       Updated At
                     </td>
                     <td class="px-4 py-3 text-gray-900">
-                      {{ formatValue(row.updatedAt) }}
+                      {{ formatDateTime(row.updatedAt) }}
                     </td>
                   </tr>
                   <template v-if="commandDetail.type === 'analog_signal'">
@@ -177,6 +177,7 @@
 import { computed } from "vue";
 import BaseModal from "@/components/Modals/BaseModal.vue";
 import type { DeviceRow } from "@/types/devices-control";
+import { formatIotDateTime } from "~~/config/iot-time-format";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -204,5 +205,20 @@ const commandPayloadText = computed(() => {
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "N/A";
   return String(value);
+}
+
+function formatDateTime(value: unknown) {
+  return formatIotDateTime(
+    typeof value === "string" || typeof value === "number" || value instanceof Date
+      ? value
+      : null,
+    {
+      formatter: new Intl.DateTimeFormat("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+      fallback: "N/A",
+    },
+  );
 }
 </script>

@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "./modal-transitions.css";
 @import "./section-transitions.css";
+
+.ant-message {
+  z-index: 100000 !important;
+}
+
 /* Devices registration tabs */
 .custom-tabs .ant-tabs-nav {
   margin-bottom: 1rem;

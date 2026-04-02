@@ -3,8 +3,41 @@
     <div v-if="error" class="text-xs text-red-500">
       {{ error }}
     </div>
-    <div v-else-if="isLoading" class="text-xs text-slate-500">
-      Loading control urls...
+    <div
+      v-else-if="isLoading"
+      :class="widgetGridClass"
+    >
+      <div
+        v-for="item in skeletonItems"
+        :key="`control-widget-skeleton-${item}`"
+        class="relative rounded border border-slate-200 bg-white p-6"
+      >
+        <div class="absolute top-4 right-4 flex items-center gap-2">
+          <div class="h-7 w-7 rounded-md bg-slate-100 animate-pulse" />
+          <div class="h-3 w-3 rounded-full bg-slate-100 animate-pulse" />
+        </div>
+
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <div class="h-3 w-16 rounded bg-slate-100 animate-pulse" />
+            <div class="h-5 w-28 rounded bg-slate-200 animate-pulse" />
+          </div>
+
+          <div class="space-y-2">
+            <div class="h-3 w-12 rounded bg-slate-100 animate-pulse" />
+            <div class="h-5 w-24 rounded bg-slate-200 animate-pulse" />
+          </div>
+
+          <div class="space-y-2">
+            <div class="h-3 w-20 rounded bg-slate-100 animate-pulse" />
+            <div class="h-5 w-36 rounded bg-slate-200 animate-pulse" />
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <div class="h-10 w-full rounded-md bg-slate-100 animate-pulse" />
+        </div>
+      </div>
     </div>
     <div v-else-if="!widgets.length" class="text-xs text-slate-500">
       No control urls found.
@@ -33,7 +66,7 @@
           </button>
           <div
             class="flex h-3 w-3 items-center justify-center rounded-full"
-            :class="isPending(widget.id)
+            :class="isExecuting(widget.id)
               ? 'bg-amber-400 ring-4 ring-amber-100 animate-pulse'
               : (isWidgetOn(widget)
                 ? 'bg-emerald-500 ring-4 ring-emerald-100'
@@ -76,9 +109,9 @@
 
         <div class="mt-6">
           <LoadingState
-            v-if="isPending(widget.id)"
+            v-if="isExecuting(widget.id)"
             class="!py-2"
-            message="Waiting for device status..."
+            message="Applying command..."
           />
           <div v-else class="flex gap-2">
             <!-- Toggle Button -->
@@ -156,7 +189,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { message } from "ant-design-vue";
 import ControlUrlDetailModal from "@/components/Modals/Devices/ControlUrlDetailModal.vue";
 import LoadingState from "@/components/common/LoadingState.vue";
@@ -278,12 +311,9 @@ const widgetGridClass = computed(() => {
 const widgetState = ref<Record<string, boolean>>({});
 const analogValueMap = ref<Record<string, number>>({});
 const executingMap = ref<Record<string, boolean>>({});
-const pendingMap = ref<Record<string, boolean>>({});
-const expectedStateMap = ref<Record<string, boolean>>({});
-const pendingTimeoutMap = new Map<string, number>();
-const PENDING_TIMEOUT_MS = 10000;
 const isDetailOpen = ref(false);
 const selectedWidget = ref<ControlWidget | null>(null);
+const skeletonItems = [1, 2, 3, 4];
 
 const widgets = computed((): ControlWidget[] => {
   const rows = props.items ?? [];
@@ -417,12 +447,12 @@ function resolveWidgetInputType(
 }
 
 function isWidgetOn(widget: ControlWidget) {
+  if (typeof widgetState.value[widget.id] === "boolean") {
+    return widgetState.value[widget.id];
+  }
   const sseState = resolveSseState(widget);
   if (typeof sseState === "boolean") {
     return sseState;
-  }
-  if (typeof widgetState.value[widget.id] === "boolean") {
-    return widgetState.value[widget.id];
   }
   return widget.isOn;
 }
@@ -431,13 +461,8 @@ function isExecuting(id: string) {
   return executingMap.value[id] === true;
 }
 
-function isPending(id: string) {
-  return pendingMap.value[id] === true;
-}
-
 function canExecute(widget: ControlWidget) {
   if (!props.hasSse) return false;
-  if (isPending(widget.id)) return false;
   return typeof resolveSseState(widget) === "boolean";
 }
 
@@ -559,28 +584,6 @@ function resolveSseState(widget: ControlWidget) {
   return resolveControllerStateValue(match);
 }
 
-function clearPending(widgetId: string) {
-  pendingMap.value[widgetId] = false;
-  delete expectedStateMap.value[widgetId];
-  const timeoutId = pendingTimeoutMap.get(widgetId);
-  if (typeof timeoutId === "number") {
-    clearTimeout(timeoutId);
-    pendingTimeoutMap.delete(widgetId);
-  }
-}
-
-function markPending(widgetId: string, expectedState: boolean) {
-  pendingMap.value[widgetId] = true;
-  expectedStateMap.value[widgetId] = expectedState;
-  const timeoutId = window.setTimeout(() => {
-    if (pendingMap.value[widgetId]) {
-      clearPending(widgetId);
-      message.warning("Waiting for device status update. Please try again.");
-    }
-  }, PENDING_TIMEOUT_MS);
-  pendingTimeoutMap.set(widgetId, timeoutId);
-}
-
 async function toggleWidget(widget: ControlWidget) {
   if (!props.hasSse || !canExecute(widget)) {
     message.warning("The device is currently offline.");
@@ -601,7 +604,6 @@ async function toggleWidget(widget: ControlWidget) {
   try {
     await props.onExecute(widget, nextState);
     widgetState.value[widget.id] = nextState;
-    markPending(widget.id, nextState);
   } catch (error: any) {
     message.error(error?.message ?? "Failed to execute control url.");
   } finally {
@@ -708,19 +710,4 @@ function handleAnalogSaved(signal: any) {
     props.onAnalogSaved(signal);
   }
 }
-
-watch(
-  () => [props.controllerStatesByNode, widgets.value],
-  () => {
-    for (const widget of widgets.value) {
-      if (!isPending(widget.id)) continue;
-      const sseState = resolveSseState(widget);
-      const expectedState = expectedStateMap.value[widget.id];
-      if (typeof sseState === "boolean" && sseState === expectedState) {
-        clearPending(widget.id);
-      }
-    }
-  },
-  { deep: true },
-);
 </script>

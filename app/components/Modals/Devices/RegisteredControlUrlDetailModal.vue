@@ -64,11 +64,11 @@
                 </tr>
                 <tr class="border-b border-gray-100">
                   <td class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]">Created At</td>
-                  <td class="px-4 py-3 text-gray-900">{{ formatValue(row.createdAt) }}</td>
+                  <td class="px-4 py-3 text-gray-900">{{ formatDateTime(row.createdAt) }}</td>
                 </tr>
                 <tr>
                   <td class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]">Updated At</td>
-                  <td class="px-4 py-3 text-gray-900">{{ formatValue(row.updatedAt) }}</td>
+                  <td class="px-4 py-3 text-gray-900">{{ formatDateTime(row.updatedAt) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -82,6 +82,7 @@
 <script setup lang="ts">
 import BaseModal from "@/components/Modals/BaseModal.vue";
 import type { DeviceRow } from "@/types/devices-control";
+import { formatIotDateTime } from "~~/config/iot-time-format";
 
 defineProps<{
   modelValue: boolean;
@@ -95,5 +96,20 @@ defineEmits<{
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "N/A";
   return String(value);
+}
+
+function formatDateTime(value: unknown) {
+  return formatIotDateTime(
+    typeof value === "string" || typeof value === "number" || value instanceof Date
+      ? value
+      : null,
+    {
+      formatter: new Intl.DateTimeFormat("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+      fallback: "N/A",
+    },
+  );
 }
 </script>

@@ -53,6 +53,15 @@
           </button>
           <template v-else>
             <select
+              :value="props.metricDisplayMode"
+              class="h-7 rounded border border-gray-300 bg-white px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              @change="handleMetricDisplayModeChange"
+            >
+              <option value="chart">Show metric chart</option>
+              <option value="widget">Show metric widget data</option>
+              <option value="none">Hide metric display</option>
+            </select>
+            <select
               v-model="runDevicePreparationMode"
               class="h-7 rounded border border-gray-300 bg-white px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
               :disabled="isFlowActive"
@@ -72,30 +81,6 @@
           </template>
         </div>
       </div>
-      <div class="mt-3 w-full">
-        <div class="flex flex-wrap items-center gap-2">
-          <div
-            v-for="node in palette"
-            :key="node.type"
-            class="cursor-grab rounded border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:border-blue-300 active:cursor-grabbing"
-            draggable="true"
-            @dragstart="handleDragStart($event, node.type)"
-          >
-            <div class="flex items-center gap-2">
-              <span class="inline-flex h-5 w-5 items-center justify-center rounded bg-blue-50 text-blue-600">
-                <BootstrapIcon :name="node.icon as any" class="h-3 w-3" />
-              </span>
-              <div class="leading-tight">
-                <div class="font-semibold">{{ node.label }}</div>
-                <div class="text-[10px] text-gray-400">{{ node.subtitle }}</div>
-              </div>
-            </div>
-          </div>
-          <span class="text-[10px] text-gray-400">
-            Drop nodes onto the canvas to build a flow.
-          </span>
-        </div>
-      </div>
       <WorkflowProgressPanel
         class="mt-4"
         :workflow-steps="workflowSteps"
@@ -106,33 +91,71 @@
       />
     </div>
 
-    <div
-      class="relative mt-4 min-h-[420px] rounded border border-gray-200 bg-slate-50"
-      @drop="handleDrop"
-      @dragover="handleDragOver"
-    >
-      <div
-        v-if="!isFlowVisible"
-        class="absolute inset-0 z-10 flex items-center justify-center rounded bg-white/70 backdrop-blur-sm"
-      >
-        <LoadingState message="Loading scenario canvas..." />
+    <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
+      <div class="w-full shrink-0 lg:w-56">
+        <div class="mb-2 space-y-1 text-[11px] text-slate-500">
+          <p>Drag nodes onto the canvas to build a flow.</p>
+          <p>Press Backspace to delete a selected component.</p>
+        </div>
+        <div class="flex flex-col gap-2">
+          <div
+            v-for="node in palette"
+            :key="node.type"
+            class="cursor-grab rounded border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50/40 active:cursor-grabbing"
+            draggable="true"
+            @dragstart="handleDragStart($event, node.type)"
+          >
+            <div class="flex items-center gap-2">
+              <span class="inline-flex h-7 w-7 items-center justify-center rounded bg-blue-50 text-blue-600">
+                <BootstrapIcon :name="node.icon as any" class="h-3.5 w-3.5" />
+              </span>
+              <div class="leading-tight">
+                <div class="font-semibold">{{ node.label }}</div>
+                <div class="text-[10px] text-gray-400">{{ node.subtitle }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <VueFlow
-        v-if="isFlowVisible"
-        v-model:nodes="nodes"
-        v-model:edges="edges"
-        :default-viewport="{ zoom: 1 }"
-        :fit-view-on-init="true"
-        class="scenario-flow rounded bg-gray-50 min-h-[80vh]"
-        @connect="handleConnect"
-        @node-click="handleNodeClick"
-        @nodes-change="handleNodesChange"
-        @edges-change="handleEdgesChange"
+
+      <div
+        ref="canvasContainerRef"
+        class="relative min-h-[420px] flex-1 rounded border border-gray-200 bg-slate-50"
+        @drop="handleDrop"
+        @dragover="handleDragOver"
       >
-        <Background pattern-color="ffffff" :gap="20" :size="1" />
-        <Controls :show-interactive="false" />
-        <MiniMap />
-      </VueFlow>
+        <button
+          type="button"
+          class="absolute right-3 top-3 z-20 inline-flex h-8 w-8 items-center justify-center rounded border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:bg-gray-50 hover:text-gray-700"
+          title="Focus canvas"
+          aria-label="Focus canvas"
+          @click="focusCanvas"
+        >
+          <BootstrapIcon name="arrows-angle-expand" class="h-3.5 w-3.5" />
+        </button>
+        <div
+          v-if="!isFlowVisible"
+          class="absolute inset-0 z-10 flex items-center justify-center rounded bg-white/70 backdrop-blur-sm"
+        >
+          <LoadingState message="Loading scenario canvas..." />
+        </div>
+        <VueFlow
+          v-if="isFlowVisible"
+          v-model:nodes="nodes"
+          v-model:edges="edges"
+          :default-viewport="{ zoom: 1 }"
+          :fit-view-on-init="true"
+          class="scenario-flow rounded bg-gray-50 min-h-[80vh]"
+          @connect="handleConnect"
+          @node-click="handleNodeClick"
+          @nodes-change="handleNodesChange"
+          @edges-change="handleEdgesChange"
+        >
+          <Background pattern-color="ffffff" :gap="20" :size="1" />
+          <Controls :show-interactive="false" />
+          <MiniMap />
+        </VueFlow>
+      </div>
     </div>
   </section>
 
@@ -444,12 +467,14 @@ type ScenarioRow = {
 const props = defineProps<{
   scenario: ScenarioRow;
   definition?: ScenarioDefinition;
+  metricDisplayMode?: "chart" | "widget" | "none";
 }>();
 
 const emit = defineEmits<{
   (e: "back"): void;
   (e: "save", payload: { nodes: any[]; edges: Edge[]; controlDefinition: any }): void;
   (e: "runtime-state", payload: { workflowId: string; state: string; runId?: string | null }): void;
+  (e: "update:metric-display-mode", value: "chart" | "widget" | "none"): void;
 }>();
 
 const palette = [
@@ -499,6 +524,7 @@ const nodes = ref<Node<NodeData>[]>([
 ]);
 
 const edges = ref<Edge[]>([]);
+const canvasContainerRef = ref<HTMLElement | null>(null);
 const { metrics: metricsRef } = useMetrics();
 const metrics = computed(() => metricsRef.value);
 const metricNodesByKey = ref<Record<string, string[]>>({});
@@ -538,6 +564,18 @@ function markCanvasAsDirty() {
 
 function markCanvasAsSaved() {
   isCanvasDirty.value = false;
+}
+
+function focusCanvas() {
+  canvasContainerRef.value?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
+
+function handleMetricDisplayModeChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value as "chart" | "widget" | "none";
+  emit("update:metric-display-mode", value);
 }
 
 const {
