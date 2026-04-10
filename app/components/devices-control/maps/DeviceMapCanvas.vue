@@ -240,7 +240,10 @@ function zoomToNode(row: DeviceRow) {
     return;
   }
   closeContextMenu();
-  clearAllDraw();
+  const draw = drawRef.value;
+  if (draw) {
+    draw.changeMode("static");
+  }
   mapRef.value.flyTo({ center: [coords.lng, coords.lat], zoom: 18 });
 }
 
