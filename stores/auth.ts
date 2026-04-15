@@ -26,8 +26,13 @@ export const useAuthStore = defineStore("auth", {
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.accessToken),
-    authorizationHeader: (state) =>
-      state.accessToken ? `${state.tokenType} ${state.accessToken}` : null,
+    authorizationHeader: (state) => {
+      const rawToken = String(state.accessToken ?? "").trim();
+      if (!rawToken) return null;
+      if (/^bearer\s+/i.test(rawToken)) return rawToken;
+      const tokenType = String(state.tokenType || "Bearer").trim() || "Bearer";
+      return `${tokenType} ${rawToken}`;
+    },
     userRole: (state) => {
       const role =
         state.user?.role ?? state.user?.user_role ?? state.user?.type ?? null;

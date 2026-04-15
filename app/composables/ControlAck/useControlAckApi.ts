@@ -20,6 +20,28 @@ type ControlAckOverviewResult = {
   totals: ControlAckTotals;
 };
 
+export type ControllerExecutionPoint = {
+  timestamp: string;
+  count: number;
+};
+
+export type ControllerExecutionSeries = {
+  controller: string;
+  data: ControllerExecutionPoint[];
+  total: number;
+};
+
+export type ControllerExecutionStatsResult = {
+  node_id: string;
+  range_hours: number;
+  bucket: "hour" | "minute";
+  step_ms: number;
+  controllers: string[];
+  timeline: Array<{ timestamp: string; total: number }>;
+  series: ControllerExecutionSeries[];
+  total_executions: number;
+};
+
 function fromLocalInputToIso(value: string) {
   if (!value) return "";
   const date = new Date(value);
@@ -121,8 +143,68 @@ export function useControlAckApi(serverBaseUrl: string) {
     return Array.isArray(payload) ? (payload as ControlLogRow[]) : [];
   }
 
+  async function fetchControllerExecutions(
+    nodeId: string,
+    options?: { hours?: number; bucket?: "hour" | "minute" },
+  ): Promise<ControllerExecutionStatsResult | null> {
+    if (!import.meta.client || !SERVER_BASE_URL || !nodeId) {
+      return null;
+    }
+    const authStore = useAuthStore();
+    const authorization = authStore.authorizationHeader;
+    if (!authorization) {
+      return null;
+    }
+
+    const params = new URLSearchParams();
+    params.set("node_id", nodeId);
+    params.set("hours", String(options?.hours ?? 24));
+    params.set("bucket", options?.bucket === "minute" ? "minute" : "hour");
+
+    const response = await fetch(
+      `${SERVER_BASE_URL}/v1/control-acks/controller-executions?${params.toString()}`,
+      {
+        method: "GET",
+        headers: { Accept: "application/json", Authorization: authorization },
+      },
+    );
+
+    const payload = (await parseJsonResponse(response)) as Partial<ControllerExecutionStatsResult>;
+    if (!payload || typeof payload !== "object") return null;
+
+    return {
+      node_id: String(payload.node_id ?? nodeId),
+      range_hours: Number(payload.range_hours ?? 24),
+      bucket: payload.bucket === "minute" ? "minute" : "hour",
+      step_ms: Number(payload.step_ms ?? 0),
+      controllers: Array.isArray(payload.controllers)
+        ? payload.controllers.map((item) => String(item))
+        : [],
+      timeline: Array.isArray(payload.timeline)
+        ? payload.timeline.map((item: any) => ({
+            timestamp: String(item?.timestamp ?? ""),
+            total: Number(item?.total ?? 0),
+          }))
+        : [],
+      series: Array.isArray(payload.series)
+        ? payload.series.map((item: any) => ({
+            controller: String(item?.controller ?? "unknown"),
+            total: Number(item?.total ?? 0),
+            data: Array.isArray(item?.data)
+              ? item.data.map((point: any) => ({
+                  timestamp: String(point?.timestamp ?? ""),
+                  count: Number(point?.count ?? 0),
+                }))
+              : [],
+          }))
+        : [],
+      total_executions: Number(payload.total_executions ?? 0),
+    };
+  }
+
   return {
     fetchOverview,
     fetchRows,
+    fetchControllerExecutions,
   };
 }

@@ -1,15 +1,18 @@
 <template>
   <BaseModal
     :model-value="modelValue"
-    :title="isEditing ? 'Edit Command Setup' : 'Add Command Setup'"
+    :title="resolvedTitle"
     max-width="max-w-3xl"
-    panel-class="p-5 shadow-xl"
+    panel-class="p-5"
     @request-close="$emit('request-close')"
     @after-leave="$emit('after-leave')"
   >
     <div class="space-y-3 text-xs">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div class="flex flex-col gap-1">
+      <div
+        class="grid grid-cols-1 gap-3"
+        :class="showControlUrlSelect ? 'md:grid-cols-3' : 'md:grid-cols-2'"
+      >
+        <div v-if="showControlUrlSelect" class="flex flex-col gap-1">
           <label class="text-gray-600 font-medium">Control URL</label>
           <select
             v-model="form.control_url_id"
@@ -17,7 +20,7 @@
           >
             <option value="">Select control URL</option>
             <option
-              v-for="option in controlUrlOptions"
+              v-for="option in controlUrlOptions || []"
               :key="option.id"
               :value="option.id"
             >
@@ -34,8 +37,6 @@
             class="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white"
           />
         </div>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div class="flex flex-col gap-1">
           <label class="text-gray-600 font-medium">Mode</label>
           <select
@@ -158,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { toRefs } from "vue";
+import { computed, toRefs } from "vue";
 import BaseModal from "@/components/Modals/BaseModal.vue";
 
 type CommandSetupForm = {
@@ -174,10 +175,17 @@ const props = defineProps<{
   modelValue: boolean;
   isEditing: boolean;
   isSaving: boolean;
-  controlUrlOptions: Array<{ id: string; label: string }>;
+  controlUrlOptions?: Array<{ id: string; label: string }>;
+  showControlUrlSelect?: boolean;
+  titleText?: string;
   form: CommandSetupForm;
 }>();
-const { modelValue, isEditing, isSaving, controlUrlOptions, form } = toRefs(props);
+const { modelValue, isEditing, isSaving, controlUrlOptions, form, showControlUrlSelect, titleText } = toRefs(props);
+
+const resolvedTitle = computed(() => {
+  if (titleText.value?.trim()) return titleText.value.trim();
+  return isEditing.value ? "Edit Command Setup" : "Add Command Setup";
+});
 
 const emit = defineEmits<{
   (event: "request-close"): void;

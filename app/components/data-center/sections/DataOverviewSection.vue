@@ -215,10 +215,35 @@ async function fetchOverviewData() {
       : [];
 
     try {
-      const overview = await controlAckApi.fetchOverview(12, "hour");
-      controlAckBucket.value = overview.bucket;
-      controlAckBuckets.value = overview.buckets;
-      controlAckTotals.value = overview.totals;
+      const executionOutcomes = await fetchJson(
+        `${apiConfig.auth}/metrics/system-logs-control-url-outcomes?hours=12&bucket=hour`,
+      );
+      const totals = executionOutcomes?.totals ?? {};
+
+      controlAckBucket.value =
+        executionOutcomes?.bucket === "minute"
+          ? "minute"
+          : DEFAULT_CONTROL_ACK_BUCKET;
+      controlAckBuckets.value = Array.isArray(executionOutcomes?.buckets)
+        ? executionOutcomes.buckets.map((item: Record<string, unknown>) => ({
+            bucket: String(item?.bucket ?? ""),
+            on: 0,
+            off: 0,
+            success: Number(item?.success ?? 0),
+            failed: Number(item?.failed ?? 0),
+            timeout: 0,
+            unknown: 0,
+            avg_latency_ms: null,
+            p95_latency_ms: null,
+          }))
+        : [];
+      controlAckTotals.value = {
+        success: Number(totals?.success ?? 0),
+        failed: Number(totals?.failed ?? 0),
+        timeout: 0,
+        total: Number(totals?.total ?? 0),
+      };
+
       controlAckRows.value = await controlAckApi.fetchRows(
         {
           gateway_id: "",

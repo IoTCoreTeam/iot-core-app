@@ -1,8 +1,23 @@
 <template>
   <section class="min-h-screen">
-    <a-tabs v-model:activeKey="activeDeviceTab" class="px-4 custom-tabs text-xs">
+    <NodeDetailSection
+      v-if="selectedNodeDetail"
+      :selected-node="selectedNodeDetail"
+      @navigate-device-registration="closeNodeDetail"
+    />
+    <a-tabs v-else v-model:activeKey="activeDeviceTab" class="px-4 custom-tabs text-xs">
       <a-tab-pane v-for="tab in deviceTabs" :key="tab.key" :tab="tab.label">
-        <div v-if="tab.key === activeDeviceTab" class="pb-2">
+        <div v-if="tab.key === activeDeviceTab" class="pb-2 flex flex-col gap-4">
+          <SingleMetricChart
+            v-if="activeDeviceTab === 'nodes' && isNodeChartVisible"
+            class="w-full"
+            :selected-metric-key="selectedNodeMetricKey"
+            :selected-timeframe="selectedNodeTimeframe"
+            :selected-node-id="selectedNodeId"
+            @update:selected-metric-key="handleNodeMetricChange"
+            @update:selected-node-id="handleNodeIdChange"
+          />
+
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
             <div
               :class="[
@@ -43,16 +58,6 @@
                 isDeviceFilterVisible ? 'flex-1' : 'max-w-8xl w-full mx-auto',
               ]"
             >
-              <SingleMetricChart
-                v-if="activeDeviceTab === 'nodes'"
-                class="w-full"
-                :selected-metric-key="selectedNodeMetricKey"
-                :selected-timeframe="selectedNodeTimeframe"
-                :selected-node-id="selectedNodeId"
-                @update:selected-metric-key="handleNodeMetricChange"
-                @update:selected-node-id="handleNodeIdChange"
-              />
-
               <DataBoxCard
                 class="lg:self-start device-table"
                 :key="deviceTableKey"
@@ -79,6 +84,14 @@
                         isDeviceFilterVisible ? "Hide Filters" : "Show Filters"
                       }}
                     </button>
+                    <button
+                      v-if="activeDeviceTab === 'nodes'"
+                      type="button"
+                      class="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded px-2 py-0.5"
+                      @click="toggleNodeChart"
+                    >
+                      {{ isNodeChartVisible ? "Hide Chart" : "Show Chart" }}
+                    </button>
                   </div>
 
                   <div class="flex flex-wrap items-center gap-2">
@@ -86,11 +99,7 @@
                       <input
                         v-model="deviceSearchKeyword"
                         type="text"
-                        :placeholder="
-                          activeDeviceTab === 'command_setup'
-                            ? 'Search...'
-                            : 'Search device, batch, note...'
-                        "
+                        placeholder="Search device, batch, note..."
                         class="pl-5 pr-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white w-60 text-xs cursor-text"
                       />
                       <BootstrapIcon
@@ -113,19 +122,8 @@
                       {{ isDeviceLoading ? "Refreshing..." : "Refresh" }}
                     </button>
                     <button
-                      v-if="activeDeviceTab === 'command_setup'"
                       type="button"
                       class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
-                      :disabled="isDeviceLoading"
-                      @click="openCommandSetupModal"
-                    >
-                      <BootstrapIcon name="plus-lg" class="w-3 h-3 mr-1" />
-                      Add
-                    </button>
-                    <button
-                      type="button"
-                      class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-xs"
-                      v-if="activeDeviceTab !== 'command_setup'"
                       :disabled="isDeviceLoading || !filteredDeviceRows.length"
                       @click="exportDevices"
                     >
@@ -169,10 +167,14 @@
                         :style="{ width: getColumnWidth(columnIndex) }"
                       >
                         <template v-if="column.key === 'id'">
-                          <div class="text-xs whitespace-nowrap">{{ row.id }}</div>
+                          <div class="text-xs truncate" :title="row.id">
+                            {{ row.id }}
+                          </div>
                         </template>
                         <template v-else-if="column.key === 'name'">
-                          <p class="text-xs text-gray-700 truncate">{{ row.name }}</p>
+                          <p class="text-xs text-gray-700 truncate" :title="row.name">
+                            {{ row.name }}
+                          </p>
                         </template>
                         <template v-else-if="column.key === 'type'">
                           <p class="text-xs capitalize">{{ row.type || "N/A" }}</p>
@@ -195,17 +197,23 @@
                         <template v-else-if="column.key === 'url'">
                           <p class="text-xs truncate">{{ row.url || "N/A" }}</p>
                         </template>
-                        <template v-else-if="column.key === 'command'">
-                          <p class="text-xs truncate">{{ displayCommandValue(row.command) }}</p>
-                        </template>
                         <template v-else-if="column.key === 'gatewayId'">
-                          <p class="text-xs">{{ row.gatewayId || "N/A" }}</p>
+                          <p class="text-xs truncate" :title="row.gatewayId || 'N/A'">
+                            {{ row.gatewayId || "N/A" }}
+                          </p>
                         </template>
                         <template v-else-if="column.key === 'ip'">
                           <p class="text-xs">{{ row.ip || "N/A" }}</p>
                         </template>
                         <template v-else-if="column.key === 'mac'">
-                          <p class="text-xs truncate">{{ row.mac || "N/A" }}</p>
+                          <p class="text-xs truncate" :title="row.mac || 'N/A'">
+                            {{ row.mac || "N/A" }}
+                          </p>
+                        </template>
+                        <template v-else-if="column.key === 'lastSeen'">
+                          <p class="text-xs truncate" :title="formatLastSeen(row.lastSeen)">
+                            {{ formatLastSeen(row.lastSeen) }}
+                          </p>
                         </template>
                         <template v-else-if="column.key === 'status'">
                           <div class="flex items-center">
@@ -224,12 +232,7 @@
                         <template v-else-if="column.key === 'actions'">
                           <div class="flex items-center justify-center gap-1">
                             <button
-                              v-if="
-                                (activeDeviceTab === 'gateways' ||
-                                  (activeDeviceTab === 'registered' &&
-                                    row.resourceType === 'gateway')) &&
-                                !isUnactiveStatus(row.status)
-                              "
+                              v-if="activeDeviceTab === 'gateways' && !isUnactiveStatus(row.status)"
                               type="button"
                               :class="infoButtonClass"
                               title="View details"
@@ -239,11 +242,7 @@
                               <span class="sr-only">Details</span>
                             </button>
                             <button
-                              v-if="
-                                activeDeviceTab === 'nodes' ||
-                                (activeDeviceTab === 'registered' &&
-                                  row.resourceType === 'node')
-                              "
+                              v-if="activeDeviceTab === 'nodes'"
                               type="button"
                               :class="infoButtonClass"
                               title="View node details"
@@ -252,69 +251,7 @@
                               <BootstrapIcon name="info-circle" class="w-3 h-3" />
                               <span class="sr-only">Node Details</span>
                             </button>
-                            <button
-                              v-if="
-                                activeDeviceTab === 'nodes' &&
-                                isControlNode(row)
-                              "
-                              type="button"
-                              class="w-8 h-8 inline-flex items-center justify-center rounded border cursor-pointer"
-                              :class="
-                                row.registered === false
-                                  ? 'border-gray-200 text-gray-400 bg-gray-50 hover:bg-gray-100'
-                                  : 'border-blue-200 text-blue-600 hover:bg-blue-50'
-                              "
-                              title="Add control url"
-                              @click.stop="handleControlUrlClick(row)"
-                            >
-                              <BootstrapIcon name="link-45deg" class="w-3 h-3" />
-                              <span class="sr-only">Add Control URL</span>
-                            </button>
-                            <template v-if="activeDeviceTab === 'command_setup'">
-                              <button
-                                type="button"
-                                :class="infoButtonClass"
-                                title="View command details"
-                                @click.stop="openCommandSetupDetail(row)"
-                              >
-                                <BootstrapIcon name="info-circle" class="w-3 h-3" />
-                                <span class="sr-only">Command Details</span>
-                              </button>
-                              <button
-                                v-if="canEditCommandSetup(row)"
-                                type="button"
-                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                                :disabled="isDeviceLoading"
-                                title="Edit Command Setup"
-                                @click.stop="openEditCommandSetupRow(row)"
-                              >
-                                <BootstrapIcon name="pencil-square" class="w-3 h-3" />
-                                <span class="sr-only">Edit Command Setup</span>
-                              </button>
-                              <button
-                                v-if="canDeleteCommandSetup(row)"
-                                type="button"
-                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
-                                :class="{
-                                  'opacity-50 cursor-not-allowed':
-                                    isDeletingCommandSetup(row) || isDeviceLoading,
-                                }"
-                                :disabled="isDeletingCommandSetup(row) || isDeviceLoading"
-                                :aria-busy="isDeletingCommandSetup(row) || isDeviceLoading"
-                                title="Delete Command Setup"
-                                @click.stop="handleDeleteCommandSetup(row)"
-                              >
-                                <BootstrapIcon name="trash" class="w-3 h-3" />
-                                <span class="sr-only">Delete Command Setup</span>
-                              </button>
-                            </template>
-                            <template
-                              v-else-if="
-                                activeDeviceTab !== 'registered' &&
-                                activeDeviceTab !== 'registered_control_urls' &&
-                                row.registered === false
-                              "
-                            >
+                            <template v-if="row.registered === false">
                               <button
                                 type="button"
                                 class="w-8 h-8 inline-flex items-center justify-center rounded border cursor-pointer"
@@ -332,12 +269,7 @@
                                 <span class="sr-only">Register</span>
                               </button>
                             </template>
-                            <template
-                              v-else-if="
-                                activeDeviceTab !== 'registered' &&
-                                activeDeviceTab !== 'registered_control_urls'
-                              "
-                            >
+                            <template v-else>
                               <button
                                 type="button"
                                 class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
@@ -354,166 +286,14 @@
                                 <span class="sr-only">Deactivate</span>
                               </button>
                             </template>
-                            <template v-else-if="activeDeviceTab === 'registered_control_urls'">
-                              <button
-                                type="button"
-                                :class="infoButtonClass"
-                                title="View Control URL details"
-                                @click.stop="openRegisteredControlUrlDetail(row)"
-                              >
-                                <BootstrapIcon name="info-circle" class="w-3 h-3" />
-                                <span class="sr-only">Control URL Details</span>
-                              </button>
-                              <button
-                                type="button"
-                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
-                                title="Edit Control URL"
-                                @click.stop="openRegisteredControlUrlEdit(row)"
-                              >
-                                <BootstrapIcon name="pencil-square" class="w-3 h-3" />
-                                <span class="sr-only">Edit Control URL</span>
-                              </button>
-                              <button
-                                type="button"
-                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
-                                :class="{
-                                  'opacity-50 cursor-not-allowed':
-                                    isDeletingRegisteredControlUrl(row),
-                                }"
-                                :disabled="isDeletingRegisteredControlUrl(row)"
-                                :aria-busy="isDeletingRegisteredControlUrl(row)"
-                                title="Delete Control URL"
-                                @click.stop="handleDeleteRegisteredControlUrl(row)"
-                              >
-                                <BootstrapIcon name="trash" class="w-3 h-3" />
-                                <span class="sr-only">Delete Control URL</span>
-                              </button>
-                            </template>
-                            <template v-else>
-                              <button
-                                type="button"
-                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
-                                :class="{
-                                  'opacity-50 cursor-not-allowed':
-                                    isDeletingRegisteredDevice(row),
-                                }"
-                                :disabled="isDeletingRegisteredDevice(row)"
-                                :aria-busy="isDeletingRegisteredDevice(row)"
-                                title="Delete Registered Device"
-                                @click.stop="handleDeleteRegisteredDevice(row)"
-                              >
-                                <BootstrapIcon name="trash" class="w-3 h-3" />
-                                <span class="sr-only">Delete</span>
-                              </button>
-                            </template>
                           </div>
                         </template>
                       </td>
                     </tr>
-                    <transition name="inline-slide">
-                      <tr
-                        v-if="showControlUrlInline(row)"
-                        class="bg-white border-b border-blue-100"
-                      >
-                        <td
-                          :colspan="deviceTableColumnDefinitions.length"
-                          class="p-3"
-                        >
-                          <div class="flex flex-wrap items-end gap-3 text-xs">
-                          <div class="w-full">
-                            <p class="text-[11px] text-blue-600 font-semibold">
-                              Saved control URLs
-                            </p>
-                            <p
-                              v-if="controlUrlLoadError"
-                              class="text-[11px] text-red-500"
-                            >
-                              {{ controlUrlLoadError }}
-                            </p>
-                          </div>
-                          <div
-                            v-if="isLoadingControlUrls"
-                            class="w-full text-[11px] text-gray-500"
-                          >
-                            Loading control urls...
-                          </div>
-                          <div
-                            v-else-if="!controlUrlItems.length"
-                            class="w-full text-[11px] text-gray-500"
-                          >
-                            No control urls yet.
-                          </div>
-                          <div
-                            v-for="item in controlUrlItems"
-                            :key="item.id"
-                            class="flex flex-wrap items-end gap-3 w-full py-2 border-b border-slate-100"
-                          >
-                            <div class="flex flex-col gap-1">
-                              <label class="text-[10px] text-gray-500">Name</label>
-                              <input
-                                v-model="item.name"
-                                type="text"
-                                readonly
-                                class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-40 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
-                              />
-                            </div>
-                            <div class="flex flex-col gap-1">
-                              <label class="text-[10px] text-gray-500">URL</label>
-                              <input
-                                v-model="item.url"
-                                type="text"
-                                placeholder="e.g. /pump"
-                                class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-80 bg-transparent focus:outline-none focus:ring-0 focus:border-blue-500"
-                              />
-                            </div>
-                            <div class="flex flex-col gap-1">
-                              <label class="text-[10px] text-gray-500">Input type</label>
-                              <input
-                                v-model="item.input_type"
-                                type="text"
-                                readonly
-                                disabled
-                                class="border-0 border-b border-slate-300 rounded-none px-0 py-1 text-xs w-28 bg-transparent text-gray-400 cursor-not-allowed focus:outline-none focus:ring-0 focus:border-blue-500"
-                              />
-                            </div>
-                            <div class="flex items-center gap-2">
-                              <button
-                                type="button"
-                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
-                                title="Update control url"
-                                :disabled="isSavingControlUrl || !item.url"
-                                @click="handleUpdateControlUrl(item)"
-                              >
-                                <BootstrapIcon
-                                  name="pencil-square"
-                                  class="w-3 h-3"
-                                />
-                                <span class="sr-only">Update</span>
-                              </button>
-                              <button
-                                type="button"
-                                class="w-8 h-8 inline-flex items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50"
-                                title="Delete control url"
-                                :disabled="false"
-                                @click="handleDeleteControlUrl(item)"
-                              >
-                                <BootstrapIcon name="trash" class="w-3 h-3" />
-                                <span class="sr-only">Delete</span>
-                              </button>
-                            </div>
-                          </div>
-                          </div>
-                        </td>
-                      </tr>
-                    </transition>
                   </template>
                 </template>
                 <template #empty>
-                  {{
-                    activeDeviceTab === "command_setup"
-                      ? "No command setup found."
-                      : "No devices to display yet."
-                  }}
+                  No devices to display yet.
                 </template>
 
                 <template #footer>
@@ -540,46 +320,6 @@
       :nodes="connectedGatewayNodes"
       @close="closeGatewayDetail"
     />
-    <BaseNodeDetailModal
-      v-if="isNodeDetailOpen"
-      :model-value="isNodeDetailOpen"
-      :node="selectedNodeDetail"
-      @update:modelValue="isNodeDetailOpen = $event"
-      @close="closeNodeDetail"
-    />
-    <RegisteredControlUrlDetailModal
-      :model-value="isRegisteredControlUrlDetailOpen"
-      :row="selectedRegisteredControlUrl"
-      @close="closeRegisteredControlUrlDetail"
-    />
-    <CommandDetailModal
-      :model-value="isCommandSetupDetailOpen"
-      :row="selectedCommandSetupRow"
-      @close="closeCommandSetupDetail"
-    />
-    <EditRegisteredControlUrlModal
-      :model-value="isRegisteredControlUrlEditOpen"
-      title="Edit Registered Control URL"
-      :form="registeredControlUrlEditForm"
-      :is-saving="isSavingRegisteredControlUrlEdit"
-      @close="closeRegisteredControlUrlEdit"
-      @save="saveRegisteredControlUrlEdit"
-    />
-    <AddCommandSetupModal
-      :model-value="isCommandSetupModalOpen"
-      :is-editing="isEditingCommandSetup"
-      :is-saving="isSavingCommandSetup"
-      :control-url-options="controlUrlOptions"
-      :form="commandSetupForm"
-      @request-close="closeCommandSetupModal"
-      @after-leave="resetCommandSetupForm"
-      @save="handleCreateCommandSetup"
-      @draft-changed="handleGeneratedDraftChanged"
-      @add-generated-field-input="addGeneratedFieldInput"
-      @remove-generated-field-input="removeGeneratedFieldInput"
-      @mode-changed="handleGeneratedModeChanged"
-      @input-type-changed="handleCommandInputTypeChanged"
-    />
   </section>
 </template>
 
@@ -602,7 +342,6 @@ import type {
   DeviceTabKey,
   Section,
   NodeInfo,
-  ControllerState,
 } from "@/types/devices-control";
 import type { TimeframeKey } from "@/types/dashboard";
 import { apiConfig } from "~~/config/api";
@@ -610,28 +349,18 @@ import { formatIotDateTime } from "~~/config/iot-time-format";
 import { useRegisterDevice } from "@/composables/DeviceRegistration/RegisterDevice";
 import { useDeviceDeactivation } from "@/composables/DeviceRegistration/DeactiveDevice";
 import { useAuthStore } from "~~/stores/auth";
-import { useHandleUrlControl } from "@/composables/DeviceRegistration/handleUrlControl";
 import {
   createNodeCollectionsStore,
-  syncRegisteredRowsFromGatewayPayload,
   type GatewayEventPayload,
 } from "@/composables/DeviceRegistration/SSEHandle";
 import { useLoadDataRow } from "@/composables/DeviceRegistration/loadDataRow";
 import { useDeviceFilter } from "@/composables/DeviceRegistration/DeviceFilter";
-import { useControlDataTabs } from "@/composables/DeviceRegistration/useControlDataTabs";
 import {
   buildExternalToUuidMap,
   fetchGatewayInventoryRows,
-  fetchNodeInventoryRows,
-  mapGatewayInventoryToRegisteredDeviceRow,
-  mapNodeInventoryToRegisteredDeviceRow,
 } from "@/composables/DeviceRegistration/useDeviceInventory";
 import GatewayDetailModal from "@/components/Modals/Devices/GatewayDetailModal.vue";
-import BaseNodeDetailModal from "@/components/Modals/Devices/BaseNodeDetailModal.vue";
-import CommandDetailModal from "@/components/Modals/Devices/CommandDetailModal.vue";
-import RegisteredControlUrlDetailModal from "@/components/Modals/Devices/RegisteredControlUrlDetailModal.vue";
-import AddCommandSetupModal from "@/components/Modals/Devices/AddCommandSetupModal.vue";
-import EditRegisteredControlUrlModal from "@/components/Modals/Devices/EditRegisteredControlUrlModal.vue";
+import NodeDetailSection from "@/components/devices-control/sections/NodeDetailSection.vue";
 
 defineProps<{
   section: Section;
@@ -639,34 +368,17 @@ defineProps<{
 
 const gatewayRows = ref<DeviceRow[]>([]);
 const nodeRows = ref<DeviceRow[]>([]);
-const registeredRows = ref<DeviceRow[]>([]);
-const controllerStatesByNode = ref<Record<string, ControllerState[]>>({});
 const deviceTableKey = ref(0);
 const isGatewayDetailOpen = ref(false);
 const selectedGateway = ref<DeviceRow | null>(null);
-const isNodeDetailOpen = ref(false);
 const selectedNodeDetail = ref<NodeInfo | null>(null);
-const isCommandSetupDetailOpen = ref(false);
-const selectedCommandSetupRow = ref<DeviceRow | null>(null);
-const isRegisteredControlUrlDetailOpen = ref(false);
-const selectedRegisteredControlUrl = ref<DeviceRow | null>(null);
-const isRegisteredControlUrlEditOpen = ref(false);
-const isSavingRegisteredControlUrlEdit = ref(false);
-const registeredControlUrlEditForm = ref({
-  id: "",
-  node_id: "",
-  node_external_id: "",
-  controller_id: "",
-  name: "",
-  url: "",
-  input_type: "",
-});
 const isDeviceLoading = ref(false);
 
 const { metrics, fetchMetrics } = useMetrics();
 const selectedNodeMetricKey = ref<string>("");
 const selectedNodeTimeframe = ref<TimeframeKey>("second");
 const selectedNodeId = ref<string | undefined>(undefined);
+const isNodeChartVisible = ref(true);
 
 const infoButtonClass =
   "w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 cursor-pointer transition-colors duration-150 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300";
@@ -679,102 +391,15 @@ function handleNodeIdChange(value: string) {
   selectedNodeId.value = value;
 }
 
+function toggleNodeChart() {
+  isNodeChartVisible.value = !isNodeChartVisible.value;
+}
+
 const { isDeactivatingDevice, deactivateDevice } = useDeviceDeactivation();
 const { registerDevice } = useRegisterDevice();
 const authStore = useAuthStore();
-const {
-  registeredControlUrlRows,
-  loadRegisteredControlUrls,
-  isDeletingRegisteredControlUrl,
-  handleDeleteRegisteredControlUrl,
-  commandSetupRows,
-  isCommandSetupModalOpen,
-  isSavingCommandSetup,
-  isEditingCommandSetup,
-  controlUrlOptions,
-  commandSetupForm,
-  loadCommandSetups,
-  openCommandSetupModal,
-  openEditCommandSetupModal,
-  closeCommandSetupModal,
-  resetCommandSetupForm,
-  handleCreateCommandSetup,
-  handleGeneratedModeChanged,
-  handleGeneratedDraftChanged,
-  addGeneratedFieldInput,
-  removeGeneratedFieldInput,
-  handleCommandInputTypeChanged,
-  isDeletingCommandSetup,
-  canEditCommandSetup,
-  canDeleteCommandSetup,
-  handleDeleteCommandSetup,
-} = useControlDataTabs({
-  loadingRef: isDeviceLoading,
-  includeSoftDeleted: true,
-});
 const gatewayIdMap = ref<Record<string, string>>({});
 const isGatewayIdMapLoading = ref(false);
-const nodeIdMap = ref<Record<string, string>>({});
-const isNodeIdMapLoading = ref(false);
-const deletingRegisteredDeviceMap = ref<Record<string, boolean>>({});
-
-function getRegisteredDeviceKey(row: DeviceRow) {
-  return `${row.resourceType ?? "unknown"}:${row.id}`;
-}
-
-function isDeletingRegisteredDevice(row: DeviceRow) {
-  return Boolean(deletingRegisteredDeviceMap.value[getRegisteredDeviceKey(row)]);
-}
-
-function setDeletingRegisteredDevice(row: DeviceRow, value: boolean) {
-  deletingRegisteredDeviceMap.value = {
-    ...deletingRegisteredDeviceMap.value,
-    [getRegisteredDeviceKey(row)]: value,
-  };
-}
-
-function toTimestamp(value?: string | null) {
-  if (!value) return 0;
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
-
-function sortByLatestThenId(a: DeviceRow, b: DeviceRow) {
-  const aTime = Math.max(toTimestamp(a.updatedAt), toTimestamp(a.createdAt));
-  const bTime = Math.max(toTimestamp(b.updatedAt), toTimestamp(b.createdAt));
-  if (aTime !== bTime) {
-    return bTime - aTime;
-  }
-  return a.id.localeCompare(b.id, undefined, {
-    numeric: true,
-    sensitivity: "base",
-  });
-}
-
-async function loadRegisteredDevices() {
-  if (!import.meta.client) return;
-  const authorization = authStore.authorizationHeader;
-  if (!authorization) return;
-
-  isDeviceLoading.value = true;
-  try {
-    const [gatewayRows, nodeRows] = await Promise.all([
-      fetchGatewayInventoryRows(authorization),
-      fetchNodeInventoryRows(authorization),
-    ]);
-    const mappedGateways = gatewayRows.map(mapGatewayInventoryToRegisteredDeviceRow);
-    const mappedNodes = nodeRows.map(mapNodeInventoryToRegisteredDeviceRow);
-    registeredRows.value = [...mappedGateways, ...mappedNodes].sort(
-      sortByLatestThenId,
-    );
-  } catch (error: any) {
-    console.error("Failed to load registered devices", error);
-    registeredRows.value = [];
-    message.error(error?.message ?? "Failed to load registered devices.");
-  } finally {
-    isDeviceLoading.value = false;
-  }
-}
 
 async function loadGatewayIdMap() {
   if (!import.meta.client) return;
@@ -792,25 +417,6 @@ async function loadGatewayIdMap() {
     console.error("Failed to load gateway IDs", error);
   } finally {
     isGatewayIdMapLoading.value = false;
-  }
-}
-
-async function loadNodeIdMap() {
-  if (!import.meta.client) return;
-  if (isNodeIdMapLoading.value) return;
-
-  const authorization = authStore.authorizationHeader;
-  if (!authorization) return;
-
-  isNodeIdMapLoading.value = true;
-  try {
-    nodeIdMap.value = buildExternalToUuidMap(
-      await fetchNodeInventoryRows(authorization),
-    );
-  } catch (error) {
-    console.error("Failed to load node IDs", error);
-  } finally {
-    isNodeIdMapLoading.value = false;
   }
 }
 
@@ -844,57 +450,6 @@ async function handleDeactivateSensor(row: DeviceRow) {
   }
 }
 
-async function handleDeleteRegisteredDevice(row: DeviceRow) {
-  if (!apiConfig.controlModule) {
-    message.warning("Control module endpoint is not configured.");
-    return;
-  }
-  const authorization = authStore.authorizationHeader;
-  if (!authorization) {
-    message.warning("Missing authentication token.");
-    return;
-  }
-  if (!row?.id) {
-    message.warning("Missing device id.");
-    return;
-  }
-  if (isDeletingRegisteredDevice(row)) {
-    return;
-  }
-
-  const base = apiConfig.controlModule.replace(/\/$/, "");
-  const encodedId = encodeURIComponent(row.id);
-  const endpoint =
-    row.resourceType === "gateway"
-      ? `${base}/gateways/${encodedId}/deactivate`
-      : `${base}/nodes/${encodedId}/deactivate`;
-  const method = "POST";
-
-  setDeletingRegisteredDevice(row, true);
-  try {
-    const response = await fetch(endpoint, {
-      method,
-      headers: {
-        Authorization: authorization,
-        Accept: "application/json",
-      },
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(payload?.message ?? "Failed to delete registered device.");
-    }
-
-    message.success(payload?.message ?? "Registered device deleted.");
-    registeredRows.value = registeredRows.value.filter(
-      (item) => getRegisteredDeviceKey(item) !== getRegisteredDeviceKey(row),
-    );
-  } catch (error: any) {
-    console.error("Failed to delete registered device", error);
-    message.error(error?.message ?? "Unable to delete registered device.");
-  } finally {
-    setDeletingRegisteredDevice(row, false);
-  }
-}
 
 async function handleEnroll(row: DeviceRow) {
   if (activeDeviceTab.value !== "gateways" && !row.gatewayId) {
@@ -978,10 +533,7 @@ function handleReapprove(row: DeviceRow) {
 }
 
 function openGatewayDetail(row: DeviceRow) {
-  if (
-    activeDeviceTab.value !== "gateways" &&
-    !(activeDeviceTab.value === "registered" && row.resourceType === "gateway")
-  ) {
+  if (activeDeviceTab.value !== "gateways") {
     return;
   }
   selectedGateway.value = row;
@@ -995,129 +547,12 @@ function closeGatewayDetail() {
 
 function openNodeDetail(row: DeviceRow) {
   selectedNodeDetail.value = mapDeviceRowToNodeInfo(row);
-  isNodeDetailOpen.value = true;
+  activeDeviceTab.value = "nodes";
 }
 
 function closeNodeDetail() {
-  isNodeDetailOpen.value = false;
   selectedNodeDetail.value = null;
-}
-
-function openRegisteredControlUrlDetail(row: DeviceRow) {
-  selectedRegisteredControlUrl.value = row;
-  isRegisteredControlUrlDetailOpen.value = true;
-}
-
-function closeRegisteredControlUrlDetail() {
-  isRegisteredControlUrlDetailOpen.value = false;
-  selectedRegisteredControlUrl.value = null;
-}
-
-function displayCommandValue(value: unknown) {
-  if (value === null || value === undefined || value === "") return "N/A";
-  const content = String(value);
-  return content.length > 12 ? `${content.slice(0, 12)}...` : content;
-}
-
-function openCommandSetupDetail(row: DeviceRow) {
-  selectedCommandSetupRow.value = row;
-  isCommandSetupDetailOpen.value = true;
-}
-
-function closeCommandSetupDetail() {
-  isCommandSetupDetailOpen.value = false;
-  selectedCommandSetupRow.value = null;
-}
-
-function openEditCommandSetupRow(row: DeviceRow) {
-  openEditCommandSetupModal(row);
-}
-
-function openRegisteredControlUrlEdit(row: DeviceRow) {
-  registeredControlUrlEditForm.value = {
-    id: row.id ?? "",
-    node_id: row.nodeInternalId ?? "",
-    node_external_id: row.nodeId ?? "",
-    controller_id: row.controllerId ?? "",
-    name: row.name ?? "",
-    url: row.url ?? "",
-    input_type: row.inputType ?? "",
-  };
-  isRegisteredControlUrlEditOpen.value = true;
-}
-
-function closeRegisteredControlUrlEdit() {
-  isRegisteredControlUrlEditOpen.value = false;
-}
-
-async function saveRegisteredControlUrlEdit() {
-  if (!registeredControlUrlEditForm.value.id) {
-    message.warning("Missing control url id.");
-    return;
-  }
-  if (!registeredControlUrlEditForm.value.node_id) {
-    message.warning("Missing node id.");
-    return;
-  }
-  if (!registeredControlUrlEditForm.value.controller_id.trim()) {
-    message.warning("Please input controller id.");
-    return;
-  }
-  if (!registeredControlUrlEditForm.value.name.trim()) {
-    message.warning("Please input control url name.");
-    return;
-  }
-  if (!registeredControlUrlEditForm.value.url.trim()) {
-    message.warning("Please input control url.");
-    return;
-  }
-  if (!registeredControlUrlEditForm.value.input_type.trim()) {
-    message.warning("Please input input type.");
-    return;
-  }
-  const authorization = authStore.authorizationHeader;
-  if (!authorization) {
-    message.warning("Missing authentication token.");
-    return;
-  }
-  const base = (apiConfig.controlModule || "").replace(/\/$/, "");
-  if (!base) {
-    message.warning("Control module endpoint is not configured.");
-    return;
-  }
-
-  isSavingRegisteredControlUrlEdit.value = true;
-  try {
-    const endpoint = `${base}/control-urls/${encodeURIComponent(
-      registeredControlUrlEditForm.value.id,
-    )}`;
-    const response = await fetch(endpoint, {
-      method: "PUT",
-      headers: {
-        Authorization: authorization,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        controller_id: registeredControlUrlEditForm.value.controller_id.trim(),
-        node_id: registeredControlUrlEditForm.value.node_id,
-        name: registeredControlUrlEditForm.value.name.trim(),
-        url: registeredControlUrlEditForm.value.url.trim(),
-        input_type: registeredControlUrlEditForm.value.input_type.trim(),
-      }),
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(payload?.message ?? "Failed to update control url.");
-    }
-    message.success(payload?.message ?? "Control URL updated.");
-    closeRegisteredControlUrlEdit();
-    await loadRegisteredControlUrls();
-  } catch (error: any) {
-    message.error(error?.message ?? "Unable to update control url.");
-  } finally {
-    isSavingRegisteredControlUrlEdit.value = false;
-  }
+  activeDeviceTab.value = "nodes";
 }
 
 const nodeCollectionsStore = createNodeCollectionsStore();
@@ -1138,17 +573,6 @@ let deviceRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
 const deviceTabs = computed<DeviceTab[]>(() => [
   { key: "gateways", label: "Gateways", rows: gatewayRows.value },
   { key: "nodes", label: "Nodes", rows: nodeRows.value },
-  { key: "registered", label: "Enrolled", rows: registeredRows.value },
-  {
-    key: "registered_control_urls",
-    label: "Control URL",
-    rows: registeredControlUrlRows.value,
-  },
-  {
-    key: "command_setup",
-    label: "Command",
-    rows: commandSetupRows.value,
-  },
 ]);
 
 const defaultDeviceTab = computed(() => deviceTabs.value[0]!);
@@ -1165,76 +589,20 @@ const gatewayTableColumns: Array<{ key: string; label: string; width: string }> 
   { key: "actions", label: "Actions", width: "12%" },
 ];
 const nodeTableColumns: Array<{ key: string; label: string; width: string }> = [
-  { key: "id", label: "ID", width: "auto" },
-  { key: "name", label: "Name", width: "auto" },
-  { key: "type", label: "Type", width: "auto" },
-  { key: "mac", label: "MAC", width: "auto" },
-  { key: "status", label: "Status", width: "auto" },
-  { key: "registered", label: "Registered", width: "auto" },
-  { key: "actions", label: "Actions", width: "auto" },
+  { key: "id", label: "ID", width: "14%" },
+  { key: "name", label: "Name", width: "16%" },
+  { key: "type", label: "Type", width: "8%" },
+  { key: "gatewayId", label: "Gateway ID", width: "12%" },
+  { key: "mac", label: "MAC", width: "12%" },
+  { key: "lastSeen", label: "Last Seen", width: "14%" },
+  { key: "status", label: "Status", width: "8%" },
+  { key: "registered", label: "Registered", width: "8%" },
+  { key: "actions", label: "Actions", width: "8%" },
 ];
-const registeredDeviceTableColumns: Array<{
-  key: string;
-  label: string;
-  width: string;
-}> = [
-  { key: "id", label: "ID", width: "auto" },
-  { key: "name", label: "Name", width: "auto" },
-  { key: "type", label: "Type", width: "auto" },
-  { key: "ip", label: "IP", width: "auto" },
-  { key: "mac", label: "MAC", width: "auto" },
-  { key: "status", label: "Status", width: "auto" },
-  { key: "actions", label: "Actions", width: "auto" },
-];
-const registeredControlUrlTableColumns: Array<{
-  key: string;
-  label: string;
-  width: string;
-}> = [
-  { key: "nodeId", label: "Node External ID", width: "16%" },
-  { key: "controllerId", label: "Controller ID", width: "16%" },
-  { key: "nodeType", label: "Node Type", width: "12%" },
-  { key: "name", label: "Control URL Name", width: "16%" },
-  { key: "url", label: "URL", width: "18%" },
-  { key: "inputType", label: "Input Type", width: "12%" },
-  { key: "actions", label: "Actions", width: "10%" },
-];
-const commandSetupTableColumns: Array<{ key: string; label: string; width: string }> = [
-  { key: "name", label: "Name", width: "20%" },
-  { key: "nodeId", label: "Node ID", width: "20%" },
-  { key: "url", label: "URL", width: "18%" },
-  { key: "inputType", label: "Input Type", width: "14%" },
-  { key: "command", label: "Command JSON", width: "18%" },
-  { key: "actions", label: "Actions", width: "10%" },
-];
-const {
-  controlUrlItems,
-  controlUrlLoadError,
-  activeControlUrlNodeId,
-  isControlNode,
-  isLoadingControlUrls,
-  isSavingControlUrl,
-  handleControlUrlClick,
-  showControlUrlInline,
-  handleUpdateControlUrl,
-  handleDeleteControlUrl,
-  syncControlUrlItemsFromControllerStates,
-} = useHandleUrlControl({
-  activeDeviceTab,
-  nodeIdMap,
-  loadNodeIdMap,
-  isGatewayRegisteredForRow,
-  getGatewayIdFromRow,
-  controllerStatesByNode,
-});
 const deviceTableColumnDefinitions = computed(() => {
   if (activeDeviceTab.value === "gateways") return gatewayTableColumns;
   if (activeDeviceTab.value === "nodes") return nodeTableColumns;
-  if (activeDeviceTab.value === "command_setup") return commandSetupTableColumns;
-  if (activeDeviceTab.value === "registered_control_urls") {
-    return registeredControlUrlTableColumns;
-  }
-  return registeredDeviceTableColumns;
+  return gatewayTableColumns;
 });
 const deviceTableColumns = computed(() =>
   deviceTableColumnDefinitions.value.map((column) => column.label),
@@ -1261,32 +629,14 @@ const currentDeviceRows = computed<DeviceRow[]>(
   () => currentDeviceTab.value.rows,
 );
 const filteredDeviceRows = computed<DeviceRow[]>(() =>
-  filterDeviceRows(
-    currentDeviceRows.value.filter((row) => {
-      if (
-        activeDeviceTab.value === "registered" ||
-        activeDeviceTab.value === "registered_control_urls" ||
-        activeDeviceTab.value === "command_setup"
-      ) {
-        return !row.deletedAt;
-      }
-      return true;
-    }),
-  )
+  filterDeviceRows(currentDeviceRows.value)
     .slice()
-    .sort((a, b) => {
-      if (
-        activeDeviceTab.value === "registered" ||
-        activeDeviceTab.value === "command_setup" ||
-        activeDeviceTab.value === "registered_control_urls"
-      ) {
-        return sortByLatestThenId(a, b);
-      }
-      return a.id.localeCompare(b.id, undefined, {
+    .sort((a, b) =>
+      a.id.localeCompare(b.id, undefined, {
         numeric: true,
         sensitivity: "base",
-      });
-    }),
+      }),
+    ),
 );
 const displayedDeviceRows = computed<DeviceRow[]>(() => {
   const start =
@@ -1296,9 +646,7 @@ const displayedDeviceRows = computed<DeviceRow[]>(() => {
 });
 const connectedGatewayNodes = computed<DeviceRow[]>(() => {
   if (!selectedGateway.value) return [];
-  const sourceRows =
-    activeDeviceTab.value === "registered" ? registeredRows.value : nodeRows.value;
-  return sourceRows.filter(
+  return nodeRows.value.filter(
     (row) => row.resourceType !== "gateway",
   ).filter(
     (node) => node.gatewayId === selectedGateway.value?.id,
@@ -1317,20 +665,8 @@ function resetDeviceFilters() {
 
 function refreshDevices() {
   if (isDeviceLoading.value) return;
-  if (activeDeviceTab.value === "registered") {
-    loadRegisteredDevices();
-    return;
-  }
-  if (activeDeviceTab.value === "registered_control_urls") {
-    loadRegisteredControlUrls();
-    return;
-  }
-  if (activeDeviceTab.value === "command_setup") {
-    loadCommandSetups();
-    return;
-  }
   isDeviceLoading.value = true;
-  nodeCollectionsStore.clearNodeCache({ nodeRows, controllerStatesByNode });
+  nodeCollectionsStore.clearNodeCache({ nodeRows });
 
   if (deviceRefreshTimeout) {
     clearTimeout(deviceRefreshTimeout);
@@ -1547,12 +883,7 @@ function handleGatewayUpdate(event: MessageEvent) {
     updateGatewayFromPayload(payload);
     nodeCollectionsStore.updateFromGatewayPayload(payload, {
       nodeRows,
-      controllerStatesByNode,
     });
-    syncRegisteredRowsFromGatewayPayload(payload, registeredRows);
-    if (activeControlUrlNodeId.value) {
-      syncControlUrlItemsFromControllerStates();
-    }
   } catch (error) {
     console.error("Failed to parse gateway SSE payload:", error);
   }
@@ -1589,10 +920,6 @@ function disconnectGatewaySse() {
 
 onMounted(() => {
   if (!import.meta.client) return;
-  loadGatewayIdMap();
-  loadRegisteredDevices();
-  loadRegisteredControlUrls();
-  loadCommandSetups();
   connectGatewaySse();
   startDeviceStatusPolling();
   fetchMetrics();
@@ -1602,6 +929,20 @@ onBeforeUnmount(() => {
   disconnectGatewaySse();
   stopDeviceStatusPolling();
 });
+
+watch(
+  activeDeviceTab,
+  (value) => {
+    if (value !== "gateways" && value !== "nodes") {
+      activeDeviceTab.value = "gateways";
+      return;
+    }
+    if (value !== "nodes" && selectedNodeDetail.value) {
+      selectedNodeDetail.value = null;
+    }
+  },
+  { immediate: true },
+);
 
 watch(
   filteredDeviceRows,
@@ -1643,22 +984,5 @@ watch(
 
 :deep(.device-table table) {
   table-layout: fixed;
-}
-
-.inline-slide-enter-active,
-.inline-slide-leave-active {
-  transition: max-height 220ms ease, opacity 220ms ease, transform 220ms ease;
-}
-.inline-slide-enter-from,
-.inline-slide-leave-to {
-  max-height: 0;
-  opacity: 0;
-  transform: translateY(-4px);
-}
-.inline-slide-enter-to,
-.inline-slide-leave-from {
-  max-height: 120px;
-  opacity: 1;
-  transform: translateY(0);
 }
 </style>

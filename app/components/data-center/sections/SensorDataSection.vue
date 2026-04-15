@@ -2,6 +2,14 @@
   <section class="w-full">
     <a-tabs v-model:activeKey="activeTab" class="px-4 custom-tabs text-xs">
       <a-tab-pane key="sensor-data" tab="Sensor Data">
+        <SingleMetricChart
+          class="mb-4 w-full"
+          :selected-metric-key="selectedSensorMetricKey"
+          :selected-timeframe="selectedSensorTimeframe"
+          :selected-node-id="selectedSensorNodeId"
+          @update:selected-metric-key="handleSensorMetricChange"
+          @update:selected-node-id="handleSensorNodeIdChange"
+        />
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
           <div
             :class="[
@@ -305,6 +313,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { apiConfig } from "~~/config/api";
 import { formatIotDateTime } from "~~/config/iot-time-format";
 import { useMetrics } from "@/composables/useMetrics";
+import type { TimeframeKey } from "@/types/dashboard";
 import { useAuthStore } from "~~/stores/auth";
 import {
   readPinnedSensorIds,
@@ -319,6 +328,7 @@ import AdvancedFilterPanel, {
   type FilterFieldRow,
 } from "@/components/common/AdvancedFilterPanel.vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
+import SingleMetricChart from "@/components/SingleMetricChart.vue";
 
 type SensorReadingRow = {
   _id?: { $oid?: string } | string | null;
@@ -354,8 +364,11 @@ type SensorDeviceFilterState = {
 const IOT_OFFSET_MS = 7 * 60 * 60 * 1000;
 const SERVER_BASE_URL = (apiConfig.server || "").replace(/\/$/, "");
 const authStore = useAuthStore();
-const { metrics } = useMetrics();
+const { metrics, fetchMetrics } = useMetrics();
 const activeTab = ref<"sensor-data" | "sensor-device">("sensor-data");
+const selectedSensorMetricKey = ref<string>("");
+const selectedSensorTimeframe = ref<TimeframeKey>("second");
+const selectedSensorNodeId = ref<string | undefined>(undefined);
 
 const sensorDataTableColumns = [
   "Gateway",
@@ -737,6 +750,14 @@ function toggleSensorPin(row: SensorDeviceRow) {
   pinnedSensorIds.value = writePinnedSensorIds(next);
 }
 
+function handleSensorMetricChange(value: string) {
+  selectedSensorMetricKey.value = value;
+}
+
+function handleSensorNodeIdChange(value: string) {
+  selectedSensorNodeId.value = value || undefined;
+}
+
 async function fetchSensorDataRows() {
   if (!import.meta.client || !SERVER_BASE_URL) return;
   const authorization = authStore.authorizationHeader;
@@ -815,6 +836,7 @@ async function fetchSensorDeviceRows() {
 
 onMounted(() => {
   pinnedSensorIds.value = writePinnedSensorIds(readPinnedSensorIds().slice(0, 1));
+  fetchMetrics();
   fetchSensorDataRows();
   fetchSensorDeviceRows();
 });
@@ -858,6 +880,16 @@ watch(sensorDataSearchKeyword, () => {
 watch(sensorDeviceSearchKeyword, () => {
   sensorDevicePagination.value.page = 1;
 });
+
+watch(
+  metrics,
+  (value) => {
+    if (!selectedSensorMetricKey.value && value.length > 0) {
+      selectedSensorMetricKey.value = value[0]?.key ?? "";
+    }
+  },
+  { immediate: true },
+);
 
 watch(
   () => authStore.authorizationHeader,

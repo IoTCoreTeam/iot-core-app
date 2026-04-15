@@ -162,6 +162,7 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { apiConfig } from "~~/config/api";
 import { formatIotDateTime } from "~~/config/iot-time-format";
+import { useAuthStore } from "~~/stores/auth";
 import { useControlAckApi } from "@/composables/ControlAck/useControlAckApi";
 import ControlAckChartsPanel from "@/components/data-center/sections/data-overview/ControlAckChartsPanel.vue";
 import ControlAckKpiStrip from "@/components/devices-control/sections/ControlAckKpiStrip.vue";
@@ -185,6 +186,8 @@ defineProps<{
 }>();
 
 const SERVER_BASE_URL = (apiConfig.server || "").replace(/\/$/, "");
+const AUTH_BASE_URL = (apiConfig.auth || "").replace(/\/$/, "");
+const authStore = useAuthStore();
 
 const tableColumns = [
   "Gateway",
@@ -441,10 +444,53 @@ async function fetchRows() {
 
 async function fetchControlAckOverview() {
   try {
-    const overview = await controlAckApi.fetchOverview(12, "hour");
-    controlAckBucket.value = overview.bucket;
-    controlAckBuckets.value = overview.buckets;
-    controlAckTotals.value = overview.totals;
+    const authorization = authStore.authorizationHeader;
+    if (!authorization) {
+      controlAckBucket.value = DEFAULT_CONTROL_ACK_BUCKET;
+      controlAckBuckets.value = [];
+      controlAckTotals.value = { ...DEFAULT_CONTROL_ACK_TOTALS };
+      return;
+    }
+
+    const response = await fetch(
+      `${AUTH_BASE_URL}/metrics/system-logs-control-url-outcomes?hours=12&bucket=hour`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: authorization,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.message ?? `Request failed: ${response.status}`);
+    }
+
+    controlAckBucket.value =
+      payload?.bucket === "minute" ? "minute" : DEFAULT_CONTROL_ACK_BUCKET;
+    controlAckBuckets.value = Array.isArray(payload?.buckets)
+      ? payload.buckets.map((item: Record<string, unknown>) => ({
+          bucket: String(item?.bucket ?? ""),
+          on: 0,
+          off: 0,
+          success: Number(item?.success ?? 0),
+          failed: Number(item?.failed ?? 0),
+          timeout: 0,
+          unknown: 0,
+          avg_latency_ms: null,
+          p95_latency_ms: null,
+        }))
+      : [];
+
+    const totals = payload?.totals ?? {};
+    controlAckTotals.value = {
+      success: Number(totals?.success ?? 0),
+      failed: Number(totals?.failed ?? 0),
+      timeout: 0,
+      total: Number(totals?.total ?? 0),
+    };
   } catch (error) {
     console.error("Failed to fetch control ACK overview:", error);
     controlAckBucket.value = DEFAULT_CONTROL_ACK_BUCKET;
@@ -457,6 +503,14 @@ onMounted(() => {
   fetchControlAckOverview();
   fetchRows();
 });
+
+watch(
+  () => authStore.authorizationHeader,
+  (value) => {
+    if (!value) return;
+    fetchControlAckOverview();
+  },
+);
 
 watch(
   filteredRows,

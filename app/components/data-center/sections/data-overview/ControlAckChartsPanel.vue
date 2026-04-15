@@ -2,8 +2,8 @@
   <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
     <article class="min-h-[320px] bg-white border border-slate-200 rounded p-4">
       <div>
-        <p class="text-sm font-semibold text-slate-900">Control Commands Timeline</p>
-        <p class="text-xs text-slate-500">ON/OFF commands by time bucket</p>
+        <p class="text-sm font-semibold text-slate-900">Execution Outcomes Timeline</p>
+        <p class="text-xs text-slate-500">Success and failed counts by time bucket</p>
       </div>
       <div class="mt-4 h-[230px]">
         <ClientOnly>
@@ -39,7 +39,7 @@
     <article class="min-h-[320px] bg-white border border-slate-200 rounded p-4">
       <div>
         <p class="text-sm font-semibold text-slate-900">ACK Success Rate</p>
-        <p class="text-xs text-slate-500">Success / Failed / Timeout ratio</p>
+        <p class="text-xs text-slate-500">Success / Failed ratio</p>
       </div>
       <div class="mt-4 h-[230px]">
         <ClientOnly>
@@ -118,8 +118,8 @@ const latencyCategories = computed(() =>
 );
 
 const commandTimelineSeries = computed(() => [
-  { name: "ON", data: buckets.value.map((item) => item.on) },
-  { name: "OFF", data: buckets.value.map((item) => item.off) },
+  { name: "Success", data: buckets.value.map((item) => Number(item.success || 0)) },
+  { name: "Failed", data: buckets.value.map((item) => Number(item.failed || 0)) },
 ]);
 
 const commandTimelineOptions = computed<ApexOptions>(() => ({
@@ -130,7 +130,7 @@ const commandTimelineOptions = computed<ApexOptions>(() => ({
     fontFamily: "inherit",
     foreColor: "#64748b",
   },
-  colors: ["#2563eb", "#0ea5e9"],
+  colors: ["#2563eb", "#ef4444"],
   xaxis: {
     categories: timelineCategories.value,
     labels: {
@@ -224,10 +224,9 @@ const successRateSeries = computed(() => {
   const values = [
     Number(totals.value.success || 0),
     Number(totals.value.failed || 0),
-    Number(totals.value.timeout || 0),
   ];
   const hasAny = values.some((value) => value > 0);
-  return hasAny ? values : [1, 0, 0];
+  return hasAny ? values : [1, 0];
 });
 
 const successRateOptions = computed<ApexOptions>(() => ({
@@ -237,8 +236,8 @@ const successRateOptions = computed<ApexOptions>(() => ({
     fontFamily: "inherit",
     foreColor: "#64748b",
   },
-  labels: ["Success", "Failed", "Timeout"],
-  colors: ["#2563eb", "#ef4444", "#f59e0b"],
+  labels: ["Success", "Failed"],
+  colors: ["#2563eb", "#ef4444"],
   legend: {
     position: "bottom",
     labels: {
