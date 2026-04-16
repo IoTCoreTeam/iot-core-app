@@ -2,13 +2,13 @@
   <transition name="modal-overlay" appear>
     <div
       v-if="isVisible"
-      class="fixed inset-0 flex justify-center z-[9990] pt-4"
+      class="fixed inset-0 z-[9990] flex justify-center overflow-y-auto px-4 pt-4 pb-4"
     >
       <div class="absolute inset-0 bg-black/30" @click="handleBackdropClick" />
 
       <transition name="modal-slide" appear @after-leave="handleAfterLeave">
         <div
-          class="relative bg-white rounded-lg border border-gray-200 z-[9991] h-fit w-full"
+          class="relative z-[9991] h-fit max-h-[calc(100vh-2rem)] w-full overflow-y-auto rounded-lg border border-gray-200 bg-white"
           :class="[panelClass, maxWidth]"
         >
           <div
