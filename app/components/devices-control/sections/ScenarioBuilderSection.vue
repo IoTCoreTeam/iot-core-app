@@ -81,13 +81,17 @@
           </template>
         </div>
       </div>
-      <WorkflowProgressPanel
+      <ScenarioWorkflowProgressRuntime
         class="mt-4"
+        :scenario-id="props.scenario.id"
         :workflow-steps="workflowSteps"
         :current-workflow-step="currentWorkflowStep"
         :workflow-overall-status="workflowOverallStatus"
         :workflow-error-message="workflowErrorMessage"
+        :current-workflow-run-id="currentWorkflowRunId"
+        :workflow-runtime-state="workflowRuntimeState"
         @clear="resetWorkflowSteps"
+        @restore="restoreWorkflowRuntime"
       />
     </div>
 
@@ -179,7 +183,6 @@
               <tr>
                 <th class="px-3 py-2 font-medium">Name / URL</th>
                 <th class="px-3 py-2 font-medium">Node ID</th>
-                <th class="px-3 py-2 font-medium">Gateway ID</th>
               </tr>
             </thead>
             <tbody>
@@ -204,12 +207,9 @@
                 <td class="px-3 py-2 text-gray-600">
                   {{ resolveControlNodeId(item) }}
                 </td>
-                <td class="px-3 py-2 text-gray-600">
-                  {{ resolveControlGatewayId(item) }}
-                </td>
               </tr>
               <tr v-if="controlUrlOptions.length === 0">
-                <td colspan="3" class="px-3 py-3 text-center text-[11px] text-gray-400">
+                <td colspan="2" class="px-3 py-3 text-center text-[11px] text-gray-400">
                   No control URLs found.
                 </td>
               </tr>
@@ -434,7 +434,7 @@ import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import BaseModal from "@/components/Modals/BaseModal.vue";
 import LoadingState from "@/components/common/LoadingState.vue";
-import WorkflowProgressPanel from "@/components/devices-control/sections/WorkflowProgressPanel.vue";
+import ScenarioWorkflowProgressRuntime from "@/components/devices-control/sections/ScenarioWorkflowProgressRuntime.vue";
 import { apiConfig } from "~~/config/api";
 import { useAuthStore } from "~~/stores/auth";
 import { useMetrics } from "@/composables/useMetrics";
@@ -457,7 +457,10 @@ import {
   createDefaultStartNode,
   useScenarioNodePresentation,
 } from "@/composables/Scenario/useScenarioNodePresentation";
-import { useScenarioWorkflowRuntime } from "@/composables/Scenario/useScenarioWorkflowRuntime";
+import {
+  type WorkflowRuntimeSnapshot,
+  useScenarioWorkflowRuntime,
+} from "@/composables/Scenario/useScenarioWorkflowRuntime";
 
 type ScenarioRow = {
   id: string | number;
@@ -582,7 +585,6 @@ const {
   controlUrlOptions,
   fetchControlUrls,
   hasLoadedControlUrls,
-  resolveControlGatewayId,
   resolveControlInputTypeById,
   resolveControlNodeId,
 } = useScenarioControlUrls({
@@ -604,20 +606,23 @@ const {
   onSaved: markCanvasAsSaved,
 });
 
-const {
-  connectQueueStream,
-  currentWorkflowStep,
-  disconnectQueueStream,
-  isFlowActive,
-  isStoppingFlow,
-  resetWorkflowSteps,
+  const {
+    connectQueueStream,
+    currentWorkflowStep,
+    currentWorkflowRunId,
+    disconnectQueueStream,
+    hydrateRuntime,
+    isFlowActive,
+    isStoppingFlow,
+    resetWorkflowSteps,
   runButtonLabel,
   runFlow,
   stopFlow,
-  workflowErrorMessage,
-  workflowOverallStatus,
-  workflowSteps,
-} = useScenarioWorkflowRuntime({
+    workflowErrorMessage,
+    workflowOverallStatus,
+    workflowRuntimeState,
+    workflowSteps,
+  } = useScenarioWorkflowRuntime({
   authorizationHeader,
   hasMissingActionNodes,
   queueStreamBase,
@@ -696,6 +701,10 @@ function handleDragOver(event: DragEvent) {
 function buildNodeLabel(type: string) {
   const item = palette.find((entry) => entry.type === type);
   return item?.label ?? type;
+}
+
+function restoreWorkflowRuntime(snapshot: WorkflowRuntimeSnapshot) {
+  hydrateRuntime(snapshot);
 }
 
 function handleDrop(event: DragEvent) {

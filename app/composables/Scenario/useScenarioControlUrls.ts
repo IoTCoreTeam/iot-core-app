@@ -72,11 +72,22 @@ export function useScenarioControlUrls(params: {
   }
 
   function resolveControlNodeId(item: ControlUrlOption) {
-    return item?.node?.extended_id || item?.node?.external_id || item?.node?.id || "—";
+    return item?.node?.extended_id || item?.node?.external_id || item?.node?.id || "--";
   }
 
   function resolveControlGatewayId(item: ControlUrlOption) {
-    return item?.node?.gateway?.extended_id || item?.node?.gateway?.external_id || item?.node?.gateway?.id || "—";
+    const row = item as any;
+    return (
+      row?.node?.gateway?.extended_id ||
+      row?.node?.gateway?.external_id ||
+      row?.gateway?.extended_id ||
+      row?.gateway?.external_id ||
+      row?.gateway_external_id ||
+      row?.gateway_id ||
+      row?.node?.gateway?.id ||
+      row?.gateway?.id ||
+      "--"
+    );
   }
 
   function isMissingControlUrl(controlUrlId?: string | null) {
@@ -103,7 +114,7 @@ export function useScenarioControlUrls(params: {
       return;
     }
     try {
-      const controlUrlsEndpoint = `${params.controlModuleBase.value}/control-urls?per_page=200&include=gateway`;
+      const controlUrlsEndpoint = `${params.controlModuleBase.value}/control-urls?per_page=200&include=node,gateway`;
       const jsonCommandsEndpoint = `${params.controlModuleBase.value}/control-json-commands?per_page=200`;
 
       const [controlUrlsResponse, jsonCommandsResponse] = await Promise.all([
@@ -165,11 +176,23 @@ export function useScenarioControlUrls(params: {
         const id = String(row?.id ?? "").trim();
         const meta = controlUrlMetaById.get(id) ?? null;
         const node = row?.node ?? meta?.node ?? null;
-        const gateway = node?.gateway ?? null;
+        const gateway = row?.gateway ?? meta?.gateway ?? node?.gateway ?? null;
 
         return {
           ...row,
           url: row?.url ?? meta?.url ?? null,
+          gateway_id: row?.gateway_id ?? meta?.gateway_id ?? null,
+          gateway_external_id:
+            row?.gateway_external_id ??
+            meta?.gateway_external_id ??
+            gateway?.external_id ??
+            null,
+          gateway: gateway
+            ? {
+                ...gateway,
+                extended_id: gateway?.extended_id ?? gateway?.external_id ?? null,
+              }
+            : null,
           json_commands: jsonCommandsByControlUrlId.get(id) ?? null,
           node: node
             ? {

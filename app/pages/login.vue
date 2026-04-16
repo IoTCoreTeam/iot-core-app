@@ -37,7 +37,7 @@
           IOT CORE SYSTEM
         </h1>
         <p class="text-xs text-slate-400">
-          Smart Industrial Management Platform
+          IoT device monitoring and control platform 
         </p>
       </div>
 

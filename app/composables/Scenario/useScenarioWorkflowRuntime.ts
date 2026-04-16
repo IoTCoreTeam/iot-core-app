@@ -10,6 +10,14 @@ type WorkflowStep = {
   description?: string;
 };
 
+export type WorkflowRuntimeSnapshot = {
+  workflowSteps: WorkflowStep[];
+  currentWorkflowStep: number;
+  workflowErrorMessage: string | null;
+  currentWorkflowRunId: string | null;
+  workflowRuntimeState: WorkflowRuntimeState;
+};
+
 export function useScenarioWorkflowRuntime(params: {
   authorizationHeader: Ref<string | null | undefined>;
   hasMissingActionNodes: Ref<boolean>;
@@ -48,6 +56,20 @@ export function useScenarioWorkflowRuntime(params: {
     return "Run";
   });
 
+  function isValidStepStatus(value: unknown): value is WorkflowStep["status"] {
+    return value === "wait" || value === "process" || value === "finish" || value === "error";
+  }
+
+  function isValidRuntimeState(value: unknown): value is WorkflowRuntimeState {
+    return (
+      value === "idle" ||
+      value === "queued" ||
+      value === "running" ||
+      value === "stopping" ||
+      value === "error"
+    );
+  }
+
   function emitRuntimeState(state: WorkflowRuntimeState) {
     workflowRuntimeState.value = state;
     params.onRuntimeStateChange({
@@ -83,6 +105,47 @@ export function useScenarioWorkflowRuntime(params: {
     });
     currentWorkflowStep.value = 0;
     workflowErrorMessage.value = null;
+  }
+
+  function hydrateRuntime(snapshot: Partial<WorkflowRuntimeSnapshot> | null | undefined) {
+    if (!snapshot || typeof snapshot !== "object") return;
+
+    const rawSteps = Array.isArray(snapshot.workflowSteps) ? snapshot.workflowSteps : [];
+    const normalizedSteps: WorkflowStep[] = rawSteps
+      .map((step: any, index: number) => {
+        const status = isValidStepStatus(step?.status) ? step.status : "wait";
+        const title = String(step?.title ?? "").trim();
+        if (!title) return null;
+        return {
+          key: String(step?.key ?? `step-${Date.now()}-${index}`),
+          title,
+          status,
+          description: step?.description ? String(step.description) : undefined,
+        } as WorkflowStep;
+      })
+      .filter(Boolean)
+      .slice(-80) as WorkflowStep[];
+
+    if (normalizedSteps.length > 0) {
+      workflowSteps.value = normalizedSteps;
+      const nextIndex = Number(snapshot.currentWorkflowStep ?? normalizedSteps.length - 1);
+      const boundedIndex = Number.isFinite(nextIndex)
+        ? Math.min(Math.max(0, Math.floor(nextIndex)), normalizedSteps.length - 1)
+        : normalizedSteps.length - 1;
+      currentWorkflowStep.value = boundedIndex;
+    }
+
+    if (typeof snapshot.workflowErrorMessage === "string" || snapshot.workflowErrorMessage === null) {
+      workflowErrorMessage.value = snapshot.workflowErrorMessage ?? null;
+    }
+
+    if (typeof snapshot.currentWorkflowRunId === "string" || snapshot.currentWorkflowRunId === null) {
+      currentWorkflowRunId.value = snapshot.currentWorkflowRunId ?? null;
+    }
+
+    if (isValidRuntimeState(snapshot.workflowRuntimeState)) {
+      workflowRuntimeState.value = snapshot.workflowRuntimeState;
+    }
   }
 
   function resolvePayloadRunId(payload: any) {
@@ -334,6 +397,7 @@ export function useScenarioWorkflowRuntime(params: {
     currentWorkflowRunId,
     currentWorkflowStep,
     disconnectQueueStream,
+    hydrateRuntime,
     isFlowActive,
     isStoppingFlow,
     resetWorkflowSteps,

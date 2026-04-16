@@ -61,7 +61,7 @@ type NodeCollectionsRefs = {
 
 type RegisteredRowsRef = Ref<DeviceRow[]>;
 
-function normalizeStatus(value?: string | null): DeviceRow["status"] {
+export function normalizeStatus(value?: string | null): DeviceRow["status"] {
   return (value ?? "").toLowerCase() === "online" ? "online" : "offline";
 }
 

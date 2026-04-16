@@ -148,7 +148,7 @@
             <th v-if="activeTab === 'gateway'" class="px-3 py-2 text-center font-semibold">Registered</th>
             <th class="px-3 py-2 text-right font-semibold">Last Seen</th>
             <th
-              v-if="activeTab === 'node'"
+              v-if="activeTab === 'node' || activeTab === 'gateway'"
               class="px-3 py-2 text-right font-semibold"
             >
               Actions
@@ -176,9 +176,20 @@
             <td class="px-3 text-right text-gray-600">
               {{ formatLastSeen(device.lastSeen ?? null) }}
             </td>
-            <td v-if="activeTab === 'node'" class="px-3 text-right">
+            <td v-if="activeTab === 'node' || activeTab === 'gateway'" class="px-3 text-right">
               <div class="inline-flex items-center gap-1 justify-end w-full">
                 <button
+                  v-if="activeTab === 'gateway'"
+                  type="button"
+                  class="w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 cursor-pointer transition-colors duration-150 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300"
+                  title="View gateway details"
+                  aria-label="View gateway details"
+                  @click.stop="openGatewayDetail(device)"
+                >
+                  <BootstrapIcon name="info-circle" class="w-3 h-3" />
+                </button>
+                <button
+                  v-if="activeTab === 'node'"
                   type="button"
                   class="w-8 h-8 inline-flex items-center justify-center rounded border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
                   title="Zoom to node"
@@ -188,6 +199,7 @@
                   <BootstrapIcon name="geo-alt" class="w-3 h-3" />
                 </button>
                 <button
+                  v-if="activeTab === 'node'"
                   type="button"
                   class="w-8 h-8 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 cursor-pointer transition-colors duration-150 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300"
                   title="View node details"
@@ -217,6 +229,12 @@
     title="Node Details"
     @close="closeNodeDetail"
   />
+  <GatewayDetailModal
+    v-if="isGatewayDetailOpen"
+    :gateway="selectedGateway"
+    :nodes="connectedGatewayNodes"
+    @close="closeGatewayDetail"
+  />
 
 </template>
 
@@ -224,6 +242,7 @@
 import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
 import DataBoxCard from "@/components/common/DataBoxCard.vue";
 import BaseNodeDetailModal from "@/components/Modals/Devices/BaseNodeDetailModal.vue";
+import GatewayDetailModal from "@/components/Modals/Devices/GatewayDetailModal.vue";
 import type { DeviceRow, NodeInfo } from "@/types/devices-control";
 import { useLoadDataRow } from "@/composables/DeviceRegistration/loadDataRow";
 import { filterNodesInArea } from "@/composables/Map/useNodesInArea";
@@ -321,7 +340,7 @@ const enableDeviceSse = computed(() => props.enableDeviceSse);
 const enableMapAreasFetch = computed(() => props.enableMapAreasFetch);
 const hasExternalAreas = computed(() => props.mapManagedAreas !== undefined);
 const externalAreas = computed(() => props.mapManagedAreas ?? []);
-const deviceColumns = computed(() => (activeTab.value === "node" ? 4 : 3));
+const deviceColumns = computed(() => 4);
 const expandedAreaKey = ref<string | null>(null);
 
 const authStore = useAuthStore();
@@ -466,6 +485,33 @@ function toggleAreaNodesInline(area: any) {
 // Node Detail Modal Logic
 const isNodeDetailOpen = ref(false);
 const selectedNodeDetail = ref<NodeInfo | null>(null);
+const isGatewayDetailOpen = ref(false);
+const selectedGateway = ref<DeviceRow | null>(null);
+const connectedGatewayNodes = computed<DeviceRow[]>(() => {
+  if (!selectedGateway.value) return [];
+  return nodeRows.value
+    .filter((row) => row.resourceType !== "gateway")
+    .filter((node) => {
+      const gatewayId = String(node.gatewayId ?? "").trim();
+      const gatewayInternalId = String(selectedGateway.value?.id ?? "").trim();
+      const gatewayExternalId = String(selectedGateway.value?.externalId ?? "").trim();
+      return (
+        Boolean(gatewayId) &&
+        (gatewayId === gatewayInternalId || gatewayId === gatewayExternalId)
+      );
+    });
+});
+
+function openGatewayDetail(device: DeviceRow) {
+  if (activeTab.value !== "gateway") return;
+  selectedGateway.value = device;
+  isGatewayDetailOpen.value = true;
+}
+
+function closeGatewayDetail() {
+  isGatewayDetailOpen.value = false;
+  selectedGateway.value = null;
+}
 
 function mapDeviceRowToNodeInfo(row: DeviceRow): NodeInfo {
   return {
