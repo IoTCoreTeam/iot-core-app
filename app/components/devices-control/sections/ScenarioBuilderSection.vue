@@ -61,14 +61,6 @@
               <option value="widget">Show metric widget data</option>
               <option value="none">Hide metric display</option>
             </select>
-            <select
-              v-model="runDevicePreparationMode"
-              class="h-7 rounded border border-gray-300 bg-white px-2 text-xs text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
-              :disabled="isFlowActive"
-            >
-              <option value="turn_off_all">Turn off all devices first</option>
-              <option value="keep_current">Keep current device states</option>
-            </select>
             <button
               type="button"
               class="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -556,10 +548,6 @@ const conditionForm = ref({
 const isMetricNodesLoading = ref(false);
 const lastActionInputKind = ref<string | null>(null);
 const isCanvasDirty = ref(false);
-const runDevicePreparationMode = ref<"turn_off_all" | "keep_current">("turn_off_all");
-const shouldTurnOffDevicesBeforeRun = computed(
-  () => runDevicePreparationMode.value === "turn_off_all",
-);
 
 function markCanvasAsDirty() {
   isCanvasDirty.value = true;
@@ -627,7 +615,6 @@ const {
   hasMissingActionNodes,
   queueStreamBase,
   scenarioId: computed(() => props.scenario.id),
-  shouldTurnOffDevicesBeforeRun,
   onRuntimeStateChange: (payload) => emit("runtime-state", payload),
 });
 

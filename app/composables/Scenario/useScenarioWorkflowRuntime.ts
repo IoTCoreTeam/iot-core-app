@@ -23,7 +23,6 @@ export function useScenarioWorkflowRuntime(params: {
   hasMissingActionNodes: Ref<boolean>;
   queueStreamBase: Ref<string>;
   scenarioId: Ref<string | number>;
-  shouldTurnOffDevicesBeforeRun: Ref<boolean>;
   onRuntimeStateChange: (payload: {
     runId?: string | null;
     state: WorkflowRuntimeState;
@@ -348,17 +347,13 @@ export function useScenarioWorkflowRuntime(params: {
     emitRuntimeState("queued");
     message.info("Scenario is starting...");
     try {
-      const result = await runWorkflow(params.scenarioId.value, authorization, {
-        turn_off_devices_before_run: params.shouldTurnOffDevicesBeforeRun.value,
-      });
+      const result = await runWorkflow(params.scenarioId.value, authorization);
       const runId = String(result?.data?.run_id ?? result?.run_id ?? "").trim();
       currentWorkflowRunId.value = runId || null;
       pushWorkflowStep({
         title: "Workflow Queued",
         status: "finish",
-        description: params.shouldTurnOffDevicesBeforeRun.value
-          ? "Workflow is queued (devices will be turned off first)."
-          : "Workflow is queued (keep current device states).",
+        description: "Workflow is queued.",
       });
     } catch (error: any) {
       emitRuntimeState("error");

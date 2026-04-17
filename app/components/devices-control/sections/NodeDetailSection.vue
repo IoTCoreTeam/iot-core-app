@@ -8,6 +8,15 @@
       >
         Back to Device Registration
       </button>
+      <button
+        type="button"
+        class="inline-flex items-center gap-1 rounded border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        :disabled="!selectedNode || isContextLoading"
+        @click="handleResetContext"
+      >
+        <BootstrapIcon name="arrow-clockwise" class="h-3 w-3" />
+        Reset
+      </button>
     </div>
 
     <div
@@ -1260,6 +1269,11 @@ async function fetchNodeContext() {
   } finally {
     isContextLoading.value = false;
   }
+}
+
+async function handleResetContext() {
+  if (!selectedNode.value || isContextLoading.value) return;
+  await fetchNodeContext();
 }
 
 async function fetchControlUrls() {

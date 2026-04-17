@@ -59,11 +59,6 @@ export function useWorkflowSteps<TNodeData extends WorkflowNodeDataBase>(params:
         title: "Check devices in workflow",
         status: "process",
       },
-      {
-        key: "shutdown-devices",
-        title: "Shutdown all devices",
-        status: "wait",
-      },
     ];
     currentWorkflowStep.value = 0;
   }
@@ -209,34 +204,6 @@ export function useWorkflowSteps<TNodeData extends WorkflowNodeDataBase>(params:
       }
       case "devices_check_passed": {
         updateStepStatus("check-devices", "finish", "All devices online");
-        updateStepStatus("shutdown-devices", "process", "Turning devices off...");
-        const shutdownIndex = workflowSteps.value.findIndex(
-          (step) => step.key === "shutdown-devices",
-        );
-        currentWorkflowStep.value =
-          shutdownIndex >= 0 ? shutdownIndex : currentWorkflowStep.value;
-        break;
-      }
-      case "workflow_devices_off_started": {
-        const countText = typeof payload.count === "number" ? ` (${payload.count})` : "";
-        updateStepStatus(
-          "shutdown-devices",
-          "process",
-          `Turning devices off${countText}`,
-        );
-        break;
-      }
-      case "workflow_device_off_failed": {
-        updateStepStatus(
-          "shutdown-devices",
-          "error",
-          `Failed to turn off ${payload.control_url_id ?? "device"}`,
-        );
-        workflowErrorMessage.value = "Failed to shutdown devices.";
-        break;
-      }
-      case "workflow_devices_ensured_off": {
-        updateStepStatus("shutdown-devices", "finish", "All devices are off");
         break;
       }
       case "node_enter": {
