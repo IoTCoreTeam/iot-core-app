@@ -189,7 +189,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { message } from "ant-design-vue";
 import ControlUrlDetailModal from "@/components/Modals/Devices/ControlUrlDetailModal.vue";
 import LoadingState from "@/components/common/LoadingState.vue";
@@ -311,9 +311,20 @@ const widgetGridClass = computed(() => {
 const widgetState = ref<Record<string, boolean>>({});
 const analogValueMap = ref<Record<string, number>>({});
 const executingMap = ref<Record<string, boolean>>({});
+const widgetStateOverrideUntil = ref<Record<string, number>>({});
+const analogValueOverrideUntil = ref<Record<string, number>>({});
 const isDetailOpen = ref(false);
 const selectedWidget = ref<ControlWidget | null>(null);
 const skeletonItems = [1, 2, 3, 4];
+
+watch(
+  () => props.controllerStatesByNode,
+  () => {
+    widgetStateOverrideUntil.value = {};
+    analogValueOverrideUntil.value = {};
+  },
+  { deep: true },
+);
 
 const widgets = computed((): ControlWidget[] => {
   const rows = props.items ?? [];
@@ -447,12 +458,17 @@ function resolveWidgetInputType(
 }
 
 function isWidgetOn(widget: ControlWidget) {
-  if (typeof widgetState.value[widget.id] === "boolean") {
+  const now = Date.now();
+  const overrideUntil = widgetStateOverrideUntil.value[widget.id];
+  if (overrideUntil && now < overrideUntil && typeof widgetState.value[widget.id] === "boolean") {
     return widgetState.value[widget.id];
   }
   const sseState = resolveSseState(widget);
   if (typeof sseState === "boolean") {
     return sseState;
+  }
+  if (typeof widgetState.value[widget.id] === "boolean") {
+    return widgetState.value[widget.id];
   }
   return widget.isOn;
 }
@@ -584,6 +600,26 @@ function resolveSseState(widget: ControlWidget) {
   return resolveControllerStateValue(match);
 }
 
+function resolveSseAnalogValue(widget: ControlWidget): number | null {
+  const nodeKey = resolveNodeKey(widget);
+  if (!nodeKey) return null;
+  const controllers = props.controllerStatesByNode?.[nodeKey];
+  if (!Array.isArray(controllers) || controllers.length === 0) {
+    return null;
+  }
+  const controllerId = resolveControllerId(widget);
+  if (!controllerId) return null;
+  const match = resolveMatchedControllerState(controllers, controllerId);
+  if (!match) return null;
+  const raw = match.value ?? match.state ?? match.status ?? null;
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "string") {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
 async function toggleWidget(widget: ControlWidget) {
   if (!props.hasSse || !canExecute(widget)) {
     message.warning("The device is currently offline.");
@@ -604,6 +640,7 @@ async function toggleWidget(widget: ControlWidget) {
   try {
     await props.onExecute(widget, nextState);
     widgetState.value[widget.id] = nextState;
+    widgetStateOverrideUntil.value[widget.id] = Date.now() + 6000;
   } catch (error: any) {
     message.error(error?.message ?? "Failed to execute control url.");
   } finally {
@@ -649,6 +686,15 @@ function getAnalogStep(widget: ControlWidget) {
 }
 
 function getAnalogValue(widget: ControlWidget) {
+  const now = Date.now();
+  const overrideUntil = analogValueOverrideUntil.value[widget.id];
+  if (overrideUntil && now < overrideUntil && typeof analogValueMap.value[widget.id] === "number") {
+    return analogValueMap.value[widget.id]!;
+  }
+  const sseValue = resolveSseAnalogValue(widget);
+  if (typeof sseValue === "number") {
+    return sseValue;
+  }
   if (typeof analogValueMap.value[widget.id] === "number") {
     return analogValueMap.value[widget.id]!;
   }
@@ -687,6 +733,8 @@ async function applyAnalog(widget: ControlWidget) {
   executingMap.value[widget.id] = true;
   try {
     await props.onExecuteAnalog(widget, value);
+    analogValueMap.value[widget.id] = value;
+    analogValueOverrideUntil.value[widget.id] = Date.now() + 6000;
     message.success("Analog value updated.");
   } catch (error: any) {
     message.error(error?.message ?? "Failed to update analog value.");

@@ -123,9 +123,72 @@
     </div>
 
     <div>
+      <div class="bg-white rounded border border-slate-200 p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          <a-select
+            v-model:value="selectedMaps"
+            mode="multiple"
+            placeholder="Select maps"
+            :options="mapOptions"
+            show-search
+            allow-clear
+            :max-tag-count="1"
+            class="w-full"
+          />
+          <a-select
+            v-model:value="selectedGateways"
+            mode="multiple"
+            placeholder="Select gateways"
+            :options="gatewayOptions"
+            show-search
+            allow-clear
+            :max-tag-count="1"
+            class="w-full"
+          />
+          <a-select
+            v-model:value="selectedNodes"
+            mode="multiple"
+            placeholder="Select nodes"
+            :options="nodeOptions"
+            show-search
+            allow-clear
+            :max-tag-count="1"
+            class="w-full"
+          />
+          <a-select
+            v-model:value="selectedInputTypes"
+            mode="multiple"
+            placeholder="Select input types"
+            :options="inputTypeOptions"
+            show-search
+            allow-clear
+            :max-tag-count="1"
+            class="w-full"
+          />
+          <a-select
+            v-model:value="selectedControlUrls"
+            mode="multiple"
+            placeholder="Select control URLs"
+            :options="controlUrlOptions"
+            show-search
+            allow-clear
+            :max-tag-count="1"
+            class="w-full"
+          />
+          <a-input
+            v-model:value="searchQuery"
+            placeholder="Search..."
+            allow-clear
+            class="w-full"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div>
       <ControlWidgetBox
         class="w-full"
-        :items="controlUrlItems"
+        :items="filteredControlUrlItems"
         :is-loading="isLoadingControlUrls"
         :error="controlUrlLoadError"
         :on-execute="handleExecuteControlUrl"
@@ -188,6 +251,136 @@ const isLoadingControlUrls = ref(false);
 const controlUrlLoadError = ref<string | null>(null);
 const controllerStatesByNode = ref<Record<string, ControllerState[]>>({});
 const nodeRows = ref<DeviceRow[]>([]);
+
+const selectedMaps = ref<string[]>([]);
+const selectedGateways = ref<string[]>([]);
+const selectedNodes = ref<string[]>([]);
+const selectedInputTypes = ref<string[]>([]);
+const selectedControlUrls = ref<string[]>([]);
+const searchQuery = ref("");
+
+function itemMatchesSelectedMaps(item: ControlUrlItem) {
+  if (selectedMaps.value.length === 0) return true;
+  const areas = item.node?.managed_areas ?? [];
+  return areas.some((a) => a?.id != null && selectedMaps.value.includes(String(a.id)));
+}
+
+function itemMatchesSelectedGateways(item: ControlUrlItem) {
+  if (selectedGateways.value.length === 0) return true;
+  const gatewayExtId = item.node?.gateway?.external_id;
+  return gatewayExtId != null && selectedGateways.value.includes(String(gatewayExtId));
+}
+
+function itemMatchesSelectedNodes(item: ControlUrlItem) {
+  if (selectedNodes.value.length === 0) return true;
+  const nodeExtId = item.node?.external_id;
+  return nodeExtId != null && selectedNodes.value.includes(String(nodeExtId));
+}
+
+const mapOptions = computed(() => {
+  const map = new Map<string, string>();
+  controlUrlItems.value.forEach((item) => {
+    if (!itemMatchesSelectedGateways(item)) return;
+    if (!itemMatchesSelectedNodes(item)) return;
+    const areas = item.node?.managed_areas ?? [];
+    areas.forEach((a) => {
+      if (a?.id != null && a?.name != null) {
+        map.set(String(a.id), String(a.name));
+      }
+    });
+  });
+  return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+});
+
+const gatewayOptions = computed(() => {
+  const map = new Map<string, string>();
+  controlUrlItems.value.forEach((item) => {
+    if (!itemMatchesSelectedMaps(item)) return;
+    if (!itemMatchesSelectedNodes(item)) return;
+    const extId = item.node?.gateway?.external_id;
+    if (extId) {
+      map.set(String(extId), String(extId));
+    }
+  });
+  return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+});
+
+const nodeOptions = computed(() => {
+  const map = new Map<string, string>();
+  controlUrlItems.value.forEach((item) => {
+    if (!itemMatchesSelectedMaps(item)) return;
+    if (!itemMatchesSelectedGateways(item)) return;
+    const extId = item.node?.external_id;
+    if (extId) {
+      map.set(String(extId), String(extId));
+    }
+  });
+  return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+});
+
+const inputTypeOptions = [
+  { value: "digital", label: "Digital" },
+  { value: "analog", label: "Analog" },
+  { value: "json_command", label: "JSON Command" },
+];
+
+const controlUrlOptions = computed(() => {
+  const map = new Map<string, string>();
+  controlUrlItems.value.forEach((item) => {
+    if (!itemMatchesSelectedMaps(item)) return;
+    if (!itemMatchesSelectedGateways(item)) return;
+    if (!itemMatchesSelectedNodes(item)) return;
+    const url = item.url;
+    if (url) {
+      map.set(String(url), String(url));
+    }
+  });
+  return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+});
+
+const filteredControlUrlItems = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  return controlUrlItems.value.filter((item) => {
+    if (!itemMatchesSelectedMaps(item)) return false;
+    if (!itemMatchesSelectedGateways(item)) return false;
+    if (!itemMatchesSelectedNodes(item)) return false;
+    if (selectedInputTypes.value.length > 0) {
+      const inputType = String(item.input_type ?? "").trim().toLowerCase();
+      if (!selectedInputTypes.value.includes(inputType)) {
+        return false;
+      }
+    }
+    if (selectedControlUrls.value.length > 0) {
+      const url = String(item.url ?? "").trim();
+      if (!url || !selectedControlUrls.value.includes(url)) {
+        return false;
+      }
+    }
+    if (query) {
+      const gatewayName = String(item.node?.gateway?.name ?? "").toLowerCase();
+      const gatewayExtId = String(item.node?.gateway?.external_id ?? "").toLowerCase();
+      const nodeName = String(item.node?.name ?? "").toLowerCase();
+      const nodeExtId = String(item.node?.external_id ?? "").toLowerCase();
+      const controllerName = String(item.name ?? "").toLowerCase();
+      const url = String(item.url ?? "").toLowerCase();
+      const mapNames = (item.node?.managed_areas ?? [])
+        .map((a) => String(a?.name ?? "").toLowerCase())
+        .join(" ");
+      const match =
+        gatewayName.includes(query) ||
+        gatewayExtId.includes(query) ||
+        nodeName.includes(query) ||
+        nodeExtId.includes(query) ||
+        controllerName.includes(query) ||
+        url.includes(query) ||
+        mapNames.includes(query);
+      if (!match) {
+        return false;
+      }
+    }
+    return true;
+  });
+});
 const isSseConnected = ref(false);
 const workflowStatusStream = ref<EventSource | null>(null);
 const queueStreamBase = computed(() => (apiConfig.server || "").replace(/\/$/, ""));
@@ -256,6 +449,10 @@ type ControlUrlItem = {
       mac_address?: string | null;
       ip_address?: string | null;
     } | null;
+    managed_areas?: Array<{
+      id?: number | null;
+      name?: string | null;
+    }> | null;
   } | null;
 };
 
@@ -427,7 +624,7 @@ async function fetchControlUrls() {
   controlUrlLoadError.value = null;
   try {
     const base = apiConfig.controlModule.replace(/\/$/, "");
-    const controlUrlsEndpoint = `${base}/control-urls?include=gateway,analog_signal,json_commands&per_page=500`;
+    const controlUrlsEndpoint = `${base}/control-urls?include=gateway,managed_areas,analog_signal,json_commands&per_page=500`;
     const jsonCommandsEndpoint = `${base}/control-json-commands?per_page=500`;
 
     const [controlUrlsResponse, jsonCommandsResponse] = await Promise.all([
