@@ -196,12 +196,6 @@
               :max-tag-count="1"
               class="w-full"
             />
-            <a-input
-              v-model:value="searchQuery"
-              placeholder="Search..."
-              allow-clear
-              class="w-full"
-            />
           </div>
         </div>
       </div>
@@ -229,6 +223,7 @@
         :has-sse="isSseConnected"
         @close="closeBatchModal"
         @execute="handleBatchExecute"
+        @stop="handleBatchStop"
       />
     </div>
   </div>
@@ -290,7 +285,6 @@ const selectedGateways = ref<string[]>([]);
 const selectedNodes = ref<string[]>([]);
 const selectedInputTypes = ref<string[]>([]);
 const selectedControlUrls = ref<string[]>([]);
-const searchQuery = ref("");
 
 const batchInputType = ref<string>("");
 const isBatchModalOpen = ref(false);
@@ -467,6 +461,44 @@ async function handleBatchExecute(targets: BatchTarget[]) {
   }
 }
 
+async function handleBatchStop(targets: BatchTarget[]) {
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+
+  const isDigitalBatch = batchInputType.value === "digital" || batchInputType.value === "json_command.digital";
+
+  let succeeded = 0;
+  let failed = 0;
+
+  for (const target of targets) {
+    try {
+      const fakeWidget = {
+        id: target.id,
+        baseId: target.baseId,
+        raw: target.raw,
+        selectedJsonCommand: target.selectedJsonCommand,
+      };
+
+      if (isDigitalBatch) {
+        await handleExecuteControlUrl(fakeWidget, false);
+      }
+      succeeded++;
+    } catch {
+      failed++;
+    }
+  }
+
+  if (succeeded > 0) {
+    message.success(`Stopped ${succeeded} command(s) successfully.`);
+  }
+  if (failed > 0) {
+    message.error(`${failed} command(s) failed to stop.`);
+  }
+}
+
 function itemMatchesSelectedMaps(item: ControlUrlItem) {
   if (selectedMaps.value.length === 0) return true;
   const areas = item.node?.managed_areas ?? [];
@@ -547,7 +579,6 @@ const controlUrlOptions = computed(() => {
 });
 
 const filteredControlUrlItems = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase();
   return controlUrlItems.value.filter((item) => {
     if (!itemMatchesSelectedMaps(item)) return false;
     if (!itemMatchesSelectedGateways(item)) return false;
@@ -561,28 +592,6 @@ const filteredControlUrlItems = computed(() => {
     if (selectedControlUrls.value.length > 0) {
       const url = String(item.url ?? "").trim();
       if (!url || !selectedControlUrls.value.includes(url)) {
-        return false;
-      }
-    }
-    if (query) {
-      const gatewayName = String(item.node?.gateway?.name ?? "").toLowerCase();
-      const gatewayExtId = String(item.node?.gateway?.external_id ?? "").toLowerCase();
-      const nodeName = String(item.node?.name ?? "").toLowerCase();
-      const nodeExtId = String(item.node?.external_id ?? "").toLowerCase();
-      const controllerName = String(item.name ?? "").toLowerCase();
-      const url = String(item.url ?? "").toLowerCase();
-      const mapNames = (item.node?.managed_areas ?? [])
-        .map((a) => String(a?.name ?? "").toLowerCase())
-        .join(" ");
-      const match =
-        gatewayName.includes(query) ||
-        gatewayExtId.includes(query) ||
-        nodeName.includes(query) ||
-        nodeExtId.includes(query) ||
-        controllerName.includes(query) ||
-        url.includes(query) ||
-        mapNames.includes(query);
-      if (!match) {
         return false;
       }
     }

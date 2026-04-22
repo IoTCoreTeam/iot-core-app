@@ -56,7 +56,7 @@
             class="shrink-0 inline-flex items-center rounded px-2 py-0.5 text-[10px] font-medium"
             :class="badgeClass(item.inputType)"
           >
-            {{ item.inputType }}
+            {{ formatInputType(item.inputType) }}
           </span>
         </div>
 
@@ -84,7 +84,7 @@
           <span
             class="shrink-0 inline-flex items-center rounded px-2 py-0.5 text-[10px] font-medium bg-red-50 text-red-600 border border-red-200"
           >
-            Offline
+            {{ formatInputType(item.inputType) }} — Offline
           </span>
         </div>
       </div>
@@ -109,6 +109,14 @@
           @click="handleClose"
         >
           Cancel
+        </button>
+        <button
+          type="button"
+          class="px-3 py-1.5 rounded border border-red-300 bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="selectedIds.length === 0 || isExecuting"
+          @click="handleStop"
+        >
+          Stop
         </button>
         <button
           type="button"
@@ -155,6 +163,7 @@ const emit = defineEmits<{
   (e: "update:modelValue", value: boolean): void;
   (e: "close"): void;
   (e: "execute", targets: BatchItem[]): void;
+  (e: "stop", targets: BatchItem[]): void;
 }>();
 
 const selectedIds = ref<string[]>([]);
@@ -254,6 +263,12 @@ function badgeClass(inputType: string) {
   return "bg-gray-50 text-gray-700 border border-gray-200";
 }
 
+function formatInputType(inputType: string) {
+  if (inputType === "json_command.digital") return "JSON Command Digital";
+  if (inputType === "json_command.analog") return "JSON Command Analog";
+  return inputType.charAt(0).toUpperCase() + inputType.slice(1);
+}
+
 function handleClose() {
   emit("update:modelValue", false);
   emit("close");
@@ -264,6 +279,13 @@ function handleExecute() {
   if (targets.length === 0) return;
   isExecuting.value = true;
   emit("execute", targets);
+}
+
+function handleStop() {
+  const targets = props.items.filter((item) => selectedIds.value.includes(item.id));
+  if (targets.length === 0) return;
+  isExecuting.value = true;
+  emit("stop", targets);
 }
 
 watch(
