@@ -182,6 +182,7 @@
       v-if="selectedWidget"
       v-model="isDetailOpen"
       :control-url="selectedWidget.raw"
+      :selected-json-command="selectedWidget.selectedJsonCommand"
       @save-analog="handleAnalogSaved"
       @close="closeDetail"
     />

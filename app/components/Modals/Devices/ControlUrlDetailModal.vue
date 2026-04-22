@@ -325,6 +325,12 @@ type ControlUrlItem = {
 const props = defineProps<{
   modelValue: boolean;
   controlUrl: ControlUrlItem | null;
+  selectedJsonCommand?: {
+    id?: string | null;
+    control_url_id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  } | null;
 }>();
 
 const emit = defineEmits<{
@@ -366,6 +372,9 @@ const modalTitle = computed(() =>
 );
 
 const jsonCommands = computed(() => {
+  if (props.selectedJsonCommand) {
+    return [props.selectedJsonCommand];
+  }
   if (loadedJsonCommands.value.length > 0) {
     return loadedJsonCommands.value;
   }

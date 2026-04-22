@@ -123,64 +123,86 @@
     </div>
 
     <div>
-      <div class="bg-white rounded border border-slate-200 p-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <!-- Batch controls -->
+        <div class="lg:col-span-3 bg-white rounded border border-slate-200 p-4 flex items-center gap-4 flex-wrap h-full">
           <a-select
-            v-model:value="selectedMaps"
-            mode="multiple"
-            placeholder="Select maps"
-            :options="mapOptions"
-            show-search
+            v-model:value="batchInputType"
+            placeholder="Select input type"
+            :options="batchInputTypeOptions"
+            class="flex-1 min-w-[120px]"
             allow-clear
-            :max-tag-count="1"
-            class="w-full"
           />
-          <a-select
-            v-model:value="selectedGateways"
-            mode="multiple"
-            placeholder="Select gateways"
-            :options="gatewayOptions"
-            show-search
-            allow-clear
-            :max-tag-count="1"
-            class="w-full"
-          />
-          <a-select
-            v-model:value="selectedNodes"
-            mode="multiple"
-            placeholder="Select nodes"
-            :options="nodeOptions"
-            show-search
-            allow-clear
-            :max-tag-count="1"
-            class="w-full"
-          />
-          <a-select
-            v-model:value="selectedInputTypes"
-            mode="multiple"
-            placeholder="Select input types"
-            :options="inputTypeOptions"
-            show-search
-            allow-clear
-            :max-tag-count="1"
-            class="w-full"
-          />
-          <a-select
-            v-model:value="selectedControlUrls"
-            mode="multiple"
-            placeholder="Select control URLs"
-            :options="controlUrlOptions"
-            show-search
-            allow-clear
-            :max-tag-count="1"
-            class="w-full"
-          />
-          <a-input
-            v-model:value="searchQuery"
-            placeholder="Search..."
-            allow-clear
-            class="w-full"
-          />
+          <button
+            type="button"
+            class="whitespace-nowrap inline-flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="!batchInputType"
+            @click="openBatchModal"
+          >
+            Execute
+          </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="lg:col-span-9 bg-white rounded border border-slate-200 p-4 h-full">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+            <a-select
+              v-model:value="selectedMaps"
+              mode="multiple"
+              placeholder="Select maps"
+              :options="mapOptions"
+              show-search
+              allow-clear
+              :max-tag-count="1"
+              class="w-full"
+            />
+            <a-select
+              v-model:value="selectedGateways"
+              mode="multiple"
+              placeholder="Select gateways"
+              :options="gatewayOptions"
+              show-search
+              allow-clear
+              :max-tag-count="1"
+              class="w-full"
+            />
+            <a-select
+              v-model:value="selectedNodes"
+              mode="multiple"
+              placeholder="Select nodes"
+              :options="nodeOptions"
+              show-search
+              allow-clear
+              :max-tag-count="1"
+              class="w-full"
+            />
+            <a-select
+              v-model:value="selectedInputTypes"
+              mode="multiple"
+              placeholder="Select input types"
+              :options="inputTypeOptions"
+              show-search
+              allow-clear
+              :max-tag-count="1"
+              class="w-full"
+            />
+            <a-select
+              v-model:value="selectedControlUrls"
+              mode="multiple"
+              placeholder="Select control URLs"
+              :options="controlUrlOptions"
+              show-search
+              allow-clear
+              :max-tag-count="1"
+              class="w-full"
+            />
+            <a-input
+              v-model:value="searchQuery"
+              placeholder="Search..."
+              allow-clear
+              class="w-full"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -197,6 +219,16 @@
         :has-sse="isSseConnected"
         :controller-states-by-node="controllerStatesByNode"
         :desktop-columns="4"
+      />
+
+      <BatchExecuteModal
+        v-model="isBatchModalOpen"
+        :items="batchTargets"
+        :input-type="batchInputType"
+        :controller-states-by-node="controllerStatesByNode"
+        :has-sse="isSseConnected"
+        @close="closeBatchModal"
+        @execute="handleBatchExecute"
       />
     </div>
   </div>
@@ -231,6 +263,7 @@ import {
   getWorkflowRuntimeStateMeta,
   isWorkflowBusyStatus,
 } from "@/composables/useWorkflowRuntimeState";
+import BatchExecuteModal from "@/components/Modals/Devices/BatchExecuteModal.vue";
 
 defineProps<{
   section: Section;
@@ -258,6 +291,181 @@ const selectedNodes = ref<string[]>([]);
 const selectedInputTypes = ref<string[]>([]);
 const selectedControlUrls = ref<string[]>([]);
 const searchQuery = ref("");
+
+const batchInputType = ref<string>("");
+const isBatchModalOpen = ref(false);
+
+const batchInputTypeOptions = [
+  { value: "digital", label: "Digital" },
+  { value: "analog", label: "Analog" },
+  { value: "json_command.digital", label: "JSON Command (Digital)" },
+  { value: "json_command.analog", label: "JSON Command (Analog)" },
+];
+
+function resolveJsonCommandList(item: ControlUrlItem) {
+  const list = item.json_commands ?? item.jsonCommands;
+  if (Array.isArray(list)) return list;
+  const single = item.json_command ?? item.jsonCommand;
+  return single ? [single] : [];
+}
+
+function parseJsonObject(value: unknown) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function resolveJsonMode(
+  item: ControlUrlItem,
+  selectedCommand?: { command?: unknown } | null,
+): "digital" | "analog" | null {
+  if (selectedCommand) {
+    const payload = parseJsonObject(selectedCommand.command);
+    const mode = String(payload?.mode ?? "").trim().toLowerCase();
+    if (mode === "digital" || mode === "analog") return mode;
+  }
+  const commands = resolveJsonCommandList(item);
+  for (const command of commands) {
+    const payload = parseJsonObject(command?.command);
+    const mode = String(payload?.mode ?? "").trim().toLowerCase();
+    if (mode === "digital" || mode === "analog") return mode;
+  }
+  return null;
+}
+
+type BatchTarget = {
+  id: string;
+  baseId: string;
+  name: string;
+  gatewayName: string;
+  nodeName: string;
+  inputType: string;
+  raw: ControlUrlItem;
+  selectedJsonCommand?: {
+    id?: string | null;
+    name?: string | null;
+    command?: unknown;
+  } | null;
+};
+
+const batchTargets = computed((): BatchTarget[] => {
+  const result: BatchTarget[] = [];
+  if (!batchInputType.value) return result;
+
+  const filtered = filteredControlUrlItems.value;
+  filtered.forEach((item) => {
+    const baseId = String(item.id ?? "").trim();
+    if (!baseId) return;
+
+    const gatewayName =
+      item.node?.gateway?.name ?? item.node?.gateway?.external_id ?? "N/A";
+    const nodeName = item.node?.name ?? item.node?.external_id ?? "N/A";
+    const inputType = String(item.input_type ?? "").trim().toLowerCase();
+
+    if (inputType === "json_command") {
+      const commands = resolveJsonCommandList(item);
+      commands.forEach((command) => {
+        const commandId = String(command?.id ?? "").trim();
+        const widgetId = commandId ? `${baseId}::${commandId}` : `${baseId}`;
+        const commandName = String(command?.name ?? "").trim();
+        const fallbackName = item.name ?? item.controller_id ?? item.id ?? "N/A";
+        const mode = resolveJsonMode(item, command);
+        if (!mode) return;
+        const derivedType = `json_command.${mode}`;
+        if (derivedType !== batchInputType.value) return;
+        result.push({
+          id: widgetId,
+          baseId,
+          name: commandName || fallbackName,
+          gatewayName,
+          nodeName,
+          inputType: derivedType,
+          raw: item,
+          selectedJsonCommand: command ?? null,
+        });
+      });
+      return;
+    }
+
+    if (inputType === "digital" || inputType === "analog") {
+      if (inputType !== batchInputType.value) return;
+      result.push({
+        id: baseId,
+        baseId,
+        name: item.name ?? item.controller_id ?? item.id ?? "N/A",
+        gatewayName,
+        nodeName,
+        inputType,
+        raw: item,
+        selectedJsonCommand: null,
+      });
+    }
+  });
+  return result;
+});
+
+function openBatchModal() {
+  isBatchModalOpen.value = true;
+}
+
+function closeBatchModal() {
+  isBatchModalOpen.value = false;
+}
+
+async function handleBatchExecute(targets: BatchTarget[]) {
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) {
+    message.error("Missing authorization.");
+    return;
+  }
+
+  const isDigitalBatch = batchInputType.value === "digital" || batchInputType.value === "json_command.digital";
+  const isAnalogBatch = batchInputType.value === "analog" || batchInputType.value === "json_command.analog";
+
+  let succeeded = 0;
+  let failed = 0;
+
+  for (const target of targets) {
+    try {
+      const fakeWidget = {
+        id: target.id,
+        baseId: target.baseId,
+        raw: target.raw,
+        selectedJsonCommand: target.selectedJsonCommand,
+      };
+
+      if (isDigitalBatch) {
+        await handleExecuteControlUrl(fakeWidget, true);
+      } else if (isAnalogBatch) {
+        const value = 50;
+        await handleExecuteAnalog(fakeWidget, value);
+      }
+      succeeded++;
+    } catch {
+      failed++;
+    }
+  }
+
+  if (succeeded > 0) {
+    message.success(`Executed ${succeeded} command(s) successfully.`);
+  }
+  if (failed > 0) {
+    message.error(`${failed} command(s) failed.`);
+  }
+}
 
 function itemMatchesSelectedMaps(item: ControlUrlItem) {
   if (selectedMaps.value.length === 0) return true;
@@ -509,45 +717,6 @@ function normalizeActionType(value?: string | null) {
   if (normalized.includes("analog")) return "analog";
   if (normalized.includes("servo")) return "servo_control";
   return normalized;
-}
-
-function parseJsonObject(value: unknown) {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
-  }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
-      }
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function resolveJsonMode(item: ControlUrlItem) {
-  const list = Array.isArray(item.json_commands)
-    ? item.json_commands
-    : Array.isArray(item.jsonCommands)
-      ? item.jsonCommands
-      : (item.json_command ?? item.jsonCommand)
-        ? [item.json_command ?? item.jsonCommand]
-        : [];
-
-  for (const row of list) {
-    const command = parseJsonObject(row?.command);
-    const mode = String(command?.mode ?? "").trim().toLowerCase();
-    if (mode === "digital" || mode === "analog") {
-      return mode;
-    }
-  }
-
-  return null;
 }
 
 function resolveActionType(item: ControlUrlItem) {
