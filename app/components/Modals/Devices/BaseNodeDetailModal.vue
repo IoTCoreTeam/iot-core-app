@@ -79,16 +79,6 @@
                   <td
                     class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]"
                   >
-                    Last Seen
-                  </td>
-                  <td class="px-4 py-3 text-gray-900">
-                    {{ nodeView.lastSeen }}
-                  </td>
-                </tr>
-                <tr class="border-b border-gray-100">
-                  <td
-                    class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]"
-                  >
                     Latest GPS
                   </td>
                   <td class="px-4 py-3 text-gray-900">
