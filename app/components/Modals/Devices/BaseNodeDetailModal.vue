@@ -62,7 +62,7 @@
                     Gateway ID
                   </td>
                   <td class="px-4 py-3 text-gray-900 break-all">
-                    {{ nodeView.gatewayId }}
+                    {{ gatewayExternalId }}
                   </td>
                 </tr>
                 <tr class="border-b border-gray-100">
@@ -208,6 +208,7 @@ const baseModalRef = ref<BaseModalExpose | null>(null);
 const isSavingMaps = ref(false);
 const availableMaps = ref<any[]>([]);
 const selectedMapIds = ref<number[]>([]);
+const gatewayExternalId = ref<string>("N/A");
 const resolvedNodeExternalId = computed(() =>
   props.node?.external_id ?? props.node?.id ?? null,
 );
@@ -252,7 +253,7 @@ async function fetchNodeAssignedMaps() {
   if (!import.meta.client || !externalId) return;
   try {
     const res = await fetch(
-      `${apiConfig.controlModule}/nodes?external_id=${externalId}`,
+      `${apiConfig.controlModule}/nodes?external_id=${externalId}&include=gateway`,
       {
         headers: { Authorization: authStore.authorizationHeader || "" },
       },
@@ -271,8 +272,10 @@ async function fetchNodeAssignedMaps() {
     if (nodeData && nodeData.managed_areas) {
       selectedMapIds.value = nodeData.managed_areas.map((m: any) => m.id);
     }
+    gatewayExternalId.value = nodeData?.gateway?.external_id ?? "N/A";
   } catch (error) {
     console.error(error);
+    gatewayExternalId.value = "N/A";
   }
 }
 

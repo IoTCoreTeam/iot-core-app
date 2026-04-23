@@ -263,7 +263,7 @@
         <div v-if="isUsageChartVisible" class="border-t border-slate-200 bg-white px-3 py-3">
           <div class="mb-2 flex items-center justify-between">
             <h4 class="text-xs font-semibold text-gray-700">
-              Usage Frequency (All Data): {{ selectedUsageChartControlUrlLabel }}
+              Usage Frequency (Last 24h): {{ selectedUsageChartControlUrlLabel }}
             </h4>
             <button
               type="button"
@@ -467,7 +467,7 @@ const usageChartOptions = computed<ApexOptions>(() => ({
     title: { text: "Count" },
   },
   tooltip: {
-    x: { format: "dd/MM/yyyy" },
+    x: { format: "dd/MM/yyyy HH:mm" },
   },
   grid: {
     borderColor: "#e5e7eb",
@@ -631,6 +631,14 @@ function normalizeDateKey(value?: string | null) {
   return date.toISOString().slice(0, 10);
 }
 
+function normalizeHourKey(value?: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setMinutes(0, 0, 0);
+  return date.toISOString();
+}
+
 function parseRowTime(row: ControlLogRow) {
   const primary = row.timestamp ? new Date(row.timestamp) : null;
   if (primary && !Number.isNaN(primary.getTime())) return primary;
@@ -686,7 +694,7 @@ function rowIdentity(row: ControlLogRow) {
 
 async function fetchControlAckRowsPage(
   authorization: string,
-  options: { page: number; limit: number; nodeId?: string; device?: string },
+  options: { page: number; limit: number; nodeId?: string; device?: string; timestampFrom?: string },
 ) {
   const serverBase = (apiConfig.server || "").replace(/\/$/, "");
   const params = new URLSearchParams();
@@ -694,6 +702,7 @@ async function fetchControlAckRowsPage(
   params.set("page", String(options.page));
   if (options.nodeId) params.set("node_id", options.nodeId);
   if (options.device) params.set("device", options.device);
+  if (options.timestampFrom) params.set("timestamp_from", options.timestampFrom);
 
   const response = await fetch(`${serverBase}/v1/control-acks/query?${params.toString()}`, {
     method: "GET",
@@ -723,6 +732,10 @@ async function fetchAllControlAckRowsForControlUrl(authorization: string, item: 
     plans.push({ device });
   });
 
+  const now = new Date();
+  const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const timestampFrom = since.toISOString();
+
   const merged = new Map<string, ControlLogRow>();
   for (const plan of plans) {
     for (let page = 1; page <= maxPagesPerQuery; page += 1) {
@@ -731,6 +744,7 @@ async function fetchAllControlAckRowsForControlUrl(authorization: string, item: 
         limit,
         nodeId: plan.nodeId,
         device: plan.device,
+        timestampFrom,
       });
       rows.forEach((row) => {
         merged.set(rowIdentity(row), row);
@@ -778,11 +792,20 @@ async function openUsageChart(item: ControlUrlRow) {
     }
 
     const rows = await fetchAllControlAckRowsForControlUrl(authorization, item);
+    const now = new Date();
+    const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const bucketMap = new Map<string, number>();
+    const cursor = new Date(since);
+    cursor.setMinutes(0, 0, 0);
+    while (cursor <= now) {
+      bucketMap.set(cursor.toISOString(), 0);
+      cursor.setHours(cursor.getHours() + 1);
+    }
+
     rows.forEach((row) => {
       const eventTime = parseRowTime(row);
-      if (!eventTime) return;
-      const key = normalizeDateKey(eventTime.toISOString());
+      if (!eventTime || eventTime < since || eventTime > now) return;
+      const key = normalizeHourKey(eventTime.toISOString());
       if (!key) return;
       bucketMap.set(key, (bucketMap.get(key) ?? 0) + 1);
     });
@@ -790,7 +813,7 @@ async function openUsageChart(item: ControlUrlRow) {
     usageChartSeries.value = Array.from(bucketMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, count]) => ({
-        x: new Date(`${key}T00:00:00.000Z`).toISOString(),
+        x: key,
         y: count,
       }));
   } catch (error: any) {

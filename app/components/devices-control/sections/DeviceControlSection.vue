@@ -145,7 +145,7 @@
 
         <!-- Filters -->
         <div class="lg:col-span-9 bg-white rounded border border-slate-200 p-4 h-full">
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <a-select
               v-model:value="selectedMaps"
               mode="multiple"
