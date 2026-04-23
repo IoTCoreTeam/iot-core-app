@@ -420,6 +420,41 @@ async function loadGatewayIdMap() {
   }
 }
 
+async function syncNodeLatestLocation(row: DeviceRow) {
+  if (!import.meta.client) return;
+  const authorization = authStore.authorizationHeader;
+  if (!authorization) return;
+  if (row.lat == null || row.lng == null) return;
+
+  const nodeKey = row.externalId ?? row.id;
+  if (!nodeKey) return;
+
+  try {
+    const base = (apiConfig.controlModule || "").replace(/\/$/, "");
+    if (!base) return;
+
+    await fetch(
+      `${base}/nodes/${encodeURIComponent(nodeKey)}/location`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: authorization,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          latest_lat: row.lat,
+          latest_lng: row.lng,
+          latest_heading_deg: row.heading_deg ?? null,
+          latest_heading_cardinal: row.heading_cardinal ?? null,
+        }),
+      },
+    );
+  } catch (error) {
+    console.error("Failed to sync node latest location:", error);
+  }
+}
+
 function triggerDeviceTableReload(reason: "activate" | "deactivate") {
   if (isDeviceLoading.value) return;
   isDeviceLoading.value = true;
@@ -563,10 +598,15 @@ const {
   updateGatewayFromPayload,
   startDeviceStatusPolling,
   stopDeviceStatusPolling,
-} = useLoadDataRow({
-  gatewayRows,
-  nodeRows,
-});
+} = useLoadDataRow(
+  {
+    gatewayRows,
+    nodeRows,
+  },
+  {
+    onNodeMarkedOffline: syncNodeLatestLocation,
+  },
+);
 
 let deviceRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
 

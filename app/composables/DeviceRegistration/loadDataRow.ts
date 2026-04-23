@@ -7,6 +7,8 @@ type DeviceRowRefs = {
   nodeRows: Ref<DeviceRow[]>;
 };
 
+type OnNodeMarkedOffline = (row: DeviceRow) => void;
+
 const KNOWN_DEVICE_STATUSES = new Set<DeviceRow["status"]>([
   "online",
   "offline",
@@ -30,7 +32,7 @@ function normalizeStatus(value?: string | null): DeviceRow["status"] {
   return "offline";
 }
 
-export function useLoadDataRow(refs: DeviceRowRefs) {
+export function useLoadDataRow(refs: DeviceRowRefs, options?: { onNodeMarkedOffline?: OnNodeMarkedOffline }) {
   const gatewayCache = new Map<string, DeviceRow>();
   let deviceStatusPoller: ReturnType<typeof setInterval> | null = null;
 
@@ -60,21 +62,32 @@ export function useLoadDataRow(refs: DeviceRowRefs) {
     syncGatewayRows();
   }
 
-  function markRowsOfflineByLastSeen(rows: DeviceRow[]) {
+  function markRowsOfflineByLastSeen(rows: DeviceRow[]): DeviceRow[] {
     const now = Date.now();
     const thresholdMs = 30_000;
+    const newlyOffline: DeviceRow[] = [];
 
-    rows.forEach((row) => {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.status === "offline") continue;
       const lastSeenTimestamp = parseTimestamp(row.lastSeen);
       if (!lastSeenTimestamp || now - lastSeenTimestamp > thresholdMs) {
-        row.status = "offline";
+        const updated = { ...row, status: "offline" as const };
+        rows[i] = updated;
+        newlyOffline.push(updated);
+        options?.onNodeMarkedOffline?.(updated);
       }
-    });
+    }
+
+    return newlyOffline;
   }
 
-  function pollDeviceStatuses() {
-    markRowsOfflineByLastSeen(refs.gatewayRows.value);
-    markRowsOfflineByLastSeen(refs.nodeRows.value);
+  function pollDeviceStatuses(): DeviceRow[] {
+    const newlyOffline = [
+      ...markRowsOfflineByLastSeen(refs.gatewayRows.value),
+      ...markRowsOfflineByLastSeen(refs.nodeRows.value),
+    ];
+    return newlyOffline;
   }
 
   function startDeviceStatusPolling() {

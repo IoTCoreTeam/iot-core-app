@@ -75,7 +75,7 @@
                     {{ nodeView.mac }}
                   </td>
                 </tr>
-                <tr>
+                <tr class="border-b border-gray-100">
                   <td
                     class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]"
                   >
@@ -83,6 +83,36 @@
                   </td>
                   <td class="px-4 py-3 text-gray-900">
                     {{ nodeView.lastSeen }}
+                  </td>
+                </tr>
+                <tr class="border-b border-gray-100">
+                  <td
+                    class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]"
+                  >
+                    Latest GPS
+                  </td>
+                  <td class="px-4 py-3 text-gray-900">
+                    {{ latestGps.lat }}, {{ latestGps.lng }}
+                  </td>
+                </tr>
+                <tr class="border-b border-gray-100">
+                  <td
+                    class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]"
+                  >
+                    GPS Heading
+                  </td>
+                  <td class="px-4 py-3 text-gray-900">
+                    {{ latestGps.headingDeg }}° {{ latestGps.headingCardinal }}
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    class="w-40 px-4 py-3 text-gray-500 uppercase tracking-wider text-[10px]"
+                  >
+                    GPS Recorded At
+                  </td>
+                  <td class="px-4 py-3 text-gray-900">
+                    {{ latestGps.recordedAt }}
                   </td>
                 </tr>
               </tbody>
@@ -209,6 +239,19 @@ const isSavingMaps = ref(false);
 const availableMaps = ref<any[]>([]);
 const selectedMapIds = ref<number[]>([]);
 const gatewayExternalId = ref<string>("N/A");
+const latestGps = ref<{
+  lat: string;
+  lng: string;
+  headingDeg: string;
+  headingCardinal: string;
+  recordedAt: string;
+}>({
+  lat: "N/A",
+  lng: "N/A",
+  headingDeg: "N/A",
+  headingCardinal: "N/A",
+  recordedAt: "N/A",
+});
 const resolvedNodeExternalId = computed(() =>
   props.node?.external_id ?? props.node?.id ?? null,
 );
@@ -273,9 +316,23 @@ async function fetchNodeAssignedMaps() {
       selectedMapIds.value = nodeData.managed_areas.map((m: any) => m.id);
     }
     gatewayExternalId.value = nodeData?.gateway?.external_id ?? "N/A";
+    latestGps.value = {
+      lat: formatGpsValue(nodeData?.latest_lat),
+      lng: formatGpsValue(nodeData?.latest_lng),
+      headingDeg: formatGpsValue(nodeData?.latest_heading_deg),
+      headingCardinal: formatGpsValue(nodeData?.latest_heading_cardinal),
+      recordedAt: formatLastSeen(nodeData?.latest_gps_recorded_at),
+    };
   } catch (error) {
     console.error(error);
     gatewayExternalId.value = "N/A";
+    latestGps.value = {
+      lat: "N/A",
+      lng: "N/A",
+      headingDeg: "N/A",
+      headingCardinal: "N/A",
+      recordedAt: "N/A",
+    };
   }
 }
 
@@ -374,6 +431,12 @@ function formatLastSeen(value?: string | null) {
     }),
     fallback: "N/A",
   });
+}
+
+function formatGpsValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "N/A";
+  if (typeof value === "number") return value.toFixed(6);
+  return String(value);
 }
 
 function handleClose() {

@@ -100,6 +100,11 @@ export type NodeInfo = {
   last_seen?: string | null;
   connected_nodes?: string[] | null;
   managed_areas?: { id: number; name: string }[] | null;
+  latest_lat?: number | null;
+  latest_lng?: number | null;
+  latest_heading_deg?: number | null;
+  latest_heading_cardinal?: string | null;
+  latest_gps_recorded_at?: string | null;
 };
 
 export type DeviceTab = {
